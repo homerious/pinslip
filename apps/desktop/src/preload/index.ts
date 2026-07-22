@@ -51,6 +51,7 @@ const api: ElectronAPI = {
     ipcRenderer.on(IPC.UpdateState, listener);
     return () => ipcRenderer.removeListener(IPC.UpdateState, listener);
   },
+  openDownloadPage: () => ipcRenderer.invoke(IPC.UpdateOpenDownload),
 };
 
 contextBridge.exposeInMainWorld('api', api);

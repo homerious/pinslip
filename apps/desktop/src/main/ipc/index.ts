@@ -166,4 +166,8 @@ export function registerIpcHandlers({ windowManager, goProcess }: IpcContext): v
     quitAndInstall();
   });
   ipcMain.handle(IPC.UpdateGetState, () => getUpdateState());
+  // 手动下载兜底：URL 固定在主进程，渲染层不能传参，避免 openExternal 被滥用成开放跳转
+  ipcMain.handle(IPC.UpdateOpenDownload, async () => {
+    await shell.openExternal('https://github.com/homerious/pinslip/releases/latest');
+  });
 }

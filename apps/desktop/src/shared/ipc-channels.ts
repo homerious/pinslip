@@ -57,4 +57,6 @@ export const IPC = {
   UpdateGetState: 'update:get-state',
   /** 更新状态广播（主进程→所有窗口）：checking/available/downloading/downloaded/latest/error */
   UpdateState: 'update:state',
+  /** 用系统浏览器打开下载页（更新检查失败时的手动下载兜底） */
+  UpdateOpenDownload: 'update:open-download',
 } as const;

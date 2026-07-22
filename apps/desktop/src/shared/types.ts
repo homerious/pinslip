@@ -156,4 +156,6 @@ export interface ElectronAPI {
   getUpdateState(): Promise<UpdateState>;
   /** 订阅更新状态广播（检查中/发现新版本/下载进度/可安装），返回取消订阅函数 */
   onUpdateState(cb: (state: UpdateState) => void): () => void;
+  /** 用系统浏览器打开下载页（更新检查失败时的手动下载兜底） */
+  openDownloadPage(): Promise<void>;
 }

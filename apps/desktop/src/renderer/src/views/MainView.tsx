@@ -73,7 +73,7 @@ function updateHint(state: UpdateState, isPackaged: boolean): string {
     case 'latest':
       return '已是最新版本';
     case 'error':
-      return `检查失败：${state.message}`;
+      return `检查失败：${state.message}，可手动下载安装包`;
   }
 }
 
@@ -682,6 +682,14 @@ export default function MainView() {
                     onClick={() => void window.api.checkUpdate()}
                   >
                     <ArrowsClockwiseIcon /> 检查更新
+                  </button>
+                )}
+                {updateState.status === 'error' && (
+                  <button
+                    className="settings-panel__btn"
+                    onClick={() => void window.api.openDownloadPage()}
+                  >
+                    前往下载页
                   </button>
                 )}
               </div>
