@@ -18,38 +18,34 @@ Current version: **v0.5.1** ([Changelog](docs/CHANGELOG.md))
 ## Say hi to PinSlip
 
 **An everyday note, right on your desktop**
-No heavy app to launch, no "where should I save this?" moment. Pin a note to
-your screen and it's simply there when you need it. Six warm colors to pick
-from; fold it into a slim title bar when you're done, unfold it when you're back.
+No heavy app to launch, no "where should I save this?" moment. Whatever you want
+to write, pin a note to your screen — it saves itself as you go. Six colors to
+pick from; fold it into a slim title bar when you're done, unfold it whenever
+you want to write or read.
 
 **Want it a little prettier? Try Markdown**
 Plain scribbles are perfectly fine. But when you feel like tidying up — a to-do
 list, a few sections with little headings — type in Markdown and watch the
 formatting come alive. Task boxes are click-to-check, and screenshots paste in
-with Ctrl+V. You'll never wonder where the image files went.
+with Ctrl+V — you'll never have to think about where the images go.
 
 **Toss them around — they still line up**
 No need to tidy up by hand. Fold a note away for later; pinned notes sit neatly
-in any screen corner; notes gently snap to each other when they get close; and
-they can form a little "squad" — the whole squad moves and resizes together,
-and when one note folds, the ones below shuffle up to fill in.
+in any screen corner; notes gently snap together when they get close; and they
+can form a little "squad" — the whole squad moves and resizes together, and
+when one note folds, the ones below shuffle up to fill in.
 
 **Your words belong to you**
 Everything is stored locally, in your own folder — no cloud in the middle.
 Even if you stop using PinSlip one day, every note is still right there:
-just a plain Markdown file, ready to open in Obsidian, VS Code, or any
-Markdown-friendly editor, and pick up where you left off.
+just a plain Markdown file, ready for Obsidian, VS Code, or any
+Markdown-friendly editor — then keep writing.
 
 **Jotted in a hurry, found in a second**
 Wrote something down quickly and need it later? Just search. Tags and folders
-keep things grouped, full-text search works great with Chinese too, and matched
-words light up for you. Deleted something by accident? It's waiting in the
-recycle area — bring it back anytime.
-
-**A few more small thoughts**
-It keeps you company in the system tray; `Ctrl+Shift+N` captures a thought from
-anywhere; it starts with your computer, and every note reopens exactly where
-you left it.
+help the meticulous side of you keep things grouped. Full-text search covers
+the content itself — no problem if that's all you remember. Deleted something
+by accident? It's waiting in the recycle area, ready to come back.
 
 ## Getting started
 
