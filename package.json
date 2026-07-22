@@ -1,6 +1,6 @@
 {
   "name": "pinslip",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "private": true,
   "license": "MIT",
   "description": "PinSlip — 桌面钉住便签 + 本地知识管理 + AI 开放接入",

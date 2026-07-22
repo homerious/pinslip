@@ -1,15 +1,19 @@
 # PinSlip 出包流水线
 #
 # 触发方式：
-#   1. 打 tag 推送（如 git tag v0.5.0 && git push origin v0.5.0）→ 双平台出包 + 自动建 GitHub Release（草稿）
+#   1. 打 tag 推送（如 git tag v0.5.1 && git push origin v0.5.1）→ 三端出包 + 自动建 GitHub Release（草稿）
 #   2. Actions 页手动 Run workflow → 只出包传 artifacts，不建 Release（用于验链路）
 #
 # 产物：
-#   - Windows：PinSlip-Setup-<version>.exe（NSIS）
-#   - macOS：  PinSlip-<version>-arm64.dmg（仅 Apple Silicon；未签名，首次打开需右键 → 打开）
+#   - Windows (x64)：PinSlip-Setup-<version>.exe（NSIS）
+#   - macOS arm64： PinSlip-<version>-arm64.dmg（Apple Silicon）
+#   - macOS x64：   PinSlip-<version>-x64.dmg（Intel）
+#   mac 包均未签名，首次打开需右键 → 打开
 #
 # 设计说明：
-#   - SQLite 用纯 Go 驱动（modernc.org/sqlite，CGO_ENABLED=0），任何平台原生编译即可，无 gcc 依赖
+#   - SQLite 用纯 Go 驱动（modernc.org/sqlite，CGO_ENABLED=0）：
+#     mac Intel 的 pinslipd 在 arm64 runner 上交叉编译即可（GOARCH=amd64），无需 Intel runner
+#   - 每条腿单独编译 Go + 单独打包，保证 dmg 内嵌的 pinslipd 架构正确
 #   - mac 签名/公证需要 Apple 开发者账号（$99/年）：拿到证书后设置 CSC_LINK / CSC_KEY_PASSWORD
 #     secrets 并移除 CSC_IDENTITY_AUTO_DISCOVERY=false 即可启用
 
@@ -29,7 +33,19 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, macos-latest]
+        include:
+          - os: windows-latest
+            suffix: windows-x64
+            goarch: amd64   # 与宿主一致，显式写出便于阅读
+            eb: --win
+          - os: macos-latest
+            suffix: mac-arm64
+            goarch: arm64   # 原生编译
+            eb: --mac --arm64
+          - os: macos-latest
+            suffix: mac-x64
+            goarch: amd64   # 纯 Go 无 CGO，arm64 runner 交叉编译 Intel 服务
+            eb: --mac --x64
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -49,22 +65,29 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      # pnpm dist = build:service（Go 编译）+ electron-builder（按当前平台出包）
-      - name: 编译 Go 服务并打包
-        run: pnpm dist
+      - name: 编译 Go 服务
+        run: pnpm build:service
+        env:
+          GOARCH: ${{ matrix.goarch }}
+
+      - name: 构建桌面端
+        run: pnpm --filter @pinslip/desktop build
+
+      - name: 打包安装包
+        run: pnpm --filter @pinslip/desktop exec electron-builder ${{ matrix.eb }}
         env:
           # 暂无 Apple 签名证书：跳过 macOS 证书探测，避免打包失败
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
 
       - uses: actions/upload-artifact@v4
         with:
-          name: pinslip-${{ matrix.os }}
+          name: pinslip-${{ matrix.suffix }}
           path: |
             apps/desktop/release/*.exe
             apps/desktop/release/*.dmg
           if-no-files-found: error
 
-  # 仅 tag 推送时：汇总双平台产物建 Release 草稿（人工检查后再发布）
+  # 仅 tag 推送时：汇总三端产物建 Release 草稿（人工检查后再发布）
   release:
     needs: build
     if: startsWith(github.ref, 'refs/tags/')

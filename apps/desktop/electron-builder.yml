@@ -30,13 +30,14 @@ win:
         - x64
   icon: resources/icon.ico
 
-# macOS：仅 Apple Silicon（arm64）单架构——CI mac runner 原生编译 pinslipd 并出包；
-# Intel（x64）后续需要再加（SQLite 为纯 Go 驱动无 CGO，交叉编译无障碍，但每架构需独立打包链）
+# macOS：arm64（Apple Silicon）+ x64（Intel）双架构 dmg；
+# CI 按架构分腿编译 pinslipd 并单独打包（纯 Go 无 CGO，x64 服务由 arm64 runner 交叉编译）
 mac:
   target:
     - target: dmg
       arch:
         - arm64
+        - x64
   icon: resources/icon.png               # 1024px，mac runner 上 electron-builder 自动转 icns
   category: public.app-category.productivity
 
