@@ -21,7 +21,9 @@ import CaretDownIcon from '~icons/ph/caret-down';
 import CaretRightIcon from '~icons/ph/caret-right';
 import SortAscendingIcon from '~icons/ph/sort-ascending';
 import SortDescendingIcon from '~icons/ph/sort-descending';
-import type { NoteMeta, SearchHit } from '@shared/types';
+import ArrowsClockwiseIcon from '~icons/ph/arrows-clockwise';
+import InfoIcon from '~icons/ph/info';
+import type { NoteMeta, SearchHit, UpdateState } from '@shared/types';
 import { foldersApi, notesApi, settingsApi, trashApi } from '../api/notes';
 import type { TrashStats } from '../api/notes';
 import { shortenFolder } from '../utils/path';
@@ -45,6 +47,36 @@ function formatSize(bytes: number): string {
 
 type Stage = 'loading' | 'setup' | 'ready';
 
+/** 空列表提示：强制两行排版——窄面板里自然换行会把「新建便签」拦腰折断 */
+const EMPTY_NOTE_HINT = (
+  <>
+    还没有便签
+    <br />
+    点击「新建便签」开始
+  </>
+);
+
+/** 更新状态 → 设置页提示文案（dev 环境固定提示不可检查） */
+function updateHint(state: UpdateState, isPackaged: boolean): string {
+  if (!isPackaged) return '开发模式下不提供更新检查';
+  switch (state.status) {
+    case 'idle':
+      return '启动后会自动检查更新';
+    case 'checking':
+      return '正在检查更新…';
+    case 'available':
+      return `发现新版本 v${state.version}，正在后台下载…`;
+    case 'downloading':
+      return `正在下载更新 ${state.percent}%…`;
+    case 'downloaded':
+      return `新版本 v${state.version} 已就绪，重启后生效`;
+    case 'latest':
+      return '已是最新版本';
+    case 'error':
+      return `检查失败：${state.message}`;
+  }
+}
+
 /** 主窗口视图：笔记列表 + 搜索（管理入口；日常新建走便签 ＋ / 托盘 / 快捷键）。
  *  首次使用先引导选择保险库（便签存储目录，Obsidian 式） */
 export default function MainView() {
@@ -58,6 +90,9 @@ export default function MainView() {
   const [error, setError] = useState('');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [isPackaged, setIsPackaged] = useState(false);
+  const [version, setVersion] = useState('');
+  /** 自动更新状态（主进程权威，这里只是镜像展示） */
+  const [updateState, setUpdateState] = useState<UpdateState>({ status: 'idle' });
   const [autoStart, setAutoStart] = useState(false);
   // 回收区：统计快照 + 保留天数 + 清空两阶段确认态
   const [trashStats, setTrashStats] = useState<TrashStats | null>(null);
@@ -264,6 +299,7 @@ export default function MainView() {
       .getRuntimeInfo()
       .then((info) => {
         setIsPackaged(info.isPackaged);
+        setVersion(info.version);
         if (info.vaultPath) {
           setVaultPath(info.vaultPath);
           setStage('ready');
@@ -272,6 +308,15 @@ export default function MainView() {
         }
       })
       .catch(() => setStage('setup'));
+  }, []);
+
+  // 更新状态：挂载时拉一次快照（可能已有后台检查结果），之后跟随主进程广播
+  useEffect(() => {
+    window.api
+      .getUpdateState()
+      .then(setUpdateState)
+      .catch(() => {});
+    return window.api.onUpdateState(setUpdateState);
   }, []);
 
   // 列表加载 + 窗口聚焦时刷新 + 笔记变更广播时刷新（便签编辑/删除/速记近实时同步）
@@ -607,6 +652,41 @@ export default function MainView() {
                 删除的文件夹会移到 .trash 目录；误删内容可打开回收区拖回 notes/ 找回
               </div>
             </div>
+
+            <div className="settings-panel__section">更新</div>
+            <div className="settings-card">
+              <div className="settings-panel__row">
+                <InfoIcon className="settings-panel__row-icon" />
+                <span className="settings-panel__label">当前版本</span>
+                <span className="settings-panel__value">
+                  {version ? `v${version}` : '…'}
+                </span>
+              </div>
+              <div className="settings-panel__actions">
+                {updateState.status === 'downloaded' ? (
+                  <button
+                    className="settings-panel__btn"
+                    onClick={() => void window.api.installUpdate()}
+                  >
+                    重启安装 v{updateState.version}
+                  </button>
+                ) : (
+                  <button
+                    className="settings-panel__btn"
+                    disabled={
+                      !isPackaged ||
+                      updateState.status === 'checking' ||
+                      updateState.status === 'available' ||
+                      updateState.status === 'downloading'
+                    }
+                    onClick={() => void window.api.checkUpdate()}
+                  >
+                    <ArrowsClockwiseIcon /> 检查更新
+                  </button>
+                )}
+              </div>
+              <div className="settings-panel__hint">{updateHint(updateState, isPackaged)}</div>
+            </div>
           </div>
         </>
       )}
@@ -775,7 +855,7 @@ export default function MainView() {
           <ul className="note-list">
             {sortedNotes.map((note) => renderNoteItem(note, true))}
             {notes.length === 0 && !error && (
-              <li className="note-list__empty">还没有便签，点击"新建便签"开始</li>
+              <li className="note-list__empty">{EMPTY_NOTE_HINT}</li>
             )}
           </ul>
         </section>
@@ -841,7 +921,7 @@ export default function MainView() {
             {layerNotes.map((note) => renderNoteItem(note))}
             {layerNotes.length === 0 && childFolders.length === 0 && !error && (
               <li className="note-list__empty">
-                {currentFolder ? '这个文件夹还是空的' : '还没有便签，点击"新建便签"开始'}
+                {currentFolder ? '这个文件夹还是空的' : EMPTY_NOTE_HINT}
               </li>
             )}
           </ul>
@@ -888,7 +968,7 @@ export default function MainView() {
           {notes.length === 0 && !error && (
             <section className="main-view__section">
               <ul className="note-list">
-                <li className="note-list__empty">还没有便签，点击"新建便签"开始</li>
+                <li className="note-list__empty">{EMPTY_NOTE_HINT}</li>
               </ul>
             </section>
           )}

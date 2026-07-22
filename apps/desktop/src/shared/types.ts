@@ -82,9 +82,23 @@ export interface RuntimeInfo {
   platform: string;
   /** 保险库路径；null = 未设置（首次使用，渲染层应引导选择） */
   vaultPath: string | null;
-  /** 是否打包环境（开机自启等功能仅打包后可用） */
+  /** 是否打包环境（开机自启/自动更新等功能仅打包后可用） */
   isPackaged: boolean;
+  /** 应用版本号（package.json version，设置页展示用） */
+  version: string;
 }
+
+/** 自动更新状态机（主进程唯一权威，渲染层只展示）：
+ *  idle → checking → available → downloading → downloaded；
+ *  无更新 → latest；失败 → error（可再次检查回到 checking） */
+export type UpdateState =
+  | { status: 'idle' }
+  | { status: 'checking' }
+  | { status: 'available'; version: string }
+  | { status: 'downloading'; percent: number }
+  | { status: 'downloaded'; version: string }
+  | { status: 'latest'; version: string }
+  | { status: 'error'; message: string };
 
 /** preload 暴露到 window.api 的接口契约（唯一 IPC 出口） */
 export interface ElectronAPI {
@@ -134,4 +148,12 @@ export interface ElectronAPI {
   groupRename(noteId: string, name: string): Promise<void>;
   /** 解散组（组手柄右键菜单）：全员退组、位置原地不动 */
   groupDissolve(noteId: string): Promise<void>;
+  /** 手动检查更新（dev 环境下会通过状态广播返回提示错误） */
+  checkUpdate(): Promise<void>;
+  /** 退出并安装已下载的更新 */
+  installUpdate(): Promise<void>;
+  /** 拉取当前更新状态（设置页打开时同步快照） */
+  getUpdateState(): Promise<UpdateState>;
+  /** 订阅更新状态广播（检查中/发现新版本/下载进度/可安装），返回取消订阅函数 */
+  onUpdateState(cb: (state: UpdateState) => void): () => void;
 }

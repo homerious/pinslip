@@ -49,4 +49,12 @@ export const IPC = {
   GroupRename: 'group:rename',
   /** 解散组（组手柄右键菜单），参数 noteId：全员退组、位置原地不动 */
   GroupDissolve: 'group:dissolve',
+  /** 手动检查更新（设置页按钮触发） */
+  UpdateCheck: 'update:check',
+  /** 退出并安装已下载的更新 */
+  UpdateInstall: 'update:install',
+  /** 拉取当前更新状态（设置页打开时同步快照） */
+  UpdateGetState: 'update:get-state',
+  /** 更新状态广播（主进程→所有窗口）：checking/available/downloading/downloaded/latest/error */
+  UpdateState: 'update:state',
 } as const;

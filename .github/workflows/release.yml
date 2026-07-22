@@ -1,19 +1,21 @@
 # PinSlip 出包流水线
 #
 # 触发方式：
-#   1. 打 tag 推送（如 git tag v0.5.1 && git push origin v0.5.1）→ 三端出包 + 自动建 GitHub Release（草稿）
+#   1. 打 tag 推送（如 git tag v0.5.2 && git push origin v0.5.2）→ 双端出包 + 自动建 GitHub Release（草稿）
 #   2. Actions 页手动 Run workflow → 只出包传 artifacts，不建 Release（用于验链路）
 #
 # 产物：
-#   - Windows (x64)：PinSlip-Setup-<version>.exe（NSIS）
-#   - macOS arm64： PinSlip-<version>-arm64.dmg（Apple Silicon）
-#   - macOS x64：   PinSlip-<version>-x64.dmg（Intel）
+#   - Windows (x64)：PinSlip-Setup-<version>.exe（NSIS）+ latest.yml
+#   - macOS：       PinSlip-<version>-arm64.dmg（Apple Silicon）+ PinSlip-<version>-x64.dmg（Intel）
+#                   + latest-mac.yml（单腿产出双 dmg，共用一份更新元信息）
+#   latest*.yml 与 *.blockmap 是 electron-updater 自动更新的元信息，必须随安装包一起进 Release
 #   mac 包均未签名，首次打开需右键 → 打开
 #
 # 设计说明：
 #   - SQLite 用纯 Go 驱动（modernc.org/sqlite，CGO_ENABLED=0）：
-#     mac Intel 的 pinslipd 在 arm64 runner 上交叉编译即可（GOARCH=amd64），无需 Intel runner
-#   - 每条腿单独编译 Go + 单独打包，保证 dmg 内嵌的 pinslipd 架构正确
+#     mac 的 pinslipd 在 arm64 runner 上交叉编译 arm64+amd64 后用 lipo 合成 universal 二进制
+#     （PINSLIP_MAC_UNIVERSAL=1，见 scripts/build-service.js），无需 Intel runner
+#   - mac 单腿出双 dmg：两腿分打会各产一份 latest-mac.yml 互相覆盖，导致自动更新元信息只剩一腿
 #   - mac 签名/公证需要 Apple 开发者账号（$99/年）：拿到证书后设置 CSC_LINK / CSC_KEY_PASSWORD
 #     secrets 并移除 CSC_IDENTITY_AUTO_DISCOVERY=false 即可启用
 
@@ -36,17 +38,14 @@ jobs:
         include:
           - os: windows-latest
             suffix: windows-x64
-            goarch: amd64   # 与宿主一致，显式写出便于阅读
             eb: --win
           - os: macos-latest
-            suffix: mac-arm64
-            goarch: arm64   # 原生编译
-            eb: --mac --arm64
-          - os: macos-latest
-            suffix: mac-x64
-            goarch: amd64   # 纯 Go 无 CGO，arm64 runner 交叉编译 Intel 服务
-            eb: --mac --x64
+            suffix: mac
+            eb: --mac   # yml 已列 [arm64, x64]，一次出双 dmg + 合并 latest-mac.yml
     runs-on: ${{ matrix.os }}
+    env:
+      # mac 腿：交叉编译 + lipo 合成 universal pinslipd（win 腿此变量为空，走原生编译）
+      PINSLIP_MAC_UNIVERSAL: ${{ matrix.os == 'macos-latest' && '1' || '' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -67,8 +66,6 @@ jobs:
 
       - name: 编译 Go 服务
         run: pnpm build:service
-        env:
-          GOARCH: ${{ matrix.goarch }}
 
       - name: 构建桌面端
         run: pnpm --filter @pinslip/desktop build
@@ -85,9 +82,11 @@ jobs:
           path: |
             apps/desktop/release/*.exe
             apps/desktop/release/*.dmg
+            apps/desktop/release/latest*.yml
+            apps/desktop/release/*.blockmap
           if-no-files-found: error
 
-  # 仅 tag 推送时：汇总三端产物建 Release 草稿（人工检查后再发布）
+  # 仅 tag 推送时：汇总双端产物建 Release 草稿（人工检查后再发布）
   release:
     needs: build
     if: startsWith(github.ref, 'refs/tags/')

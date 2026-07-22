@@ -8,6 +8,7 @@ import type { GoProcess } from '../services/go-process';
 import { getVaultPath, setVaultPath } from '../settings';
 import { getAutoStart, setAutoStart } from '../autostart';
 import { startVaultWatch } from '../services/vault-watch';
+import { checkForUpdate, getUpdateState, quitAndInstall } from '../updater';
 
 interface IpcContext {
   windowManager: WindowManager;
@@ -18,12 +19,19 @@ interface IpcContext {
 export function registerIpcHandlers({ windowManager, goProcess }: IpcContext): void {
   // 运行时信息：未设置保险库时 vaultPath=null（渲染层引导选择，服务不启动）
   ipcMain.handle(IPC.RuntimeInfo, async (): Promise<RuntimeInfo> => {
+    const version = app.getVersion();
     const vaultPath = getVaultPath();
     if (!vaultPath) {
-      return { goPort: 0, platform: process.platform, vaultPath: null, isPackaged: app.isPackaged };
+      return {
+        goPort: 0,
+        platform: process.platform,
+        vaultPath: null,
+        isPackaged: app.isPackaged,
+        version,
+      };
     }
     const goPort = await goProcess.ensureStarted();
-    return { goPort, platform: process.platform, vaultPath, isPackaged: app.isPackaged };
+    return { goPort, platform: process.platform, vaultPath, isPackaged: app.isPackaged, version };
   });
 
   ipcMain.handle(IPC.WindowCreate, async (_event, noteId?: string, folder?: string) => {
@@ -149,4 +157,13 @@ export function registerIpcHandlers({ windowManager, goProcess }: IpcContext): v
   ipcMain.on(IPC.NotesChanged, () => {
     windowManager.broadcastNotesChanged();
   });
+
+  // 自动更新：主进程 updater 模块是唯一状态权威，这里只做转发
+  ipcMain.handle(IPC.UpdateCheck, () => {
+    checkForUpdate();
+  });
+  ipcMain.handle(IPC.UpdateInstall, () => {
+    quitAndInstall();
+  });
+  ipcMain.handle(IPC.UpdateGetState, () => getUpdateState());
 }

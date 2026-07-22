@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import { IPC } from '../shared/ipc-channels';
-import type { ElectronAPI, GroupState } from '../shared/types';
+import type { ElectronAPI, GroupState, UpdateState } from '../shared/types';
 
 // preload 是主进程与渲染进程之间的唯一桥梁：
 // 这里实现的 ElectronAPI 就是渲染进程能触达主进程的全部能力白名单。
@@ -43,6 +43,14 @@ const api: ElectronAPI = {
   groupDragEnd: (noteId) => ipcRenderer.invoke(IPC.GroupDragEnd, noteId),
   groupRename: (noteId, name) => ipcRenderer.invoke(IPC.GroupRename, noteId, name),
   groupDissolve: (noteId) => ipcRenderer.invoke(IPC.GroupDissolve, noteId),
+  checkUpdate: () => ipcRenderer.invoke(IPC.UpdateCheck),
+  installUpdate: () => ipcRenderer.invoke(IPC.UpdateInstall),
+  getUpdateState: () => ipcRenderer.invoke(IPC.UpdateGetState),
+  onUpdateState: (cb) => {
+    const listener = (_e: Electron.IpcRendererEvent, state: UpdateState): void => cb(state);
+    ipcRenderer.on(IPC.UpdateState, listener);
+    return () => ipcRenderer.removeListener(IPC.UpdateState, listener);
+  },
 };
 
 contextBridge.exposeInMainWorld('api', api);

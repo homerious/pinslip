@@ -1691,10 +1691,11 @@ input.sticky-note__groupname-input::placeholder {
   color: #c62828;
 }
 
-.note-list__empty {
+/* 双类选择器：压过 .note-list li 的卡片 padding（右侧 88px 按钮位留白会让居中文字视觉偏左） */
+.note-list .note-list__empty {
   color: #aaa;
   text-align: center;
-  padding: 32px 0;
+  padding: 32px 10px;
   cursor: default !important;
 }
 

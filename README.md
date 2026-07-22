@@ -8,7 +8,7 @@ PinSlip 是一张钉在电脑桌面上的小便利贴。想到什么，随手记
 它就一直安安静静陪着你。所有笔记都是普普通通的 Markdown 文件，
 存在你自己选的文件夹里——**和 Obsidian 完全互通**，你的文字永远是你的。
 
-当前版本：**v0.5.1**（[更新日志](docs/CHANGELOG.md)）
+当前版本：**v0.5.2**（[更新日志](docs/CHANGELOG.md)）
 
 [![Release](https://github.com/homerious/pinslip/actions/workflows/release.yml/badge.svg)](https://github.com/homerious/pinslip/actions/workflows/release.yml)
 [![GitHub release](https://img.shields.io/github/v/release/homerious/pinslip)](https://github.com/homerious/pinslip/releases)

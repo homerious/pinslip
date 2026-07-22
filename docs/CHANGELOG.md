@@ -2,6 +2,15 @@
 
 本项目版本记录 notable 变更。格式借鉴 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 
+## [0.5.2] - 2026-07-22
+
+自动更新与发布链路完善。
+
+- 自动更新：接入 electron-updater（GitHub Releases），启动 15s 静默检查；设置抽屉新增「更新」区块——当前版本号、手动检查更新、下载进度展示、下载完成后一键重启安装
+- 发布链路：electron-builder 配置 publish=github，CI 产物随包携带 latest.yml / latest-mac.yml / blockmap（自动更新元信息）
+- mac 出包改单腿双架构：pinslipd 交叉编译后经 lipo 合成 universal 二进制，一次产出 arm64 + x64 双 dmg 并共享同一份 latest-mac.yml（避免双腿互相覆盖更新元信息）
+- 空态提示排版修正（主列表/文件夹空态居中）
+
 ## [0.5.1] - 2026-07-22
 
 发布工程改进，产品功能与 0.5.0 一致。

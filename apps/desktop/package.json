@@ -1,6 +1,6 @@
 {
   "name": "@pinslip/desktop",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "private": true,
   "description": "PinSlip — 桌面钉住便签 + 本地知识管理",
   "author": "PinSlip",
@@ -22,6 +22,7 @@
     "@milkdown/preset-gfm": "^7.5.0",
     "@milkdown/react": "^7.5.0",
     "@milkdown/theme-nord": "^7.5.0",
+    "electron-updater": "^6.8.9",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.30.0"

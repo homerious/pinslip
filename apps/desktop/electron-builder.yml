@@ -5,6 +5,13 @@ appId: app.pinslip
 productName: PinSlip
 copyright: Copyright © 2026 PinSlip
 
+# 自动更新元信息：构建时把 latest.yml / latest-mac.yml 发布到 GitHub Releases，
+# 运行期 electron-updater 按此地址检查更新（公开仓库，无需 token）
+publish:
+  provider: github
+  owner: homerious
+  repo: pinslip
+
 directories:
   output: release
 
@@ -30,8 +37,9 @@ win:
         - x64
   icon: resources/icon.ico
 
-# macOS：arm64（Apple Silicon）+ x64（Intel）双架构 dmg；
-# CI 按架构分腿编译 pinslipd 并单独打包（纯 Go 无 CGO，x64 服务由 arm64 runner 交叉编译）
+# macOS：arm64（Apple Silicon）+ x64（Intel）双架构 dmg，单腿产出；
+# pinslipd 由 build-service.js 交叉编译后用 lipo 合成 universal 二进制，
+# 两个 dmg 共享同一份 latest-mac.yml（electron-updater 按进程架构选对应 dmg）
 mac:
   target:
     - target: dmg

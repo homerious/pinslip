@@ -10,6 +10,7 @@ import { initAutoStart } from './autostart';
 import { getVaultPath } from './settings';
 import { registerShortcuts, unregisterShortcuts } from './shortcuts';
 import { startVaultWatch, stopVaultWatch } from './services/vault-watch';
+import { initAutoUpdater } from './updater';
 
 // 只做装配：app 生命周期 + 各模块注册，业务逻辑分散到各模块
 const goProcess = new GoProcess();
@@ -47,6 +48,7 @@ app.whenReady().then(() => {
   createTray(windowManager);
   registerShortcuts(windowManager);
   initAutoStart(); // 打包后首次运行默认开启开机自启
+  initAutoUpdater(); // 打包后启动 15s 静默检查更新（dev 短路）
 
   // 外部文件变更监听：同步盘/手动改 vault 时主界面列表自动刷新（未设保险库时为 no-op）
   startVaultWatch(() => windowManager.broadcastNotesChanged());
