@@ -93,6 +93,9 @@ jobs:
     needs: build
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
+    env:
+      # COS 镜像同步开关：Secrets 未配置时自动跳过（开桶前发布不阻塞流程）
+      SYNC_COS: ${{ secrets.COS_SECRET_ID != '' }}
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -104,3 +107,20 @@ jobs:
           draft: true
           generate_release_notes: true
           files: dist/**/*
+
+      # 同步更新镜像到腾讯云 COS（国内兜底更新源，见 docs/ops-update-mirror.md）：
+      # latest*.yml 每次覆盖更新，是镜像端「最新版本」的唯一事实源；
+      # 桶名/Endpoint 是公开信息（客户端 MIRROR_URL 同款），密钥走 Secrets
+      - name: 同步更新镜像到腾讯云 COS
+        if: env.SYNC_COS == 'true'
+        run: |
+          curl -s https://rclone.org/install.sh | sudo bash
+          rclone copy dist/ cos:pinslip-1256167691/ \
+            --include "latest*.yml" --include "*.exe" --include "*.dmg" --include "*.blockmap" \
+            --checksum -v
+        env:
+          RCLONE_CONFIG_COS_TYPE: s3
+          RCLONE_CONFIG_COS_PROVIDER: TencentCOS
+          RCLONE_CONFIG_COS_ACCESS_KEY_ID: ${{ secrets.COS_SECRET_ID }}
+          RCLONE_CONFIG_COS_SECRET_ACCESS_KEY: ${{ secrets.COS_SECRET_KEY }}
+          RCLONE_CONFIG_COS_ENDPOINT: cos.ap-guangzhou.myqcloud.com

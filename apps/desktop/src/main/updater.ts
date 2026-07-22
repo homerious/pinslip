@@ -18,11 +18,11 @@ const { autoUpdater } = electronUpdater;
 const GITHUB_FEED = { provider: 'github' as const, owner: 'homerious', repo: 'pinslip' };
 
 /**
- * OSS 更新镜像（国内兜底，见 docs/ops-update-mirror.md）。
- * 开桶后填入固定地址，形如 'https://<bucket>.<endpoint>/pinslip/'，
- * 随下一个版本发布生效；空串 = 未配置镜像，GitHub 失败直接报 error。
+ * 腾讯云 COS 更新镜像（国内兜底，见 docs/ops-update-mirror.md）。
+ * 固定地址（公开信息，不是密钥）；latest.yml 与安装包直接放桶根，
+ * electron-updater generic 模式在该地址下找 latest.yml / latest-mac.yml。
  */
-const MIRROR_URL = '';
+const MIRROR_URL = 'https://pinslip-1256167691.cos.ap-guangzhou.myqcloud.com/';
 const MIRROR_FEED = MIRROR_URL ? { provider: 'generic' as const, url: MIRROR_URL } : null;
 
 let lastState: UpdateState = { status: 'idle' };
