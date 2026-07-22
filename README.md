@@ -1,5 +1,7 @@
 # PinSlip
 
+**简体中文** | [English](README_EN.md)
+
 > 桌面钉住便签 + 本地知识管理 + AI 开放接入
 
 PinSlip 是 Windows 桌面上的「钉住便签」工具：随手钉一张在屏幕上，写了就走。
@@ -12,34 +14,33 @@ PinSlip 是 Windows 桌面上的「钉住便签」工具：随手钉一张在屏
 [![GitHub release](https://img.shields.io/github/v/release/homerious/pinslip)](https://github.com/homerious/pinslip/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/homerious/pinslip/blob/main/LICENSE)
 
-## 它能做什么
+## 你会怎么用它
 
-**便签，贴在桌面上**
-无边框透明小卡片，可置顶、可折叠成标题条、六种颜色。写错了随手改，
-不用了折叠起来，还嫌碍事就拖去贴屏幕边缘。
+**想到就写，写完就走**
+便签是钉在屏幕上的无边框小卡片：可置顶、六种颜色、不用时折叠成一条标题栏。
+写错随手改，关掉重开还在原地。
 
-**编辑器不添乱**
-Milkdown 所见即所得 Markdown：标题、列表、可点击的任务框、粘贴图片自动存附件。
-没有需要学的语法，也没有藏起来的格式。
+**不用学语法的 Markdown**
+标题、列表、可打勾的任务框都是所见即所得；截图 Ctrl+V 直接贴进来，
+图片自动存到便签旁的附件目录。
 
-**便签会自己排队**
-拖到屏幕边缘自动吸附对齐；两张置顶便签靠近会自动贴边；
-重叠一半松手就**成组**——一叠便签左对齐摞起来，整组一起拖、
-折叠一张下面的自动补位，还可以给组起名字。
+**多了也不乱**
+便签靠近时会自动对齐；拖向屏幕边缘会吸附回安全位置，便签永远不会「丢」出屏幕。
+两张置顶便签重叠一半松手就成组——一叠便签左对齐摞好，整组一起拖，
+折叠一张，下面的自动补位，还可以给组起名字。
 
-**文件就是你的，随便翻**
-便签就是 `标题-日期-id.md`，YAML frontmatter + Markdown 正文。
-用 Obsidian、VS Code、记事本打开都一样；图片是相对路径，不裂图。
-外部改了、删了，应用里实时同步。
+**你的笔记，什么编辑器都能打开**
+每张便签就是 `标题-日期-id.md`：YAML frontmatter + Markdown 正文。
+在 Obsidian 里接着写、在 VS Code 里改，PinSlip 实时跟上；
+图片用相对路径，挪动文件夹也不裂图。
 
-**整理在需要时才出现**
-标签、嵌套文件夹、全文搜索（中文 bigram + bm25 加权，命中词高亮）。
-主界面三视图：列表 / 文件夹 / 标签。删了的东西进回收区，
-保留几天你说了算，还能手动捞回来。
+**找东西不靠记忆**
+标签、嵌套文件夹、全文搜索（中文分词 + 权重排序，命中词高亮）。
+主界面三种看法：列表 / 文件夹 / 标签。删掉的进回收区，
+保留几天你定，随时捞回来。
 
 **一直在手边**
-托盘常驻、全局快捷键速记、开机自启。关了重开，
-每张便签的位置、尺寸、折叠状态、分组原样还原。
+托盘常驻、`Ctrl+Shift+N` 全局速记、开机自启。
 
 ## 快速开始
 
@@ -76,7 +77,7 @@ pinslip/
 ├── apps/
 │   ├── desktop/          # Electron + React 桌面端（pnpm workspace 成员）
 │   └── service/          # Go 本地服务（go.mod 独立）
-├── docs/                 # 文档（api.md 接口契约 / CHANGELOG / 设计留档）
+├── docs/                 # 文档（用户手册 / CHANGELOG / API 契约）
 ├── scripts/              # 编排脚本（dev / build-service）
 └── Makefile              # 跨语言编排入口
 ```
@@ -95,9 +96,7 @@ pinslip/
 - [用户手册](docs/user-guide.md) — 功能说明（第一次用 → 日常用 → 整理 → 进阶）
 - [CHANGELOG](docs/CHANGELOG.md) — 版本变更记录
 - [API 契约](docs/api.md) — 本地服务 HTTP 接口
-- [AGENTS.md](AGENTS.md) — 项目接手指南（架构约定与领域坑）
-- [便签组设计](docs/design-note-groups.md) / [标签与文件夹设计](docs/design-tags-folders.md) / [macOS 兼容性](docs/macos-compat.md)
 
 ## License
 
-Apache-2.0
+MIT
