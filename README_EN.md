@@ -2,12 +2,12 @@
 
 [简体中文](README.md) | **English**
 
-> Pinned desktop sticky notes + local knowledge management + open AI access
+> A little note-taking companion we hope you'll reach for every day.
 
-PinSlip is a "pin it on your screen" sticky notes app for Windows: jot something down,
-pin it, and walk away. Every note is a plain Markdown file stored in a folder you
-choose — **fully interoperable with Obsidian**. Your notes are never locked into
-any format.
+PinSlip is a small sticky note that lives on your desktop. Whenever something
+crosses your mind, jot it down and pin it to the edge of your screen — it will
+quietly keep you company. Every note is an ordinary Markdown file in a folder
+you choose — **fully interoperable with Obsidian**. Your words stay yours.
 
 Current version: **v0.5.0** ([Changelog](docs/CHANGELOG.md))
 
@@ -15,39 +15,41 @@ Current version: **v0.5.0** ([Changelog](docs/CHANGELOG.md))
 [![GitHub release](https://img.shields.io/github/v/release/homerious/pinslip)](https://github.com/homerious/pinslip/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/homerious/pinslip/blob/main/LICENSE)
 
-## How you'll use it
+## Say hi to PinSlip
 
-**Write it, pin it, walk away**
-Notes are frameless cards pinned to your screen: always-on-top, six colors,
-and they fold into a slim title bar when you're done. Close the app, reopen it —
-everything is right where you left it.
+**An everyday note, right on your desktop**
+No heavy app to launch, no "where should I save this?" moment. Pin a note to
+your screen and it's simply there when you need it. Six warm colors to pick
+from; fold it into a slim title bar when you're done, unfold it when you're back.
 
-**Markdown without the syntax lessons**
-Headings, lists, and clickable task checkboxes are all WYSIWYG. Paste a
-screenshot with Ctrl+V — images are saved to an attachments folder next to
-your notes automatically.
+**Want it a little prettier? Try Markdown**
+Plain scribbles are perfectly fine. But when you feel like tidying up — a to-do
+list, a few sections with little headings — type in Markdown and watch the
+formatting come alive. Task boxes are click-to-check, and screenshots paste in
+with Ctrl+V. You'll never wonder where the image files went.
 
-**Never messy, never lost**
-Notes snap neatly to each other when they get close; drag one toward the screen
-edge and it's pulled back into the safe area — a note can never slide off-screen
-and disappear. Overlap two pinned notes halfway, let go, and they **group**:
-a tidy left-aligned stack that drags as one, reflows when one note is folded,
-and can be given a name.
+**Toss them around — they still line up**
+No need to tidy up by hand. Fold a note away for later; pinned notes sit neatly
+in any screen corner; notes gently snap to each other when they get close; and
+they can form a little "squad" — the whole squad moves and resizes together,
+and when one note folds, the ones below shuffle up to fill in.
 
-**Your notes open in anything**
-Each note is a `title-date-id.md` file: YAML frontmatter + Markdown body.
-Keep writing in Obsidian, edit in VS Code — PinSlip follows external changes
-in real time. Images use relative paths, so moving folders won't break them.
+**Your words belong to you**
+Everything is stored locally, in your own folder — no cloud in the middle.
+Even if you stop using PinSlip one day, every note is still right there:
+just a plain Markdown file, ready to open in Obsidian, VS Code, or any
+Markdown-friendly editor, and pick up where you left off.
 
-**Find things without remembering**
-Tags, nested folders, and full-text search (Chinese bigram + BM25 weighting,
-with match highlighting). Three views in the main window: list / folders / tags.
-Deleted notes go to a recycle area — you decide how long they're kept, and you
-can fish anything back.
+**Jotted in a hurry, found in a second**
+Wrote something down quickly and need it later? Just search. Tags and folders
+keep things grouped, full-text search works great with Chinese too, and matched
+words light up for you. Deleted something by accident? It's waiting in the
+recycle area — bring it back anytime.
 
-**Always within reach**
-Lives in the system tray, `Ctrl+Shift+N` quick capture from anywhere,
-launch at login.
+**A few more small thoughts**
+It keeps you company in the system tray; `Ctrl+Shift+N` captures a thought from
+anywhere; it starts with your computer, and every note reopens exactly where
+you left it.
 
 ## Getting started
 
