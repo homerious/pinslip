@@ -1,0 +1,2242 @@
+/* ===== 基础 ===== */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* ===== 便签外观主题变量（调色只改这里） ===== */
+:root {
+  /* 便签 */
+  --note-bg: #fff9c4; /* 便签底色 */
+  --note-titlebar-bg: #ffe97a; /* 标题栏底色 */
+  --note-border: rgba(93, 64, 55, 0.08); /* 细描边 */
+  --tag-bg: rgba(249, 168, 37, 0.22); /* 标签 chip 底（跟随便签色，黄色为默认） */
+  --tag-ink: #8a6d1f; /* 标签 chip 文字 */
+  --note-radius: 8px;
+  --note-margin: 16px; /* 透明边距：给阴影留衰减空间，太窄阴影会被窗口裁切 */
+  /* 暖色阴影（与便签黄同族）：核心略深、模糊半径小、衰减快，避免宽光晕 */
+  --note-shadow:
+    0 1px 3px rgba(120, 90, 30, 0.08),
+    0 4px 14px rgba(120, 90, 30, 0.1);
+  --note-shadow-focus:
+    0 2px 5px rgba(120, 90, 30, 0.09),
+    0 8px 20px rgba(120, 90, 30, 0.15);
+  /* 便签组高亮色（半透明蓝；P3 组手柄同色） */
+  --group-accent: rgba(59, 130, 246, 0.6);
+
+  /* 品牌红（采样自 logo 图钉 #e53935）：置顶钉 / 当前色标记 */
+  --pin-red: #e53935;
+  /* 标题栏前景（标题+图标）：深棕在六色标题栏上对比度均 > 4.5:1，替代原 #666/#777 */
+  --note-titlebar-fg: #4e342e;
+
+  /* 速记浮窗 */
+  --quick-bg: #ffffff;
+  --quick-border: rgba(0, 0, 0, 0.05);
+  --quick-radius: 12px;
+  --quick-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.06),
+    0 5px 16px rgba(0, 0, 0, 0.1);
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+}
+
+body {
+  font-family:
+    'PingFang SC', 'Microsoft YaHei', -apple-system, 'Segoe UI', sans-serif;
+  font-size: 14px;
+  color: #333;
+  /* 无边框透明窗口：页面本身必须透明，颜色由各视图容器绘制 */
+  background: transparent;
+  user-select: none;
+  overflow: hidden;
+}
+
+input,
+textarea,
+.ProseMirror {
+  user-select: text;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+/* ===== 滚动条：平时完全隐藏，悬停滚动容器时浮现纤细圆角 thumb ===== */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 4px;
+  /* 透明边框 + padding-box 裁剪：视觉宽度收窄到 ~4px，不挤压内容 */
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+/* :hover 沿祖先链生效：悬停容器内任意位置即显示它自己的滚动条 */
+*:hover::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.18);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+*:hover::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+::-webkit-scrollbar-button {
+  display: none; /* 去掉两端的箭头按钮 */
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* ===== 便签窗口（sticky-note） ===== */
+.sticky-note {
+  /* 收缩出透明边距：窗口是透明无框的，贴满窗口的阴影会被 OS 裁掉 */
+  width: calc(100vw - var(--note-margin) * 2);
+  height: calc(100vh - var(--note-margin) * 2);
+  margin: var(--note-margin);
+  display: flex;
+  flex-direction: column;
+  /* 不透明便签底色（窗口 transparent 仅用于圆角裁切） */
+  background: var(--note-bg);
+  border: 1px solid var(--note-border);
+  border-radius: var(--note-radius);
+  box-shadow: var(--note-shadow);
+  overflow: hidden;
+  position: relative; /* 底部工具栏/菜单的定位上下文 */
+  transition: box-shadow 0.15s ease;
+}
+
+/* 折叠态：卡片高度 = 标题栏。窗口几何由主进程单次提交（折叠在动画末、
+   展开在动画起点），期间卡片下方是窗口透明区 */
+.sticky-note.is-collapsed {
+  height: 32px;
+}
+
+/* 折叠/展开的高度过渡只在切换瞬间挂（180ms，与 shared/anim.ts COLLAPSE_ANIM_MS 同步），
+   平时拖拽改尺寸不挂 transition——否则窗口 resize 时卡片滞后跟手 */
+.sticky-note.is-collapse-anim {
+  transition:
+    height 180ms cubic-bezier(0.215, 0.61, 0.355, 1),
+    box-shadow 0.15s ease;
+}
+
+/* 当前激活窗口的便签阴影略加深，从一堆便签里"浮"出来 */
+.sticky-note.is-active {
+  box-shadow: var(--note-shadow-focus);
+}
+
+/* ===== 便签组（CSS 拼框：无独立组框窗口） ===== */
+/* 成员保留自身圆角与完整四边描边（2026-07-21 评审：不去圆角、不拆边——
+   方角拼板观感生硬，圆角卡片紧凑相叠更像一叠便利贴）；
+   组身份用高亮描边色表达 */
+.sticky-note.is-grouped {
+  border-color: var(--group-accent);
+}
+
+/* 成员朝向组内的边距不画阴影（功能性要求，非纯美观）：成组后卡片间距 2px，
+   相邻窗口的 16px 透明边距互相压盖对方卡片（标题栏/底部工具栏各 ~14px 条带），
+   边距里的阴影像素在 Windows 分层窗口下可命中点击 → 形成"死区"。
+   去掉朝组内的阴影后重叠带 alpha=0，点击穿透到真正的目标卡片。
+   三类名选择器（0,3,0）压住 .is-active（0,2,0）的整圈聚焦阴影 */
+.sticky-note.is-grouped.is-group-first {
+  box-shadow:
+    0 -2px 6px rgba(120, 90, 30, 0.1),
+    3px 0 6px -3px rgba(120, 90, 30, 0.12),
+    -3px 0 6px -3px rgba(120, 90, 30, 0.12),
+    /* 组色外发光（顶缘）：整组剪影带一点 accent 色相，轮廓在桌面上"是一坨" */
+    0 -8px 20px -6px rgba(59, 130, 246, 0.16);
+}
+
+.sticky-note.is-grouped.is-group-middle {
+  box-shadow:
+    3px 0 6px -3px rgba(120, 90, 30, 0.12),
+    -3px 0 6px -3px rgba(120, 90, 30, 0.12),
+    /* 组色外发光（两侧） */
+    6px 0 18px -8px rgba(59, 130, 246, 0.12),
+    -6px 0 18px -8px rgba(59, 130, 246, 0.12);
+}
+
+/* 尾：底部沿用 --note-shadow 的下垂感，与单张便签落地观感一致 */
+.sticky-note.is-grouped.is-group-last {
+  box-shadow:
+    0 1px 3px rgba(120, 90, 30, 0.08),
+    0 4px 14px rgba(120, 90, 30, 0.1),
+    3px 0 6px -3px rgba(120, 90, 30, 0.12),
+    -3px 0 6px -3px rgba(120, 90, 30, 0.12),
+    /* 组色外发光（底缘） */
+    0 12px 26px -8px rgba(59, 130, 246, 0.18);
+}
+
+/* 成组预告：拖动中两张卡片重叠 ≥50% 时双向点亮（实时跟随，拖开即消）；
+   在原阴影上叠高亮圈 + 蓝光晕。规则放组态样式之后，确保盖住角色阴影 */
+.sticky-note.is-group-hover,
+.sticky-note.is-grouped.is-group-hover {
+  box-shadow:
+    0 0 0 2px var(--group-accent),
+    0 0 14px rgba(59, 130, 246, 0.35),
+    var(--note-shadow);
+}
+
+/* 拼缝外框：整组的连续外轮廓（Figma Frame 式整体感）。每个成员画一段——
+   首位画上边+左右（顶圆角），中间只画左右，末位画左右+下边（底圆角）；
+   纵向探出 4px（3px 外扩 + 1px 过缝），跨过 2px 卡片缝隙与相邻段相接成直线。
+   必须是卡片外的兄弟节点 fixed 定位：卡片 overflow:hidden，伪元素画不到
+   卡片外（同组手柄的存在理由）。pointer-events:none：框在透明边距里，
+   绝不能抢点击。--frame-c 用变量表达默认/点亮两档，避免点亮时给中间成员
+   补出横边线 */
+.sticky-note__groupframe {
+  --frame-c: rgba(59, 130, 246, 0.5);
+  position: fixed;
+  top: 12px; /* 卡片 16px 边距外 4px（3px 外扩 + 1px 过缝） */
+  bottom: 12px;
+  left: 13px; /* 外扩 3px */
+  right: 13px;
+  border: 2px solid transparent;
+  border-left-color: var(--frame-c);
+  border-right-color: var(--frame-c);
+  pointer-events: none;
+  z-index: 30; /* 卡片之上、组手柄(40)之下 */
+  transition: border-color 0.15s ease;
+}
+
+.sticky-note__groupframe.is-frame-first {
+  border-top-color: var(--frame-c);
+  border-radius: 11px 11px 0 0; /* --note-radius 8 + 外扩 3 */
+}
+
+.sticky-note__groupframe.is-frame-last {
+  border-bottom-color: var(--frame-c);
+  border-radius: 0 0 11px 11px;
+}
+
+/* 成组/加入预览：外框随卡片高亮同步提亮（变量一档切换，中间成员不会补横边） */
+.sticky-note__groupframe.is-hover {
+  --frame-c: rgba(59, 130, 246, 0.85);
+}
+
+/* 组标签手柄：组顶边中点的"拎手"药丸（移动端抽屉 grabber 模式——居中 =
+   组级装置，捏住拖整体）。骑在拼缝外框顶边(12px)上、底边压卡片顶缘(16px)
+   4px；未命名 40px 圆点药丸，命名后随组名展开，双击行内改名。
+   特异性警告：选择器必须是 button.sticky-note__grouphandle（0,1,1）——
+   裸类（0,1,0）与后文的 [data-tip]{position:relative}（0,1,0）同级，
+   文件顺序靠后者胜，会被覆盖成 relative：手柄变文档流元素把卡片整体
+   压塌（2026-07-21 事故）；input 同理用元素名提权 */
+button.sticky-note__grouphandle {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%); /* 居中：随窗口宽度自适应 */
+  top: 2px; /* 2..20px：骑外框顶边(12px)，压卡片顶缘 4px */
+  height: 18px;
+  min-width: 40px;
+  padding: 0 8px;
+  gap: 4px;
+  border: none;
+  border-radius: 999px; /* 药丸 */
+  background: var(--group-accent);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  line-height: 1;
+  cursor: grab;
+  z-index: 40; /* 压在外框(30)/卡片之上 */
+  opacity: 0.9;
+  user-select: none;
+  transition:
+    opacity 0.15s ease,
+    background 0.15s ease;
+}
+
+button.sticky-note__grouphandle:hover {
+  opacity: 1;
+  background: rgba(59, 130, 246, 0.85);
+}
+
+button.sticky-note__grouphandle.is-dragging {
+  cursor: grabbing;
+  opacity: 1;
+  background: rgba(59, 130, 246, 0.85);
+}
+
+.sticky-note__grouphandle svg {
+  width: 11px;
+  height: 11px;
+  flex: none;
+  display: block;
+}
+
+/* 组名文本（药丸展开态）：超长省略，30 字符上限由主进程截断 */
+.sticky-note__groupname {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+/* 组名行内编辑框：与手柄同位居中（双击进入，Enter/blur 提交，Esc 取消） */
+input.sticky-note__groupname-input {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  top: 2px;
+  width: 140px;
+  height: 18px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 999px; /* 与手柄同形药丸 */
+  background: rgba(59, 130, 246, 0.95);
+  color: #fff;
+  font-size: 11px;
+  line-height: 1;
+  outline: 1px solid rgba(255, 255, 255, 0.6);
+  z-index: 41;
+}
+
+input.sticky-note__groupname-input::placeholder {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.sticky-note__titlebar {
+  height: 32px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 6px 0 8px;
+  background: var(--note-titlebar-bg);
+  -webkit-app-region: drag; /* 整栏可拖拽移动窗口 */
+}
+
+.sticky-note__title {
+  flex: 1;
+  font-size: 12px;
+  color: var(--note-titlebar-fg);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sticky-note__state {
+  flex: none;
+  font-size: 11px;
+  color: #999;
+}
+
+.sticky-note__btn {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  font-size: 13px;
+  line-height: 1;
+  color: var(--note-titlebar-fg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-app-region: no-drag;
+}
+
+.sticky-note__btn:hover {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+/* 标签按钮：图标 + 数量徽标，宽度自适应（基础 btn 固定 22px 放不下） */
+.sticky-note__tagbtn {
+  width: auto;
+  padding: 0 6px;
+  margin: 0 2px;
+  gap: 2px;
+}
+
+/* 徽标挤占空间时图标保持原尺寸（flex 子项默认会被压缩） */
+.sticky-note__tagbtn svg {
+  flex: none;
+}
+
+.sticky-note__tagcount {
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.sticky-note__btn svg {
+  width: 13px;
+  height: 13px;
+  display: block;
+}
+
+/* ===== 图标按钮 tooltip（data-tip 驱动；比原生 title 快且样式统一） ===== */
+[data-tip] {
+  position: relative;
+}
+
+[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  background: rgba(50, 40, 30, 0.92);
+  color: #fff;
+  font-size: 11px;
+  line-height: 1;
+  padding: 4px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  /* 长文本（如文件夹路径）不撑出窗口：最大宽度截断省略 */
+  max-width: calc(100vw - 48px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateX(-50%) translateY(-2px);
+  transition:
+    opacity 0.12s ease 0.35s,
+    transform 0.12s ease 0.35s; /* 350ms 悬停延迟，划过不误触 */
+  z-index: 60;
+}
+
+[data-tip]:hover::after {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* 底部工具栏：tooltip 向上浮 */
+[data-tip-place='top']::after {
+  top: auto;
+  bottom: calc(100% + 6px);
+  transform: translateX(-50%) translateY(2px);
+}
+
+[data-tip-place='top']:hover::after {
+  transform: translateX(-50%) translateY(0);
+}
+
+/* 靠右按钮：右对齐避免被卡片 overflow 裁掉 */
+[data-tip-align='right']::after {
+  left: auto;
+  right: 0;
+  transform: translateY(-2px);
+}
+
+[data-tip-align='right']:hover::after {
+  transform: translateY(0);
+}
+
+/* 靠左按钮（如最左的置顶钉）：左对齐同理防裁 */
+[data-tip-align='left']::after {
+  left: 0;
+  transform: translateY(-2px);
+}
+
+[data-tip-align='left']:hover::after {
+  transform: translateY(0);
+}
+
+[data-tip-place='top'][data-tip-align='right']::after {
+  transform: translateY(2px);
+}
+
+[data-tip-place='top'][data-tip-align='right']:hover::after {
+  transform: translateY(0);
+}
+
+/* 透明度只挂在图标上：若挂在按钮上，tooltip（::after 子元素）会跟随变淡 */
+.sticky-note__pin svg {
+  opacity: 0.5; /* 未置顶：淡但可辨（0.35 在浅标题栏上几乎隐身） */
+  transition: opacity 0.15s;
+}
+
+.sticky-note__pin.is-pinned {
+  color: var(--pin-red); /* 品牌红图钉：一眼可读"已钉住"，与 logo 呼应 */
+}
+
+.sticky-note__pin.is-pinned svg {
+  opacity: 1;
+}
+
+/* 颜色按钮：浅色底托住当前色的 fill 图标（duotone 在同色栏上太浅） */
+.sticky-note__color {
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.sticky-note__color:hover {
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.sticky-note__close:hover {
+  background: rgba(0, 0, 0, 0.08);
+  color: #c0392b;
+}
+
+.sticky-note__body {
+  flex: 1;
+  /* flex 子项 min-height 默认为 auto：内容变长时容器会被撑高（被卡片 overflow 裁掉），
+     而不是触发内部滚动——必须显式归零，长文才能在 ProseMirror 里滚动 */
+  min-height: 0;
+  overflow: hidden;
+  padding: 4px 8px 8px;
+}
+
+/* ===== 便签多色主题（data-color 覆盖变量，黄色即 :root 默认值） =====
+   配色思路：标题栏用 Material 200 色，主体同色系调浅约 50%，
+   深棕正文在各底色上对比度均 > 7:1；阴影换同族色相避免显脏 */
+.sticky-note[data-color='pink'] {
+  --note-bg: #fbd9e4;
+  --note-titlebar-bg: #f48fb1;
+  --note-border: rgba(130, 50, 75, 0.1);
+  --tag-bg: rgba(216, 27, 96, 0.14);
+  --tag-ink: #ad1457;
+  --note-shadow:
+    0 1px 3px rgba(130, 50, 75, 0.08),
+    0 4px 14px rgba(130, 50, 75, 0.1);
+  --note-shadow-focus:
+    0 2px 5px rgba(130, 50, 75, 0.09),
+    0 8px 20px rgba(130, 50, 75, 0.15);
+}
+
+.sticky-note[data-color='green'] {
+  --note-bg: #dff0e0;
+  --note-titlebar-bg: #a5d6a7;
+  --note-border: rgba(46, 90, 50, 0.1);
+  --tag-bg: rgba(67, 160, 71, 0.16);
+  --tag-ink: #2e7031;
+  --note-shadow:
+    0 1px 3px rgba(46, 90, 50, 0.08),
+    0 4px 14px rgba(46, 90, 50, 0.1);
+  --note-shadow-focus:
+    0 2px 5px rgba(46, 90, 50, 0.09),
+    0 8px 20px rgba(46, 90, 50, 0.15);
+}
+
+.sticky-note[data-color='blue'] {
+  --note-bg: #dbedfc;
+  --note-titlebar-bg: #90caf9;
+  --note-border: rgba(50, 80, 120, 0.1);
+  --tag-bg: rgba(30, 136, 229, 0.14);
+  --tag-ink: #1565c0;
+  --note-shadow:
+    0 1px 3px rgba(50, 80, 120, 0.08),
+    0 4px 14px rgba(50, 80, 120, 0.1);
+  --note-shadow-focus:
+    0 2px 5px rgba(50, 80, 120, 0.09),
+    0 8px 20px rgba(50, 80, 120, 0.15);
+}
+
+.sticky-note[data-color='purple'] {
+  --note-bg: #efddf3;
+  --note-titlebar-bg: #ce93d8;
+  --note-border: rgba(95, 50, 115, 0.1);
+  --tag-bg: rgba(142, 36, 170, 0.14);
+  --tag-ink: #6a1b9a;
+  --note-shadow:
+    0 1px 3px rgba(95, 50, 115, 0.08),
+    0 4px 14px rgba(95, 50, 115, 0.1);
+  --note-shadow-focus:
+    0 2px 5px rgba(95, 50, 115, 0.09),
+    0 8px 20px rgba(95, 50, 115, 0.15);
+}
+
+.sticky-note[data-color='orange'] {
+  --note-bg: #ffeacc;
+  --note-titlebar-bg: #ffcc80;
+  --note-border: rgba(135, 85, 30, 0.1);
+  --tag-bg: rgba(251, 140, 0, 0.16);
+  --tag-ink: #e65100;
+  --note-shadow:
+    0 1px 3px rgba(135, 85, 30, 0.08),
+    0 4px 14px rgba(135, 85, 30, 0.1);
+  --note-shadow-focus:
+    0 2px 5px rgba(135, 85, 30, 0.09),
+    0 8px 20px rgba(135, 85, 30, 0.15);
+}
+
+/* ===== 颜色条（点 🎨 后色条从右向左依次弹出；当前色钉红色图钉，呼应 logo） ===== */
+.sticky-note__palette {
+  position: absolute;
+  top: 36px; /* 标题栏 32px 下方留 4px 缝 */
+  right: 8px;
+  display: flex;
+  z-index: 30;
+  border-radius: 6px;
+  overflow: hidden;
+  pointer-events: none; /* 关闭时不挡鼠标 */
+}
+
+.sticky-note__palette.is-open {
+  pointer-events: auto;
+  /* 阴影只在展开时加：容器收起仍占位，常驻阴影会在界面留一块"底板" */
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+.sticky-note__palette-strip {
+  width: 24px;
+  height: 34px;
+  border: none;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--pin-red);
+  /* 收起时缩在右端；--d 为依次弹出延迟（最右先出） */
+  transform: translateX(16px) scale(0.7);
+  opacity: 0;
+  transition:
+    transform 0.16s cubic-bezier(0.34, 1.56, 0.64, 1),
+    opacity 0.1s ease;
+}
+
+.sticky-note__palette.is-open .sticky-note__palette-strip {
+  transform: none;
+  opacity: 1;
+  transition-delay: var(--d);
+}
+
+.sticky-note__palette-strip:hover {
+  filter: brightness(0.95);
+}
+
+.sticky-note__palette-strip svg {
+  width: 12px;
+  height: 12px;
+  opacity: 0; /* 仅当前色显示红图钉 */
+  /* 白晕兜底：粉/紫等相近底色上红钉依然可读 */
+  filter: drop-shadow(0 0 1.5px rgba(255, 255, 255, 0.9));
+}
+
+.sticky-note__palette-strip.is-current svg {
+  opacity: 1;
+}
+
+/* ===== 底部工具栏（focus 时浮现）：左编辑辅助区 / 右分类区 ===== */
+.sticky-note__toolbar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  padding: 0 18px 0 6px; /* 右侧给右下角缩放手柄让位（最右是 ⋯ 按钮） */
+  /* 不裁剪溢出：优先级收敛在 paint 前的 layout effect 里完成；
+     overflow:hidden 会把按钮 tooltip（::after 伪元素）一起裁掉 */
+  /* 介于主体色与标题栏色之间，任意主题下都协调 */
+  background: color-mix(in srgb, var(--note-bg) 55%, var(--note-titlebar-bg));
+  border-top: 1px solid var(--note-border);
+  transform: translateY(100%);
+  opacity: 0;
+  transition:
+    transform 0.16s ease,
+    opacity 0.16s ease;
+  z-index: 20;
+}
+
+.sticky-note.is-active .sticky-note__toolbar {
+  transform: none;
+  opacity: 1;
+}
+
+.sticky-note__toolbar .sticky-note__btn {
+  width: 22px;
+  height: 22px;
+}
+
+/* 功能分区：编辑区（左）与分类区（右，margin-left:auto 顶到最右） */
+.sticky-note__toolbar-zone {
+  display: flex;
+  align-items: center;
+  flex: none;
+  min-width: 0;
+}
+
+.sticky-note__toolbar-zone--right {
+  margin-left: auto;
+}
+
+/* 区间细分隔线 */
+.sticky-note__toolbar-divider {
+  flex: none;
+  width: 1px;
+  height: 14px;
+  margin: 0 5px;
+  background: rgba(0, 0, 0, 0.14);
+}
+
+.sticky-note__toolbar-state {
+  font-size: 11px;
+  color: rgba(0, 0, 0, 0.45);
+  padding: 0 4px;
+  white-space: nowrap;
+  user-select: none;
+}
+
+/* ===== 卡片边缘缩放热区（透明，悬停光标提示） ===== */
+.sticky-note__edge {
+  position: absolute;
+  z-index: 21; /* 压底部工具栏（20），低于右下角手柄（22） */
+}
+
+.sticky-note__edge--r {
+  top: 34px; /* 避开标题栏按钮 */
+  right: 0;
+  bottom: 20px; /* 避开右下角手柄 */
+  width: 5px;
+  cursor: ew-resize;
+}
+
+.sticky-note__edge--b {
+  left: 4px;
+  right: 20px; /* 避开右下角手柄 */
+  bottom: 0;
+  height: 5px;
+  cursor: ns-resize;
+}
+
+/* ===== 右下角缩放手柄（在卡片边缘触发，而不是阴影边缘） ===== */
+.sticky-note__grip {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 20px;
+  height: 20px;
+  cursor: nwse-resize;
+  z-index: 22; /* 压在底部工具栏之上，工具栏浮现时仍可拖 */
+  border-bottom-right-radius: var(--note-radius);
+  /* 两条斜线纹理，提示可拖拽 */
+  background: linear-gradient(
+    135deg,
+    transparent 58%,
+    rgba(0, 0, 0, 0.16) 58%,
+    rgba(0, 0, 0, 0.16) 64%,
+    transparent 64%,
+    transparent 74%,
+    rgba(0, 0, 0, 0.16) 74%,
+    rgba(0, 0, 0, 0.16) 80%,
+    transparent 80%
+  );
+}
+
+/* ===== ⋯ 菜单（底部工具栏向上弹出） ===== */
+.sticky-note__menu {
+  position: absolute;
+  right: 6px; /* ⋯ 按钮在分类区最右，菜单右缘与标签/文件夹面板对齐 */
+  bottom: 32px;
+  min-width: 128px;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.14);
+  padding: 4px;
+  z-index: 40;
+}
+
+.sticky-note__menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  font-size: 12px;
+  color: #444;
+  text-align: left;
+}
+
+.sticky-note__menu-item svg {
+  width: 14px;
+  height: 14px;
+}
+
+.sticky-note__menu-item:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.sticky-note__menu-item.is-danger {
+  color: #c0392b;
+}
+
+/* 新建落点菜单：标题栏 ＋ 按钮下方弹出（覆盖底部菜单定位） */
+.sticky-note__menu--new {
+  top: 36px;
+  bottom: auto;
+  right: 46px; /* 对齐标题栏右数第三个按钮（＋） */
+}
+
+/* 组手柄右键菜单：渲染在卡片内部（absolute），贴在手柄正下方——手柄骑
+   卡片顶缘（底缘 = 卡片内 4px），菜单 top:6px 与它视觉相连。
+   -webkit-app-region: no-drag 必须加：菜单悬在标题栏 drag 带上方，
+   不设 no-drag 时 Chromium 把这块点击吞给系统拖拽（文字区不响应，
+   2026-07-21 热区事故；标题栏按钮同理，见 .sticky-note__btn） */
+.sticky-note__menu--group {
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  right: auto;
+  bottom: auto;
+  -webkit-app-region: no-drag;
+}
+
+/* 标签面板：底部栏上方弹出，chips 流式排列 + 输入框 */
+.sticky-note__tagpanel {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  bottom: 32px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.14);
+  padding: 6px;
+  z-index: 40;
+}
+
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 6px;
+  border-radius: 10px;
+  /* 跟随便签主题色（--tag-* 由 data-color 主题变量提供，缺省琥珀黄） */
+  background: var(--tag-bg, rgba(224, 185, 63, 0.22));
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--tag-ink, #8a6d1f);
+  white-space: nowrap;
+}
+
+.tag-chip__x {
+  border: none;
+  background: transparent;
+  padding: 0 1px;
+  font-size: 12px;
+  line-height: 1;
+  color: #999;
+  cursor: pointer;
+}
+
+.tag-chip__x:hover {
+  color: #c0392b;
+}
+
+.sticky-note__taginput {
+  /* 固定小宽度：输入框不再把 + 按钮顶到面板最右，两者相邻符合提交直觉 */
+  flex: 0 1 auto;
+  width: 88px;
+  min-width: 48px;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 12px;
+  color: #333;
+  padding: 2px 4px;
+}
+
+/* 标签提交按钮：便签标题栏色托底（随主题变色），与 Enter 等效；空输入禁用 */
+.sticky-note__tagadd {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 6px;
+  background: var(--note-titlebar-bg, #ffe97a);
+  color: var(--note-titlebar-fg, #4e342e);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.sticky-note__tagadd svg {
+  width: 12px;
+  height: 12px;
+}
+
+.sticky-note__tagadd:hover:not(:disabled) {
+  background: var(--tag-ink, #e0b93f);
+  color: #fff;
+}
+
+.sticky-note__tagadd:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* 透明点击捕获层：收起色板/菜单（低于工具栏与弹层，不挡按钮） */
+.sticky-note__backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 15;
+  background: transparent;
+  border: none;
+  cursor: default;
+}
+
+/* ===== Milkdown 编辑器容器 ===== */
+/* React 版 Milkdown 会在 root 与 .milkdown 之间多插一层 div[data-milkdown-root]。
+   不给它高度，height:100% 链就断在这里：.ProseMirror 被内容撑高（sh==ch），
+   裁剪落在 body 的 overflow:hidden 上——滚轮没有可滚容器，
+   方向键能滚只是 scrollIntoView 的程序化滚动。 */
+.pinslip-editor > [data-milkdown-root] {
+  height: 100%;
+}
+
+.pinslip-editor,
+.pinslip-editor .milkdown {
+  height: 100%;
+}
+
+.pinslip-editor .milkdown > .ProseMirror {
+  height: 100%;
+  overflow-y: auto;
+  outline: none;
+  /* 底部 padding 留出工具栏高度（28px + 余量）：滚到底时最后一行
+     停在浮现的底部工具栏上方，不会被遮住 */
+  padding: 4px 6px 36px;
+  /* 程序化滚动（方向键/scrollIntoView）同样保留底部余量 */
+  scroll-padding-bottom: 32px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.pinslip-editor .ProseMirror p {
+  margin: 2px 0;
+}
+
+/* 编辑器内图片：宽度不超出便签，圆角贴合卡片风格 */
+.pinslip-editor .pinslip-editor-image {
+  max-width: 100%;
+  display: block;
+  border-radius: 4px;
+  margin: 4px 0;
+}
+
+/* ===== 编辑器 Markdown 元素（全局 * 重置清掉了浏览器默认样式，按需补回便签友好版） ===== */
+.pinslip-editor .ProseMirror h1,
+.pinslip-editor .ProseMirror h2,
+.pinslip-editor .ProseMirror h3 {
+  margin: 6px 0 4px;
+  line-height: 1.4;
+}
+
+.pinslip-editor .ProseMirror h1 {
+  font-size: 18px;
+}
+
+.pinslip-editor .ProseMirror h2 {
+  font-size: 16px;
+}
+
+.pinslip-editor .ProseMirror h3 {
+  font-size: 14px;
+}
+
+/* 列表：* 重置清掉了 padding-left，outside 的符号被挤出可视区——
+   这是"列表快捷键不生效"的真正原因（输入规则其实触发了） */
+.pinslip-editor .ProseMirror ul,
+.pinslip-editor .ProseMirror ol {
+  padding-left: 1.4em;
+  margin: 2px 0;
+}
+
+.pinslip-editor .ProseMirror ul {
+  list-style-type: disc;
+}
+
+.pinslip-editor .ProseMirror ol {
+  list-style-type: decimal;
+}
+
+.pinslip-editor .ProseMirror li {
+  margin: 1px 0;
+}
+
+.pinslip-editor .ProseMirror li > p {
+  margin: 0;
+}
+
+/* GFM 任务列表：nodeview（task-item-view.ts）渲染真实可点击的 checkbox。
+   li 结构为 [span.pinslip-task-check, div.pinslip-task-content]；
+   checkbox 悬浮在 li 左侧（padding 预留的位置），点击切换 checked */
+.pinslip-editor .ProseMirror li[data-item-type='task'] {
+  list-style: none;
+  margin-left: -1.4em;
+  position: relative;
+  padding-left: 1.45em;
+}
+
+.pinslip-editor .ProseMirror .pinslip-task-check {
+  position: absolute;
+  left: 0.15em;
+  top: 0.3em;
+  width: 0.78em;
+  height: 0.78em;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid #9c7a1e;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.55);
+  cursor: pointer;
+}
+
+.pinslip-editor .ProseMirror li[data-checked='true'] .pinslip-task-check {
+  background: #e0b93f;
+  border-color: #b8912a;
+}
+
+.pinslip-editor .ProseMirror li[data-checked='true'] .pinslip-task-check::after {
+  content: '✓';
+  font-size: 0.68em;
+  line-height: 1;
+  color: #fff;
+}
+
+.pinslip-editor .ProseMirror .pinslip-task-content > p {
+  margin: 0;
+}
+
+.pinslip-editor .ProseMirror li[data-checked='true'] .pinslip-task-content {
+  color: rgba(60, 50, 20, 0.55);
+  text-decoration: line-through;
+}
+
+.pinslip-editor .ProseMirror blockquote {
+  margin: 4px 0;
+  padding: 2px 10px;
+  border-left: 3px solid rgba(0, 0, 0, 0.2);
+  color: rgba(0, 0, 0, 0.6);
+}
+
+.pinslip-editor .ProseMirror code {
+  background: rgba(0, 0, 0, 0.07);
+  border-radius: 3px;
+  padding: 0 3px;
+  font-size: 12px;
+}
+
+.pinslip-editor .ProseMirror pre {
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin: 4px 0;
+  overflow-x: auto;
+}
+
+.pinslip-editor .ProseMirror pre code {
+  background: none;
+  padding: 0;
+}
+
+.pinslip-editor .ProseMirror hr {
+  border: none;
+  border-top: 1px solid rgba(0, 0, 0, 0.15);
+  margin: 8px 0;
+}
+
+.pinslip-editor .ProseMirror a {
+  color: #1e88e5;
+}
+
+/* ===== 速记浮窗（quick-capture） ===== */
+.quick-capture {
+  /* 同样留透明边距，让阴影充分衰减、不被窗口裁切 */
+  width: calc(100vw - var(--note-margin) * 2);
+  height: calc(100vh - var(--note-margin) * 2);
+  margin: var(--note-margin);
+  display: flex;
+  flex-direction: column;
+  padding: 14px;
+  background: var(--quick-bg);
+  border: 1px solid var(--quick-border);
+  border-radius: var(--quick-radius);
+  box-shadow: var(--quick-shadow);
+}
+
+.quick-capture textarea {
+  flex: 1;
+  border: none;
+  outline: none;
+  resize: none;
+  font-size: 14px;
+  line-height: 1.6;
+  font-family: inherit;
+  background: transparent;
+}
+
+.quick-capture__hint {
+  flex: none;
+  margin-top: 6px;
+  text-align: right;
+  font-size: 11px;
+  color: #999;
+}
+
+/* ===== 主窗口（main-view）：窄条便签列表面板，停靠右下角 ===== */
+.main-view {
+  width: 100vw;
+  height: 100vh;
+  overflow-y: auto;
+  padding: 12px 10px;
+  background: #f7f7f5;
+  position: relative; /* 设置面板的定位上下文 */
+}
+
+/* ===== 设置抽屉（从下往上滑出，遮住主界面） ===== */
+.settings-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(0, 0, 0, 0.2);
+  border: none;
+  cursor: default;
+}
+
+.settings-drawer {
+  position: fixed;
+  inset: 0;
+  z-index: 41;
+  background: #f7f7f5;
+  padding: 14px 12px;
+  overflow-y: auto;
+  animation: settings-drawer-up 0.18s ease;
+}
+
+@keyframes settings-drawer-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: none;
+  }
+}
+
+.settings-drawer__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.settings-drawer__title {
+  font-size: 15px;
+}
+
+/* 标题居中：右侧放一个与返回键等宽的占位 */
+.settings-drawer__header-spacer {
+  width: 26px;
+  flex: none;
+}
+
+.settings-drawer__close {
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.settings-drawer__close:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: #666;
+}
+
+.settings-drawer__close svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* 设置项白色卡片（行/按钮复用 settings-panel__* 样式） */
+.settings-card {
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 10px;
+  padding: 10px 12px 12px;
+}
+
+/* 多张卡片纵向排列时的间距 */
+.settings-card--spaced {
+  margin-bottom: 14px;
+}
+
+.settings-panel__section {
+  font-size: 11px;
+  color: #999;
+  margin-bottom: 8px;
+}
+
+.settings-panel__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.settings-panel__row-icon {
+  width: 15px;
+  height: 15px;
+  color: #e0b93f;
+  flex: none;
+}
+
+.settings-panel__label {
+  font-size: 12px;
+  color: #444;
+  flex: none;
+}
+
+.settings-panel__value {
+  flex: 1;
+  font-size: 11px;
+  color: #999;
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  direction: rtl; /* 路径过长时省略头部，保住末尾可读 */
+}
+
+.settings-panel__hint {
+  font-size: 11px;
+  color: #aaa;
+  margin-top: 6px;
+}
+
+/* 开关（开机自启等设置项） */
+.settings-toggle {
+  margin-left: auto;
+  width: 34px;
+  height: 20px;
+  border: none;
+  border-radius: 10px;
+  background: #d8d8d5;
+  position: relative;
+  transition: background 0.15s ease;
+  flex: none;
+  padding: 0;
+}
+
+.settings-toggle[data-on='true'] {
+  background: #e0b93f;
+}
+
+.settings-toggle__thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  transition: transform 0.15s ease;
+}
+
+.settings-toggle[data-on='true'] .settings-toggle__thumb {
+  transform: translateX(14px);
+}
+
+.settings-toggle:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.settings-panel__actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  justify-content: flex-end;
+}
+
+.settings-panel__btn {
+  padding: 5px 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  background: #fff;
+  font-size: 12px;
+  color: #555;
+}
+
+.settings-panel__btn:hover {
+  background: #f5f5f5;
+  border-color: #d0d0d0;
+}
+
+/* 清空回收区的两阶段确认态 */
+.settings-panel__btn.is-danger {
+  background: #ffebee;
+  border-color: #e57373;
+  color: #c62828;
+}
+
+.settings-panel__btn.is-danger:hover {
+  background: #fde0e3;
+  border-color: #c62828;
+}
+
+.settings-panel__btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.settings-panel__btn:disabled:hover {
+  background: #fff;
+  border-color: #e0e0e0;
+}
+
+/* 回收区保留天数的下拉选择（与行右侧对齐，风格同面板控件） */
+.settings-panel__select {
+  margin-left: auto;
+  padding: 3px 6px;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  background: #fff;
+  font-size: 12px;
+  color: #555;
+}
+
+.main-view__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.main-view__header h1 {
+  font-size: 15px;
+}
+
+.main-view__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.main-view__settings {
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.main-view__settings:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: #666;
+}
+
+.main-view__settings svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* ===== 保险库引导页（首次使用） ===== */
+.vault-setup {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 10px;
+  padding: 24px 20px;
+}
+
+.vault-setup__title {
+  font-size: 18px;
+}
+
+.vault-setup__icon {
+  width: 36px;
+  height: 36px;
+  color: #e0b93f;
+}
+
+.vault-setup__text {
+  font-size: 12px;
+  color: #777;
+  line-height: 1.7;
+}
+
+.vault-setup__btn {
+  margin-top: 4px;
+  padding: 8px 22px;
+  border: none;
+  border-radius: 6px;
+  background: #ffd54f;
+  font-size: 13px;
+  color: #5d4037;
+}
+
+.vault-setup__btn:hover {
+  background: #ffca28;
+}
+
+.vault-setup__hint {
+  font-size: 11px;
+  color: #aaa;
+}
+
+.main-view__hint {
+  display: none; /* 窄面板放不下，新建入口见按钮与托盘 */
+}
+
+.main-view__create {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border: none;
+  border-radius: 6px;
+  background: #ffd54f;
+  font-size: 12px;
+  color: #5d4037;
+}
+
+.main-view__create:hover {
+  background: #ffca28;
+}
+
+.main-view__create svg {
+  width: 13px;
+  height: 13px;
+}
+
+.main-view__search input {
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 12px;
+  outline: none;
+  background: #fff;
+}
+
+.main-view__search input:focus {
+  border-color: #ffd54f;
+}
+
+.main-view__error {
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #ffebee;
+  color: #c62828;
+  font-size: 12px;
+}
+
+.main-view__section {
+  margin-top: 12px;
+}
+
+.main-view__section h2 {
+  font-size: 12px;
+  color: #888;
+  margin-bottom: 8px;
+}
+
+/* 列表视图表头：标题 + 排序控件一行 */
+.main-view__listhead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.main-view__listhead h2 {
+  margin-bottom: 0; /* 间距由 listhead 统一承担 */
+}
+
+.main-view__sort {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.main-view__sort select {
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 5px;
+  background: #fff;
+  font-size: 11px;
+  color: #555;
+  padding: 2px 4px;
+  outline: none;
+}
+
+.main-view__sort button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: #777;
+  cursor: pointer;
+}
+
+.main-view__sort button:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+/* 标签视图组头：可点击收起/展开（caret + 文本） */
+.main-view__grouphead {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  user-select: none;
+  border-radius: 4px;
+}
+
+.main-view__grouphead:hover {
+  color: #555;
+}
+
+.note-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* 卡片颜色：--card-* 变量由 data-color 主题覆盖，默认白 */
+.note-list li {
+  position: relative;
+  padding: 9px 88px 9px 10px; /* 右侧留出 打开目录+移动+删除 三个按钮位 */
+  border-radius: 8px;
+  background: var(--card-bg, #fff);
+  border: 1px solid var(--card-border, #eee);
+  /* 标签 chip 默认琥珀（黄便签），各色块在 data-color 里覆盖 */
+  --tag-bg: rgba(249, 168, 37, 0.22);
+  --tag-ink: #8a6d1f;
+  cursor: pointer;
+}
+
+.note-list li:hover {
+  border-color: var(--card-hover, #ffd54f);
+}
+
+.note-list li[data-color='yellow'] {
+  --card-bg: #fff9c4;
+  --card-border: #eee0a0;
+  --card-hover: #e0cd7a;
+}
+
+.note-list li[data-color='pink'] {
+  --card-bg: #fbd9e4;
+  --card-border: #f0b8cc;
+  --card-hover: #e498b2;
+  --tag-bg: rgba(216, 27, 96, 0.14);
+  --tag-ink: #ad1457;
+}
+
+.note-list li[data-color='green'] {
+  --card-bg: #dff0e0;
+  --card-border: #c0e0c3;
+  --card-hover: #9ccb9f;
+  --tag-bg: rgba(67, 160, 71, 0.16);
+  --tag-ink: #2e7031;
+}
+
+.note-list li[data-color='blue'] {
+  --card-bg: #dbedfc;
+  --card-border: #bcdcf5;
+  --card-hover: #97c6ec;
+  --tag-bg: rgba(30, 136, 229, 0.14);
+  --tag-ink: #1565c0;
+}
+
+.note-list li[data-color='purple'] {
+  --card-bg: #efddf3;
+  --card-border: #dcc4e6;
+  --card-hover: #c6a4d4;
+  --tag-bg: rgba(142, 36, 170, 0.14);
+  --tag-ink: #6a1b9a;
+}
+
+.note-list li[data-color='orange'] {
+  --card-bg: #ffeacc;
+  --card-border: #f5d8a8;
+  --card-hover: #ecc584;
+  --tag-bg: rgba(251, 140, 0, 0.16);
+  --tag-ink: #e65100;
+}
+
+.note-list__title {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  margin-bottom: 3px;
+  /* 窄面板下长标题截断 */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.note-list__inbox {
+  width: 13px;
+  height: 13px;
+  color: #8d9db5;
+  flex: none;
+}
+
+.note-list__pin {
+  width: 11px;
+  height: 11px;
+  color: var(--pin-red);
+  flex: none;
+}
+
+.note-list__snippet,
+.note-list__meta {
+  display: block;
+  font-size: 12px;
+  color: #999;
+  /* 时间行整体不折行，超长（含文件夹标注）省略 */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 搜索结果标题：纯文本（无图标），回退块级——
+   flex 会让高亮 <mark> 片段成独立 item（gap 错位、text-overflow 失效） */
+.note-list__title--plain {
+  display: block;
+}
+
+/* 搜索匹配词高亮（便签黄同色系，白底下柔和醒目） */
+.note-list mark {
+  background: rgba(255, 213, 79, 0.55);
+  color: inherit;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
+.note-list__tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 6px;
+  border-radius: 8px;
+  /* 跟随本条便签的颜色（li[data-color] 提供变量，缺省琥珀黄） */
+  background: var(--tag-bg);
+  font-size: 10px;
+  line-height: 15px;
+  color: var(--tag-ink);
+}
+
+.note-list__tag svg {
+  width: 9px;
+  height: 9px;
+}
+
+.note-list__delete {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: #bbb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.note-list__delete svg {
+  width: 14px;
+  height: 14px;
+}
+
+.note-list__delete:hover {
+  background: #ffebee;
+  color: #c62828;
+}
+
+.note-list__empty {
+  color: #aaa;
+  text-align: center;
+  padding: 32px 0;
+  cursor: default !important;
+}
+
+/* ===== 文件夹导航（面包屑 + 新建文件夹 + 移动弹层） ===== */
+.main-view__crumbs {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px;
+  margin-top: 10px;
+  font-size: 12px;
+}
+
+/* 面包屑用纯文本样式（不用 chip，避免和标签外观混淆），当前层加粗 */
+.main-view__crumb {
+  border: none;
+  background: transparent;
+  padding: 2px 2px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #999;
+  cursor: pointer;
+  /* 单段名超长时限宽省略，完整路径在 title 悬停显示 */
+  max-width: 90px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.main-view__crumb:hover {
+  color: #555;
+}
+
+.main-view__crumb.is-here {
+  color: #333;
+  font-weight: 600;
+}
+
+.main-view__crumb-seg {
+  display: inline-flex;
+  align-items: center;
+}
+
+.main-view__crumb-sep {
+  color: #bbb;
+  margin: 0 1px;
+}
+
+/* 面包屑右侧操作组（新建便签 + 新建文件夹），整体靠右 */
+.main-view__crumb-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.main-view__newfolder-btn {
+  border: none;
+  background: transparent;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  color: #999;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.main-view__newfolder-btn:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: #555;
+}
+
+.main-view__newfolder-btn svg {
+  width: 15px;
+  height: 15px;
+}
+
+.main-view__newfolder-row {
+  margin-top: 6px;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.main-view__newfolder-row input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 10px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 12px;
+  outline: none;
+  background: #fff;
+}
+
+.main-view__newfolder-row input:focus {
+  border-color: #ffd54f;
+}
+
+/* 创建按钮：与 Enter 等效，琥珀底（全局管理动作用品牌色） */
+.main-view__newfolder-create {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 8px;
+  background: #e0b93f;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.main-view__newfolder-create svg {
+  width: 14px;
+  height: 14px;
+}
+
+.main-view__newfolder-create:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* 三视图切换 tab */
+.main-view__tabs {
+  display: flex;
+  gap: 4px;
+  margin-top: 10px;
+  padding: 3px;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 9px;
+}
+
+.main-view__tab {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  padding: 5px 0;
+  font-size: 12px;
+  color: #777;
+  cursor: pointer;
+}
+
+.main-view__tab svg {
+  width: 13px;
+  height: 13px;
+}
+
+.main-view__tab:hover {
+  color: #555;
+}
+
+.main-view__tab.is-active {
+  background: #fff;
+  color: #333;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* 归属与标签行：标签独占一行，flex 布局（子元素不再用 margin-left 挤位） */
+.note-list__badges {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+/* 列表视图的文件夹归属标注：fill 文件夹图标 + 纯文本路径（不用 chip，与标签区分），
+   挂在时间行内，限宽省略防把行撑爆 */
+.note-list__folder {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 8px;
+  max-width: 128px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+  font-size: 10px;
+  line-height: 15px;
+  color: #999;
+}
+
+.note-list__folder svg {
+  width: 11px;
+  height: 11px;
+  flex: none;
+}
+
+/* 文件夹列表项 */
+.note-list li.note-list__dir {
+  background: #fff;
+  border-color: #e8e4da;
+  padding: 8px 62px 8px 10px; /* 右侧留出 重命名+删除 两个按钮位 */
+}
+
+.note-list li.note-list__dir:hover {
+  border-color: #e0b93f;
+}
+
+.note-list__dir-icon {
+  width: 14px;
+  height: 14px;
+  color: #e0b93f;
+  flex: none;
+}
+
+.note-list li.note-list__dir .note-list__title {
+  margin-bottom: 0;
+  color: #665;
+}
+
+/* 文件夹项：重命名按钮（删除按钮左侧，与便签项 move 按钮同位） */
+.note-list__rename {
+  position: absolute;
+  top: 8px;
+  right: 34px;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: #999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.note-list__rename svg {
+  width: 14px;
+  height: 14px;
+}
+
+.note-list__rename:hover {
+  background: #e8f0fe;
+  color: #1a73e8;
+}
+
+/* 文件夹项：行内重命名输入框（占满标题位） */
+.note-list__rename-input {
+  width: 100%;
+  border: 1px solid #e0b93f;
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 13px;
+  outline: none;
+  background: #fffdf5;
+}
+
+/* 打开所在目录按钮（移动按钮左侧） */
+.note-list__open {
+  position: absolute;
+  top: 8px;
+  right: 60px;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: #bbb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.note-list__open svg {
+  width: 14px;
+  height: 14px;
+}
+
+.note-list__open:hover {
+  background: #e8f0fe;
+  color: #1a73e8;
+}
+
+/* 移动到按钮（删除按钮左侧） */
+.note-list__move {
+  position: absolute;
+  top: 8px;
+  right: 34px;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: #bbb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.note-list__move svg {
+  width: 14px;
+  height: 14px;
+}
+
+.note-list__move:hover {
+  background: #fff8e1;
+  color: #b8860b;
+}
+
+/* 移动弹层：底部小抽屉 */
+.move-pop__backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.12);
+  border: none;
+  z-index: 60;
+}
+
+.move-pop {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-height: 55%;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-radius: 12px 12px 0 0;
+  box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.18);
+  z-index: 61;
+  animation: move-pop-in 0.18s ease-out;
+}
+
+@keyframes move-pop-in {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.move-pop__title {
+  font-size: 12px;
+  color: #888;
+  padding: 12px 14px 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.move-pop__list {
+  overflow-y: auto;
+  padding: 0 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* 移动弹层的路径筛选输入框（目录 >5 个时出现） */
+.move-pop__filter {
+  flex: none;
+  margin: 0 8px 6px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 12px;
+  color: #444;
+  outline: none;
+}
+
+.move-pop__filter:focus {
+  border-color: rgba(0, 0, 0, 0.24);
+}
+
+.move-pop__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  background: transparent;
+  padding: 7px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #444;
+  cursor: pointer;
+  text-align: left;
+}
+
+.move-pop__item svg {
+  width: 14px;
+  height: 14px;
+  color: #e0b93f;
+  flex: none;
+}
+
+.move-pop__item:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+/* 删除确认弹层：危险项（连同便签一起删除） */
+.move-pop__item--danger {
+  color: #c0392b;
+}
+
+.move-pop__item--danger:hover {
+  background: #ffebee;
+}
+
+.move-pop__empty {
+  padding: 12px;
+  font-size: 12px;
+  color: #aaa;
+  text-align: center;
+}
+
+/* ===== 便签文件夹面板（底部栏上方弹出） ===== */
+.sticky-note__folderpanel {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  bottom: 32px;
+  /* 高度上限跟随便签整体（90%）：目录再多也不撑出卡片；超出部分由
+     列表区滚动消化（folderlist flex 收缩 + overflow-y） */
+  max-height: 90%;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.14);
+  padding: 6px;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sticky-note__folderpath {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 4px 6px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  font-size: 11px;
+  color: #666;
+}
+
+.sticky-note__folderpath svg {
+  width: 13px;
+  height: 13px;
+  flex: none;
+  color: #b8860b;
+}
+
+.sticky-note__folderpath-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sticky-note__folderpath-root {
+  color: #aaa;
+}
+
+.sticky-note__folderopen {
+  flex: none;
+  border: none;
+  border-radius: 5px;
+  background: rgba(0, 0, 0, 0.06);
+  padding: 3px 8px;
+  font-size: 11px;
+  color: #555;
+  cursor: pointer;
+}
+
+.sticky-note__folderopen:hover {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+/* 目录列表标题：说明这块列表的用途 */
+.sticky-note__folderlist-title {
+  padding: 0 4px 2px;
+  font-size: 10px;
+  color: #aaa;
+}
+
+/* 路径筛选输入框（目录 >5 个时出现）：贴合面板风格的小输入条 */
+.sticky-note__folderfilter {
+  flex: none;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 5px;
+  padding: 4px 8px;
+  font-size: 11px;
+  color: #444;
+  outline: none;
+}
+
+.sticky-note__folderfilter:focus {
+  border-color: rgba(0, 0, 0, 0.24);
+}
+
+.sticky-note__folderlist {
+  /* 不设固定像素上限：吃面板 90% 限高内的剩余空间，不足时收缩出滚动条 */
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.sticky-note__folderitem {
+  border: none;
+  background: transparent;
+  text-align: left;
+  padding: 5px 8px;
+  border-radius: 5px;
+  font-size: 12px;
+  color: #444;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sticky-note__folderitem:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.sticky-note__folderitem.is-current {
+  color: #aaa;
+  cursor: default;
+}
+
+.sticky-note__folderempty {
+  padding: 8px;
+  font-size: 11px;
+  color: #aaa;
+  text-align: center;
+}

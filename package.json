@@ -1,0 +1,18 @@
+{
+  "name": "pinslip",
+  "version": "0.5.0",
+  "private": true,
+  "license": "MIT",
+  "description": "PinSlip — 桌面钉住便签 + 本地知识管理 + AI 开放接入",
+  "scripts": {
+    "dev": "node scripts/dev.js",
+    "build": "pnpm --filter @pinslip/desktop build",
+    "build:service": "node scripts/build-service.js",
+    "build:all": "pnpm build:service && pnpm build",
+    "dist": "pnpm build:service && pnpm --filter @pinslip/desktop dist",
+    "typecheck": "pnpm --filter @pinslip/desktop typecheck"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

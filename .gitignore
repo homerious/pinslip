@@ -1,0 +1,28 @@
+# 依赖
+node_modules/
+.pnpm-store/
+
+# 构建产物
+out/
+dist/
+release/
+
+# Go 编译产物（pinslipd 可执行文件由 scripts/build-service.js 产出）
+apps/service/pinslipd
+apps/service/pinslipd.exe
+apps/service/bin/
+apps/desktop/resources/service/pinslipd
+apps/desktop/resources/service/pinslipd.exe
+
+# 本地数据目录（开发时 PINSLIP_DATA_DIR 指向的临时数据）
+data/
+
+# 日志与临时文件
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
+
+# 编辑器
+.idea/
+.vscode/

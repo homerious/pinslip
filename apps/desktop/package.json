@@ -1,0 +1,44 @@
+{
+  "name": "@pinslip/desktop",
+  "version": "0.5.0",
+  "private": true,
+  "description": "PinSlip — 桌面钉住便签 + 本地知识管理",
+  "author": "PinSlip",
+  "main": "./out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "typecheck": "tsc -p tsconfig.node.json && tsc -p tsconfig.web.json",
+    "dist": "electron-vite build && electron-builder",
+    "dist:dir": "electron-vite build && electron-builder --dir"
+  },
+  "dependencies": {
+    "@electron-toolkit/utils": "^3.0.0",
+    "@milkdown/core": "^7.5.0",
+    "@milkdown/plugin-history": "^7.5.0",
+    "@milkdown/plugin-listener": "^7.5.0",
+    "@milkdown/preset-commonmark": "^7.5.0",
+    "@milkdown/preset-gfm": "^7.5.0",
+    "@milkdown/react": "^7.5.0",
+    "@milkdown/theme-nord": "^7.5.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.30.0"
+  },
+  "devDependencies": {
+    "@iconify-json/ph": "^1.2.2",
+    "@svgr/core": "^8.1.0",
+    "@svgr/plugin-jsx": "^8.1.0",
+    "@types/node": "^22.10.0",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "electron": "^33.2.0",
+    "electron-builder": "^24.13.3",
+    "electron-vite": "^2.3.0",
+    "typescript": "~5.6.3",
+    "unplugin-icons": "^23.0.1",
+    "vite": "^5.4.11"
+  }
+}

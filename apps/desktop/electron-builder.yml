@@ -1,0 +1,49 @@
+# electron-builder 配置：产出 Windows NSIS 安装包 / macOS DMG
+# Go 二进制通过 extraResources 随包携带（先跑 pnpm build:service）
+
+appId: app.pinslip
+productName: PinSlip
+copyright: Copyright © 2026 PinSlip
+
+directories:
+  output: release
+
+# asar 内只放运行时必需的内容（渲染层/主进程已由 electron-vite 打包进 out/）
+files:
+  - out/**
+  - package.json
+  - resources/icon.png
+  - resources/icon.ico
+
+# Go 服务二进制 → 安装目录 resources/service/
+# 对应 go-process.ts 中 app.isPackaged 分支的解析路径
+extraResources:
+  - from: resources/service
+    to: service
+    filter:
+      - "**/*"
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: resources/icon.ico
+
+# macOS：仅 Apple Silicon（arm64）单架构——CI mac runner 原生编译 pinslipd 并出包；
+# Intel（x64）后续需要再加（SQLite 为纯 Go 驱动无 CGO，交叉编译无障碍，但每架构需独立打包链）
+mac:
+  target:
+    - target: dmg
+      arch:
+        - arm64
+  icon: resources/icon.png               # 1024px，mac runner 上 electron-builder 自动转 icns
+  category: public.app-category.productivity
+
+nsis:
+  oneClick: false                        # 安装向导式，用户可选安装路径
+  perMachine: false                      # 按用户安装，免管理员权限
+  allowToChangeInstallationDirectory: true
+  displayLanguageSelector: true          # 安装开始时显示语言选择框（默认已随系统区域自动切换并内置简/繁中文等 ~40 种语言）
+  shortcutName: PinSlip
+  artifactName: ${productName}-Setup-${version}.${ext}
