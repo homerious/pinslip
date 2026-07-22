@@ -71,7 +71,9 @@ jobs:
         run: pnpm --filter @pinslip/desktop build
 
       - name: 打包安装包
-        run: pnpm --filter @pinslip/desktop exec electron-builder ${{ matrix.eb }}
+        # --publish never：CI 环境检出 publish 配置后 electron-builder 默认尝试发布（onTagOrDraft），
+        # 没有 GH_TOKEN 会报错；Release 由下方 action-gh-release 统一创建
+        run: pnpm --filter @pinslip/desktop exec electron-builder ${{ matrix.eb }} --publish never
         env:
           # 暂无 Apple 签名证书：跳过 macOS 证书探测，避免打包失败
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
