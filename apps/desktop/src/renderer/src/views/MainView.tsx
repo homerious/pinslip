@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import PlusIcon from '~icons/ph/plus';
 import TrashIcon from '~icons/ph/trash';
 import TrayIcon from '~icons/ph/tray';
@@ -123,6 +123,10 @@ export default function MainView() {
   const [syncDisableConfirm, setSyncDisableConfirm] = useState(false);
   const [syncBusy, setSyncBusy] = useState(false);
   const [syncFormError, setSyncFormError] = useState('');
+  /** 「自动同步」间隔输入框（分钟）：受控文本，提交/回退时与服务端生效值对齐；
+   *  dirty 标记防止 30s 轮询回填覆盖用户正在输入的内容 */
+  const [syncIntervalInput, setSyncIntervalInput] = useState('10');
+  const syncIntervalDirtyRef = useRef(false);
   // 三视图：列表（全部平铺）/ 文件夹（分层导航）/ 标签（按标签分组）
   const [view, setView] = useState<'list' | 'folders' | 'tags'>('list');
   // 文件夹导航：currentFolder 为 notes/ 相对路径（"" 根目录）
@@ -410,6 +414,10 @@ export default function MainView() {
         .getStatus()
         .then((st) => {
           setSyncStatus(st);
+          // 轮询回填不覆盖正在输入的间隔草稿
+          setSyncIntervalInput((cur) =>
+            syncIntervalDirtyRef.current ? cur : String(st.pushIntervalMin ?? 10),
+          );
           // 表单回填（token 不回显：永不进状态与表单初值）
           if (st.configured) {
             setSyncForm({
@@ -492,6 +500,42 @@ export default function MainView() {
       .catch(() => {})
       .finally(() => setSyncBusy(false));
   }, [syncBusy]);
+
+  // 提交「自动同步」间隔（失焦/Enter）：非法值回退当前生效值；合法值即改即存——
+  // 复用 PUT /api/sync/config（token 空串 = 不修改），Go 侧 Reconfigure 停旧循环
+  // 起新循环，新间隔立即生效，无需重启服务
+  const commitSyncInterval = useCallback(() => {
+    syncIntervalDirtyRef.current = false;
+    const current = syncStatus?.pushIntervalMin ?? 10;
+    const n = Number(syncIntervalInput);
+    if (!Number.isInteger(n) || n < 1 || n > 1440) {
+      setSyncIntervalInput(String(current)); // 非法输入回退生效值
+      return;
+    }
+    if (n === current) {
+      setSyncIntervalInput(String(current)); // 规整显示（如 "010" → "10"）
+      return;
+    }
+    if (syncBusy) return;
+    setSyncBusy(true);
+    syncApi
+      .saveConfig({
+        url: syncStatus?.url ?? syncForm.url.trim(),
+        username: syncStatus?.username ?? syncForm.username.trim(),
+        token: '', // 空串 = 不修改已存 token
+        branch: syncStatus?.branch || syncForm.branch.trim() || 'main',
+        enabled: true,
+        pushIntervalMin: n,
+      })
+      // PUT 失败（多为接入失败）：Go 侧配置已先落盘，拉一次状态对齐真实生效值
+      .catch(() => syncApi.getStatus())
+      .then((st) => {
+        setSyncStatus(st);
+        setSyncIntervalInput(String(st.pushIntervalMin ?? current));
+      })
+      .catch(() => setSyncIntervalInput(String(current)))
+      .finally(() => setSyncBusy(false));
+  }, [syncIntervalInput, syncStatus, syncForm, syncBusy]);
 
   // 停用同步：两阶段确认；保留 .git 与已存凭证
   const disableSync = useCallback(() => {
@@ -903,6 +947,34 @@ export default function MainView() {
                         : '已停用'}
                     </span>
                   </div>
+                  {/* 自动推拉间隔：数字输入在左、单位「分钟」在右，失焦/Enter 即改即存 */}
+                  {syncStatus.enabled && (
+                    <div className="settings-panel__row">
+                      <TimerIcon className="settings-panel__row-icon" />
+                      <span className="settings-panel__label">自动同步</span>
+                      <span className="settings-panel__interval">
+                        <input
+                          className="settings-panel__input settings-panel__input--number"
+                          type="number"
+                          min={1}
+                          max={1440}
+                          step={1}
+                          value={syncIntervalInput}
+                          disabled={syncBusy}
+                          aria-label="自动同步间隔（分钟）"
+                          onChange={(e) => {
+                            syncIntervalDirtyRef.current = true;
+                            setSyncIntervalInput(e.target.value);
+                          }}
+                          onBlur={commitSyncInterval}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') e.currentTarget.blur();
+                          }}
+                        />
+                        分钟
+                      </span>
+                    </div>
+                  )}
                   {syncStatus.conflictedFiles.length > 0 && (
                     <div className="settings-panel__row">
                       <WarningIcon className="settings-panel__row-icon settings-panel__row-icon--danger" />
@@ -966,8 +1038,8 @@ export default function MainView() {
                     )}
                   </div>
                   <div className="settings-panel__hint">
-                    便签变更 3 分钟无操作自动提交，每 10 分钟自动推拉；冲突内容会写入标准 git
-                    markers，解完即消失
+                    便签变更 3 分钟无操作自动提交，每 {syncStatus.pushIntervalMin ?? 10}{' '}
+                    分钟自动推拉；冲突内容会写入标准 git markers，解完即消失
                   </div>
                 </>
               )}

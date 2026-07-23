@@ -2,7 +2,7 @@
 //
 //	启动 pull（已配置时）→ watching
 //	  │ 文件变更防抖 3 分钟无变更 → auto-commit
-//	  │ 定时 10 分钟 → commit + pull + push（push 前必 pull）
+//	  │ 定时（可配 pushIntervalMin，默认 10 分钟）→ commit + pull + push（push 前必 pull）
 //	  │ 失败 backoff 1m→5m→15m 封顶，恢复自动追上
 //	Stop 时给 5s 窗口尽力 push，失败不拦退出。
 //
@@ -47,7 +47,9 @@ type Engine struct {
 	vaultDir string
 	logger   Logger
 
-	// 定时参数（NewEngine 后、Start 前可覆盖，用于测试）
+	// 定时参数（NewEngine 后、Start 前可覆盖，用于测试）；
+	// pushInterval 为 0 时跟随配置 cfg.PushIntervalMin（生产路径），
+	// >0 是测试覆盖（配置粒度分钟、最低 1m，测试需要 ms 级间隔）
 	debounce     time.Duration
 	pushInterval time.Duration
 	backoff      []time.Duration
@@ -79,7 +81,7 @@ func NewEngine(vaultDir string, logger Logger) (*Engine, error) {
 		logger:       logger,
 		cfg:          cfg,
 		debounce:     defaultDebounce,
-		pushInterval: defaultPushInterval,
+		pushInterval: 0, // 0 = 跟随配置（测试可覆盖为固定值）
 		backoff:      defaultBackoff,
 		triggerCh:    make(chan chan error),
 	}
@@ -184,9 +186,9 @@ func (e *Engine) run() {
 	defer close(e.loopDone)
 
 	// 启动即同步一次（含首次接入时的 Connect），之后按 push 定时器走。
-	// 失败进入 backoff：1m→5m→15m 封顶，成功后恢复 10m 节奏。
+	// 失败进入 backoff：1m→5m→15m 封顶，成功后恢复配置节奏。
 	backoffIdx := 0
-	wait := e.pushInterval
+	wait := e.currentPushInterval()
 	if err := e.syncCycle(); err != nil {
 		wait = e.backoff[0]
 		backoffIdx = 1
@@ -212,15 +214,30 @@ func (e *Engine) run() {
 	}
 }
 
-// nextWait 根据本次成败计算下次同步间隔（成功恢复 pushInterval，失败推进 backoff）。
+// nextWait 根据本次成败计算下次同步间隔（成功恢复配置间隔，失败推进 backoff）。
 func (e *Engine) nextWait(ok bool, idx *int) time.Duration {
 	if ok {
 		*idx = 0
-		return e.pushInterval
+		return e.currentPushInterval()
 	}
 	d := e.backoff[min(*idx, len(e.backoff)-1)]
 	*idx++
 	return d
+}
+
+// currentPushInterval 当前生效的自动推拉间隔：测试覆盖优先（pushInterval > 0），
+// 否则用配置值（normalize 已收敛到 1~1440 分钟），未配置回退默认 10m。
+// 配置经 Reconfigure 保存后循环会停下重建，run() 新 timer 即按新值走，无需重启服务。
+func (e *Engine) currentPushInterval() time.Duration {
+	if e.pushInterval > 0 {
+		return e.pushInterval
+	}
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	if e.cfg != nil && e.cfg.PushIntervalMin >= minPushIntervalMin {
+		return time.Duration(e.cfg.PushIntervalMin) * time.Minute
+	}
+	return defaultPushInterval
 }
 
 // syncCycle 一轮完整同步：Connect（必要时）→ commit-all → pull → push。
@@ -400,6 +417,8 @@ type Status struct {
 	Ahead           int       `json:"ahead"`
 	Behind          int       `json:"behind"`
 	ConflictedFiles []string  `json:"conflictedFiles"`
+	// PushIntervalMin 当前生效的自动推拉间隔（分钟）
+	PushIntervalMin int `json:"pushIntervalMin"`
 }
 
 // GetStatus 汇总状态：ahead/behind 现场算（基于最近一次 fetch 的远端位置，
@@ -412,11 +431,13 @@ func (e *Engine) GetStatus() Status {
 		LastSyncAt:      e.lastSyncAt,
 		LastError:       e.lastError,
 		ConflictedFiles: e.conflictedFiles,
+		PushIntervalMin: defaultPushIntervalMin,
 	}
 	if e.cfg != nil {
 		st.URL = e.cfg.URL
 		st.Username = e.cfg.Username
 		st.Branch = e.cfg.Branch
+		st.PushIntervalMin = e.cfg.PushIntervalMin
 	}
 	repo := e.repo
 	e.mu.RUnlock()

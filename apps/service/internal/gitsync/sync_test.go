@@ -665,3 +665,58 @@ func TestReconfigureSetsLastSyncAt(t *testing.T) {
 		t.Errorf("接入成功不应有 lastError: %q", st.LastError)
 	}
 }
+
+// 自动推拉间隔配置：normalize 把缺省/越界值拉回默认 10，合法值（1~1440）保留；
+// 引擎 currentPushInterval 跟随配置（测试覆盖优先），Status 透出当前生效值。
+func TestPushIntervalMinConfig(t *testing.T) {
+	// 缺省/非法 → 默认 10
+	for _, in := range []int{0, -5, 1441, 100000} {
+		c := SyncConfig{URL: "https://example.com/a.git", PushIntervalMin: in}
+		if err := c.normalize(); err != nil {
+			t.Fatal(err)
+		}
+		if c.PushIntervalMin != defaultPushIntervalMin {
+			t.Errorf("PushIntervalMin=%d 应回退默认 %d, got %d", in, defaultPushIntervalMin, c.PushIntervalMin)
+		}
+	}
+	// 边界与常规合法值 → 保留
+	for _, in := range []int{1, 15, 1440} {
+		c := SyncConfig{URL: "https://example.com/a.git", PushIntervalMin: in}
+		if err := c.normalize(); err != nil {
+			t.Fatal(err)
+		}
+		if c.PushIntervalMin != in {
+			t.Errorf("合法值 %d 应保留, got %d", in, c.PushIntervalMin)
+		}
+	}
+
+	// 引擎跟随配置：Reconfigure 后 currentPushInterval 即新值，Status 同步透出
+	vault := newVault(t)
+	eng, err := NewEngine(vault, tLogger{t})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg := SyncConfig{URL: "https://example.com/a.git", Branch: "main", Enabled: false, PushIntervalMin: 15}
+	if err := eng.Reconfigure(cfg); err != nil {
+		t.Fatal(err)
+	}
+	if got := eng.currentPushInterval(); got != 15*time.Minute {
+		t.Fatalf("currentPushInterval 应跟随配置 15m, got %v", got)
+	}
+	if st := eng.GetStatus(); st.PushIntervalMin != 15 {
+		t.Fatalf("Status.PushIntervalMin 应为 15, got %d", st.PushIntervalMin)
+	}
+	// 落盘往返：重载后配置值仍在
+	stored, err := loadSyncConfig(vault)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored.PushIntervalMin != 15 {
+		t.Fatalf("落盘重载后 PushIntervalMin 应为 15, got %d", stored.PushIntervalMin)
+	}
+	// 测试覆盖优先于配置（ms 级间隔只能靠覆盖）
+	eng.pushInterval = time.Hour
+	if got := eng.currentPushInterval(); got != time.Hour {
+		t.Fatalf("测试覆盖应优先, got %v", got)
+	}
+}

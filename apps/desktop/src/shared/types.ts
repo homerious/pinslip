@@ -95,6 +95,8 @@ export interface SyncStatus {
   behind: number;
   /** 含冲突 markers 的 .md 文件（vault 相对路径） */
   conflictedFiles: string[];
+  /** 当前生效的自动推拉间隔（分钟） */
+  pushIntervalMin: number;
 }
 
 /** PUT /api/sync/config 请求体；token 空串 = 不修改已存 token */
@@ -105,6 +107,8 @@ export interface SaveSyncConfigInput {
   token: string;
   branch: string;
   enabled: boolean;
+  /** 自动推拉间隔（分钟，1~1440）；缺省/非法 Go 侧回退默认 10 */
+  pushIntervalMin?: number;
 }
 
 /** 主进程提供给渲染进程的运行时信息 */

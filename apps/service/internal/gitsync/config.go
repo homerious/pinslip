@@ -12,6 +12,13 @@ import (
 	"strings"
 )
 
+// 自动推拉间隔（分钟）的合法范围与默认值：normalize 把缺省/越界值拉回默认。
+const (
+	defaultPushIntervalMin = 10
+	minPushIntervalMin     = 1
+	maxPushIntervalMin     = 1440 // 一天
+)
+
 // SyncConfig 是 git 同步配置。token 只落盘到 .pinslip/git-sync.json，
 // 绝不进日志、不进 git 跟踪、不出现在 status 响应里。
 type SyncConfig struct {
@@ -20,6 +27,8 @@ type SyncConfig struct {
 	Token    string `json:"token"`
 	Branch   string `json:"branch"` // 默认 main
 	Enabled  bool   `json:"enabled"`
+	// PushIntervalMin 自动推拉间隔（分钟）；0/越界在 normalize 回退默认 10
+	PushIntervalMin int `json:"pushIntervalMin,omitempty"`
 }
 
 // normalize 清洗输入、补默认值并做最小校验。
@@ -33,6 +42,9 @@ func (c *SyncConfig) normalize() error {
 	c.Token = strings.TrimPrefix(c.Token, ":")
 	if c.Branch == "" {
 		c.Branch = "main"
+	}
+	if c.PushIntervalMin < minPushIntervalMin || c.PushIntervalMin > maxPushIntervalMin {
+		c.PushIntervalMin = defaultPushIntervalMin
 	}
 	if c.Enabled && c.URL == "" {
 		return errors.New("启用同步必须提供仓库地址 url")

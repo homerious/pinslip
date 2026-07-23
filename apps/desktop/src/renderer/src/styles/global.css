@@ -1503,6 +1503,21 @@ input.sticky-note__groupname-input::placeholder {
   border-color: #e0b93f;
 }
 
+/* git 同步「自动同步」间隔：数字输入在左、单位文字在右（即改即存，失焦/Enter 提交） */
+.settings-panel__interval {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #555;
+}
+
+.settings-panel__input--number {
+  flex: none;
+  width: 64px;
+}
+
 /* 同步错误/表单校验错误（认证失败、非空仓库拒绝等，红色高亮） */
 .settings-panel__error {
   font-size: 11px;
