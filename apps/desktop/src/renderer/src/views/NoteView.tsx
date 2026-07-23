@@ -29,6 +29,7 @@ import ConflictResolver from '../components/ConflictResolver';
 import { toMarkdownImageSrc } from '../components/editor/image-support';
 import { attachmentsApi } from '../api/attachments';
 import { foldersApi, notesApi } from '../api/notes';
+import { syncApi } from '../api/sync';
 import { hasConflictMarkers } from '../utils/conflict';
 import { shortenFolder } from '../utils/path';
 import { COLLAPSE_ANIM_MS } from '@shared/anim';
@@ -271,6 +272,12 @@ export default function NoteView() {
           setSaveState('saved');
           setToast('冲突已解决');
           window.api.notifyNotesChanged(); // 广播：主界面列表近实时刷新
+          // 内容已无冲突 markers：立即触发一轮 git 同步，不必等下个自动周期。
+          // 异步静默触发，不阻塞保存反馈；失败不打扰（错误体现在设置抽屉同步状态的
+          // lastError），拉回的新内容走现有 applyExternal/外部变更感知处理
+          if (!hasConflictMarkers(note.content)) {
+            void syncApi.syncNow().catch(() => {});
+          }
         })
         .catch(() => setSaveState('error'));
     },
