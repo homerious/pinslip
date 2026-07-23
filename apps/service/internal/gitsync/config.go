@@ -9,6 +9,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // SyncConfig 是 git 同步配置。token 只落盘到 .pinslip/git-sync.json，
@@ -21,8 +22,15 @@ type SyncConfig struct {
 	Enabled  bool   `json:"enabled"`
 }
 
-// normalize 补默认值并做最小校验。
+// normalize 清洗输入、补默认值并做最小校验。
 func (c *SyncConfig) normalize() error {
+	// 输入清洗：复制粘贴常带首尾空白；token 尤其要防 cnb 等平台的
+	// 「user:token」复制格式——用户常把 :token 整段粘进来，
+	// 多出的前导冒号会让服务端把私有仓库误判成不存在（404 而非 401，极难排查）
+	c.URL = strings.TrimSpace(c.URL)
+	c.Username = strings.TrimSpace(c.Username)
+	c.Token = strings.TrimSpace(c.Token)
+	c.Token = strings.TrimPrefix(c.Token, ":")
 	if c.Branch == "" {
 		c.Branch = "main"
 	}
