@@ -188,20 +188,111 @@ func (r *Repo) firstConnect() (*Repo, error) {
 		return nil, errors.New("远端仓库不是 PinSlip 的同步仓库（缺少 .pinslip-repo 标记），为避免历史纠缠请使用空仓库")
 	}
 	// 接入：本地分支指向远端并检出。
-	// 注意（v1 简化）：本地同名路径文件会被远端版本覆盖（HardReset），
+	// 注意（v1 简化）：本地同名路径文件会被远端版本覆盖（checkDirty=false 不拦截），
 	// 该路径设计用于新设备接入（vault 为空）；非空 vault 接入异机仓库前先自行备份。
+	// 差异之外的文件（.pinslip/ 运行时文件、无关本地文件）一律不动。
+	if err := r.applyTreeDiff(nil, rc, false); err != nil {
+		return nil, fmt.Errorf("检出远端内容失败: %w", err)
+	}
 	if err := r.r.Storer.SetReference(plumbing.NewHashReference(
 		plumbing.NewBranchReferenceName(r.cfg.Branch), remoteRef.Hash())); err != nil {
 		return nil, err
 	}
+	return r, nil
+}
+
+// applyTreeDiff 把工作区与索引从 from 提交更新到 to 提交（from=nil 表示空树），
+// 只检出/删除两棵树的差异路径，差异之外的文件一律不碰。
+//
+// 为什么不用 go-git 的 Reset(HardReset)：其实现链 ResetSparsely → resetWorktree →
+// diffStagingWithWorktree → checkoutChange → rmFileAndDirsIfEmpty 会把
+// 「不在目标树里的工作区文件」全部当作删除候选——包括未跟踪与被 .gitignore
+// 排除的运行时文件（.pinslip/pinslip.db 正被服务以 SQLite 打开、
+// .pinslip/git-sync.json 是同步配置本身，删了同步即自毁），删完还会递归
+// 清理空目录。Windows 上文件锁让它显式报错，Linux 上打开中的文件被静默
+// unlink——同样有害但更隐蔽。故所有检出必须按树差异逐路径进行。
+//
+// checkDirty=true 时（正常 ff），差异路径与本地未提交/未跟踪文件相交则拒绝
+// （等价 git 的覆盖保护）；gitignore 排除的文件本就不在 status 内，天然豁免。
+func (r *Repo) applyTreeDiff(from, to *object.Commit, checkDirty bool) error {
+	var fromTree *object.Tree
+	if from != nil {
+		t, err := from.Tree()
+		if err != nil {
+			return err
+		}
+		fromTree = t
+	}
+	toTree, err := to.Tree()
+	if err != nil {
+		return err
+	}
+	changes, err := object.DiffTree(fromTree, toTree) // fromTree=nil 按空树处理
+	if err != nil {
+		return err
+	}
+	if checkDirty {
+		if err := r.ensureNoDirtyOverlap(changes); err != nil {
+			return err
+		}
+	}
+
 	w, err := r.r.Worktree()
 	if err != nil {
-		return nil, err
+		return err
 	}
-	if err := w.Reset(&git.ResetOptions{Mode: git.HardReset, Commit: remoteRef.Hash()}); err != nil {
-		return nil, fmt.Errorf("检出远端内容失败: %w", err)
+	for _, ch := range changes {
+		if ch.To.Name == "" {
+			// 删除（DiffTree 不做 rename 检测：删除即 To 为空）
+			if err := os.Remove(r.absPath(ch.From.Name)); err != nil && !os.IsNotExist(err) {
+				return fmt.Errorf("删除 %s 失败: %w", ch.From.Name, err)
+			}
+			if _, err := w.Remove(ch.From.Name); err != nil {
+				return fmt.Errorf("从索引移除 %s 失败: %w", ch.From.Name, err)
+			}
+			continue
+		}
+		content, ok, err := readFileAt(to, ch.To.Name)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return fmt.Errorf("目标树缺少文件 %s", ch.To.Name)
+		}
+		if err := writeWorkFile(r.absPath(ch.To.Name), content); err != nil {
+			return fmt.Errorf("写入 %s 失败: %w", ch.To.Name, err)
+		}
+		if _, err := w.Add(ch.To.Name); err != nil {
+			return fmt.Errorf("暂存 %s 失败: %w", ch.To.Name, err)
+		}
 	}
-	return r, nil
+	return nil
+}
+
+// ensureNoDirtyOverlap 差异路径若与本地未提交/未跟踪文件相交则报错
+// （gitignore 排除的文件不在 status 内，不会误拦）。
+func (r *Repo) ensureNoDirtyOverlap(changes object.Changes) error {
+	if len(changes) == 0 {
+		return nil
+	}
+	w, err := r.r.Worktree()
+	if err != nil {
+		return err
+	}
+	st, err := w.Status()
+	if err != nil {
+		return err
+	}
+	for _, ch := range changes {
+		path := ch.To.Name
+		if path == "" {
+			path = ch.From.Name
+		}
+		if fs, ok := st[path]; ok && (fs.Staging != git.Unmodified || fs.Worktree != git.Unmodified) {
+			return fmt.Errorf("本地有未提交/未跟踪的变更会被远端覆盖: %s（请先提交或移开该文件）", path)
+		}
+	}
+	return nil
 }
 
 // writeMetaFiles 写入 .gitignore 与标记文件（幂等）。
@@ -364,17 +455,31 @@ func (r *Repo) Pull() (*PullOutcome, error) {
 	return r.mergeTheirs(local, remote)
 }
 
-// fastForward 本地分支指向 remoteHash 并硬检出（调用方保证是祖先关系）。
+// fastForward 把本地分支快进到 remoteHash（调用方保证祖先关系）。
+// 检出走 applyTreeDiff（只动两树差异路径，不碰 .pinslip/ 等树外文件，
+// 详见该函数注释）；本地无提交时按空树全量检出。
 func (r *Repo) fastForward(remoteHash plumbing.Hash) error {
-	if err := r.r.Storer.SetReference(plumbing.NewHashReference(
-		plumbing.NewBranchReferenceName(r.cfg.Branch), remoteHash)); err != nil {
-		return err
-	}
-	w, err := r.r.Worktree()
+	remote, err := r.r.CommitObject(remoteHash)
 	if err != nil {
 		return err
 	}
-	return w.Reset(&git.ResetOptions{Mode: git.HardReset, Commit: remoteHash})
+	var from *object.Commit
+	head, err := r.r.Head()
+	switch {
+	case err == nil:
+		if from, err = r.r.CommitObject(head.Hash()); err != nil {
+			return err
+		}
+	case errors.Is(err, plumbing.ErrReferenceNotFound):
+		from = nil
+	default:
+		return err
+	}
+	if err := r.applyTreeDiff(from, remote, true); err != nil {
+		return err
+	}
+	return r.r.Storer.SetReference(plumbing.NewHashReference(
+		plumbing.NewBranchReferenceName(r.cfg.Branch), remoteHash))
 }
 
 // Push 推送本地分支到 origin。已是最新不算错误。

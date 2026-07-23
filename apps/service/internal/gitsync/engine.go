@@ -123,30 +123,43 @@ func (e *Engine) startLocked() {
 	go e.run()
 }
 
-// stopLocked 停止循环与监听（调用方持 e.mu）。
-func (e *Engine) stopLocked() {
+// stopLoopLocked 发起循环停止（调用方持 e.mu）：标记停止并关闭信号通道，
+// 返回等待完成所需的通道与监听停止函数。
+// 拆成两阶段的原因：等待 loopDone 时绝不能持有 e.mu——在飞的 syncCycle
+// 结束前要拿 e.mu 写状态，持锁等待会互锁（服务关停/重配时真实死锁）。
+func (e *Engine) stopLoopLocked() (done chan struct{}, stopWatch func()) {
 	if !e.running {
-		return
+		return nil, nil
 	}
 	e.running = false
 	close(e.stopCh)
-	e.stopWatch()
-	<-e.loopDone
+	return e.loopDone, e.stopWatch
+}
+
+// waitLoopStopped 等待循环退出并清理 repo（不持 e.mu 调用）。
+func (e *Engine) waitLoopStopped(done chan struct{}, stopWatch func()) {
+	if done == nil {
+		return
+	}
+	if stopWatch != nil {
+		stopWatch()
+	}
+	<-done
+	e.mu.Lock()
 	e.repo = nil
+	e.mu.Unlock()
 }
 
 // Stop 停止同步循环，并在 5s 窗口内尽力 commit+pull+push 一次（失败不拦退出）。
 func (e *Engine) Stop() {
 	e.mu.Lock()
-	wasRunning := e.running
 	repo := e.repo
 	cfg := e.cfg
-	if wasRunning {
-		e.stopLocked()
-	}
+	done, stopWatch := e.stopLoopLocked()
 	e.mu.Unlock()
+	e.waitLoopStopped(done, stopWatch)
 
-	if !wasRunning || repo == nil || cfg == nil {
+	if repo == nil || cfg == nil {
 		return
 	}
 	e.opMu.Lock()
@@ -330,13 +343,11 @@ func (e *Engine) Reconfigure(in SyncConfig) error {
 	}
 
 	e.mu.Lock()
-	wasRunning := e.running
-	if wasRunning {
-		e.stopLocked()
-	}
+	done, stopWatch := e.stopLoopLocked()
 	e.cfg = &in
 	e.lastError = ""
 	e.mu.Unlock()
+	e.waitLoopStopped(done, stopWatch)
 
 	if !in.Enabled {
 		return nil
@@ -353,6 +364,10 @@ func (e *Engine) Reconfigure(in SyncConfig) error {
 		return err
 	}
 	e.repo = repo
+	// Connect 内的首次提交+push 本身就是一轮完整同步：立即落 lastSyncAt。
+	// 否则要等循环里首个 syncCycle 跑完才有值，PUT 响应与首个轮询窗口内
+	// UI 会错误显示「从未同步」
+	e.lastSyncAt = time.Now()
 	e.startLocked()
 	return nil
 }
@@ -360,9 +375,7 @@ func (e *Engine) Reconfigure(in SyncConfig) error {
 // Disable 停用同步：保留 .git 与已存配置（仅置 enabled=false），停止循环。
 func (e *Engine) Disable() error {
 	e.mu.Lock()
-	if e.running {
-		e.stopLocked()
-	}
+	done, stopWatch := e.stopLoopLocked()
 	if e.cfg != nil {
 		e.cfg.Enabled = false
 		if err := saveSyncConfig(e.vaultDir, e.cfg); err != nil {
@@ -371,6 +384,7 @@ func (e *Engine) Disable() error {
 		}
 	}
 	e.mu.Unlock()
+	e.waitLoopStopped(done, stopWatch)
 	return nil
 }
 

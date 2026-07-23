@@ -557,3 +557,111 @@ func TestOfflineRecoveryCatchUp(t *testing.T) {
 		time.Sleep(100 * time.Millisecond)
 	}
 }
+
+// 回归（严重 bug）：ff/adopt 检出绝不触碰树外文件。
+// go-git 的整树 Reset(HardReset) 会把不在目标树里的工作区文件全部删除——
+// 包括 .gitignore 排除的运行时文件（.pinslip/pinslip.db 打开中被删/锁冲突、
+// .pinslip/git-sync.json 同步配置本身）。这里在 adopt 与 ff 两条路径上分别
+// 预置运行时文件与未跟踪便签，断言它们原样存活；同时验证 ff 的新增/删除生效。
+func TestPullKeepsIgnoredRuntimeFiles(t *testing.T) {
+	remote := newBareRemote(t)
+	vaultA := newVault(t)
+	writeVaultFile(t, vaultA, "notes/base.md", []byte("base\n"))
+	repoA := connectVault(t, vaultA, remote)
+
+	// B：接入前预置运行时文件（模拟 pinslip.db 与同步配置）+ 未跟踪便签
+	vaultB := newVault(t)
+	runtimeFiles := map[string]string{
+		".pinslip/pinslip.db":    "SQLITE-RUNTIME",
+		".pinslip/git-sync.json": `{"url":"x"}`,
+		"notes/local-only.md":    "本地未跟踪\n",
+	}
+	for rel, content := range runtimeFiles {
+		writeVaultFile(t, vaultB, rel, []byte(content))
+	}
+	repoB := connectVault(t, vaultB, remote) // adopt 检出
+
+	assertAlive := func(stage string) {
+		t.Helper()
+		for rel, want := range runtimeFiles {
+			if got := readVaultFile(t, vaultB, rel); got != want {
+				t.Errorf("%s 后 %s 应原样存活, got %q want %q", stage, rel, got, want)
+			}
+		}
+	}
+	assertAlive("adopt")
+
+	// A：新增一条便签、删除 base，推送（制造 ff 差异：一增一删）
+	writeVaultFile(t, vaultA, "notes/new.md", []byte("新便签\n"))
+	if err := os.Remove(filepath.Join(vaultA, "notes/base.md")); err != nil {
+		t.Fatal(err)
+	}
+	syncOnce(t, repoA)
+
+	// B：ff pull——检出新增、应用删除，树外文件不动
+	outcome, err := repoB.Pull()
+	if err != nil {
+		t.Fatalf("B Pull 失败: %v", err)
+	}
+	if outcome.Kind != PullFastForward {
+		t.Errorf("应为 fast-forward, got %v", outcome.Kind)
+	}
+	if got := readVaultFile(t, vaultB, "notes/new.md"); got != "新便签\n" {
+		t.Errorf("ff 应检出新便签, got %q", got)
+	}
+	if _, err := os.Stat(filepath.Join(vaultB, "notes/base.md")); !os.IsNotExist(err) {
+		t.Error("ff 应删除 base.md")
+	}
+	assertAlive("ff pull")
+}
+
+// ff 覆盖保护：差异路径与本地未提交的脏文件相交时拒绝检出（等价 git 行为），
+// 本地内容保留；gitignore 排除的文件不参与该判定（见上条测试）。
+func TestPullFastForwardProtectsDirtyFile(t *testing.T) {
+	vaultA, repoA, vaultB, repoB := setupSyncedPair(t, "notes/doc.md", []byte("v1\n"))
+
+	writeVaultFile(t, vaultA, "notes/doc.md", []byte("v2\n"))
+	syncOnce(t, repoA)
+
+	// B 本地改同一文件但不提交
+	writeVaultFile(t, vaultB, "notes/doc.md", []byte("本地未提交\n"))
+	_, err := repoB.Pull()
+	if err == nil {
+		t.Fatal("脏文件与 ff 差异相交应拒绝检出")
+	}
+	if !strings.Contains(err.Error(), "notes/doc.md") {
+		t.Errorf("错误应指明冲突文件: %v", err)
+	}
+	if got := readVaultFile(t, vaultB, "notes/doc.md"); got != "本地未提交\n" {
+		t.Errorf("本地未提交内容应保留, got %q", got)
+	}
+}
+
+// 回归（小 bug）：首次接入（PUT config）成功即落 lastSyncAt——
+// Connect 内的首次提交+push 就是一轮完整同步，UI 不应显示「从未同步」。
+func TestReconfigureSetsLastSyncAt(t *testing.T) {
+	remote := newBareRemote(t)
+	vault := newVault(t)
+	writeVaultFile(t, vault, "notes/first.md", []byte("第一条\n"))
+
+	eng, err := NewEngine(vault, tLogger{t})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer eng.Stop()
+
+	before := time.Now()
+	if err := eng.Reconfigure(testConfig(remote)); err != nil {
+		t.Fatalf("Reconfigure 失败: %v", err)
+	}
+	st := eng.GetStatus()
+	if st.LastSyncAt.IsZero() {
+		t.Fatal("首次接入成功后 lastSyncAt 应立即有值")
+	}
+	if st.LastSyncAt.Before(before.Add(-time.Second)) {
+		t.Errorf("lastSyncAt 应在接入时刻附近: %v", st.LastSyncAt)
+	}
+	if st.LastError != "" {
+		t.Errorf("接入成功不应有 lastError: %q", st.LastError)
+	}
+}
