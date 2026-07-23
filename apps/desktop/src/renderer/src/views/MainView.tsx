@@ -127,6 +127,8 @@ export default function MainView() {
    *  dirty 标记防止 30s 轮询回填覆盖用户正在输入的内容 */
   const [syncIntervalInput, setSyncIntervalInput] = useState('10');
   const syncIntervalDirtyRef = useRef(false);
+  /** 配置表单 dirty 标记：编辑中不被 30s 轮询回填覆盖；保存/取消/重开抽屉时复位 */
+  const syncFormDirtyRef = useRef(false);
   // 三视图：列表（全部平铺）/ 文件夹（分层导航）/ 标签（按标签分组）
   const [view, setView] = useState<'list' | 'folders' | 'tags'>('list');
   // 文件夹导航：currentFolder 为 notes/ 相对路径（"" 根目录）
@@ -409,6 +411,7 @@ export default function MainView() {
     setSyncEditing(false);
     setSyncDisableConfirm(false);
     setSyncFormError('');
+    syncFormDirtyRef.current = false;
     const load = () =>
       syncApi
         .getStatus()
@@ -418,8 +421,8 @@ export default function MainView() {
           setSyncIntervalInput((cur) =>
             syncIntervalDirtyRef.current ? cur : String(st.pushIntervalMin ?? 10),
           );
-          // 表单回填（token 不回显：永不进状态与表单初值）
-          if (st.configured) {
+          // 表单回填（token 不回显：永不进状态与表单初值）；编辑中不覆盖用户草稿
+          if (st.configured && !syncFormDirtyRef.current) {
             setSyncForm({
               url: st.url ?? '',
               username: st.username ?? '',
@@ -484,6 +487,7 @@ export default function MainView() {
       .then((st) => {
         setSyncStatus(st);
         setSyncEditing(false);
+        syncFormDirtyRef.current = false;
         setSyncForm((f) => ({ ...f, token: '' })); // token 不留内存态
       })
       .catch((err) => setSyncFormError(apiErrorMessage(err)))
@@ -867,7 +871,10 @@ export default function MainView() {
                       value={syncForm.url}
                       placeholder="https://github.com/you/pinslip-vault.git"
                       spellCheck={false}
-                      onChange={(e) => setSyncForm((f) => ({ ...f, url: e.target.value }))}
+                      onChange={(e) => {
+                        syncFormDirtyRef.current = true;
+                        setSyncForm((f) => ({ ...f, url: e.target.value }));
+                      }}
                     />
                   </div>
                   <div className="settings-panel__field">
@@ -877,7 +884,10 @@ export default function MainView() {
                       value={syncForm.username}
                       placeholder="git 用户名"
                       spellCheck={false}
-                      onChange={(e) => setSyncForm((f) => ({ ...f, username: e.target.value }))}
+                      onChange={(e) => {
+                        syncFormDirtyRef.current = true;
+                        setSyncForm((f) => ({ ...f, username: e.target.value }));
+                      }}
                     />
                   </div>
                   <div className="settings-panel__field">
@@ -888,7 +898,10 @@ export default function MainView() {
                       value={syncForm.token}
                       placeholder={syncStatus?.configured ? '留空则不修改' : 'personal access token'}
                       autoComplete="off"
-                      onChange={(e) => setSyncForm((f) => ({ ...f, token: e.target.value }))}
+                      onChange={(e) => {
+                        syncFormDirtyRef.current = true;
+                        setSyncForm((f) => ({ ...f, token: e.target.value }));
+                      }}
                     />
                   </div>
                   <div className="settings-panel__field">
@@ -898,7 +911,10 @@ export default function MainView() {
                       value={syncForm.branch}
                       placeholder="main"
                       spellCheck={false}
-                      onChange={(e) => setSyncForm((f) => ({ ...f, branch: e.target.value }))}
+                      onChange={(e) => {
+                        syncFormDirtyRef.current = true;
+                        setSyncForm((f) => ({ ...f, branch: e.target.value }));
+                      }}
                     />
                   </div>
                   {syncFormError && <div className="settings-panel__error">{syncFormError}</div>}
@@ -909,6 +925,16 @@ export default function MainView() {
                         onClick={() => {
                           setSyncEditing(false);
                           setSyncFormError('');
+                          // 放弃草稿：复位 dirty 并立刻回填服务端生效值
+                          syncFormDirtyRef.current = false;
+                          if (syncStatus?.configured) {
+                            setSyncForm({
+                              url: syncStatus.url ?? '',
+                              username: syncStatus.username ?? '',
+                              token: '',
+                              branch: syncStatus.branch || 'main',
+                            });
+                          }
                         }}
                       >
                         取消
