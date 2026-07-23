@@ -43,7 +43,7 @@ export class GoProcess {
   /** 重启服务（切换保险库后调用）：杀旧进程、清状态、按新配置拉起。 */
   async restart(): Promise<number> {
     this.stopping = true;
-    this.child?.kill();
+    this.killChild();
     this.child = null;
     this.readyPromise = null;
     this.restarts = 0;
@@ -51,6 +51,19 @@ export class GoProcess {
     await new Promise((r) => setTimeout(r, 400));
     this.stopping = false;
     return this.ensureStarted();
+  }
+
+  /** 杀进程树：dev 下 `go run` 会派生编译产物 pinslipd.exe（父 go.exe → 子 pinslipd.exe），
+   *  只杀直接子进程会把孙子进程遗弃成孤儿——每次 dev 重启漏一个，日积月累吃内存。
+   *  Windows 用 taskkill /T 杀整棵树；其他平台 go run 收到信号会带着子进程退，child.kill 即可。 */
+  private killChild(): void {
+    const child = this.child;
+    if (!child || child.pid == null) return;
+    if (process.platform === 'win32') {
+      spawn('taskkill', ['/PID', String(child.pid), '/T', '/F'], { stdio: 'ignore' });
+    } else {
+      child.kill();
+    }
   }
 
   private resolveCommand(): { cmd: string; args: string[]; cwd?: string } {
@@ -124,7 +137,7 @@ export class GoProcess {
   /** 停止服务（应用退出前调用）。 */
   stop(): void {
     this.stopping = true;
-    this.child?.kill();
+    this.killChild();
     this.child = null;
   }
 }
