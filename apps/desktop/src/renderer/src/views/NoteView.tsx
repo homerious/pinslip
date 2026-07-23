@@ -21,14 +21,15 @@ import ListChecksIcon from '~icons/ph/list-checks';
 import ImageIcon from '~icons/ph/image';
 import CopyIcon from '~icons/ph/copy';
 import CheckIcon from '~icons/ph/check';
-import WarningIcon from '~icons/ph/warning';
 import ArrowsClockwiseIcon from '~icons/ph/arrows-clockwise';
 import PinIcon from '../components/icons/PinIcon';
 import Editor from '../components/editor/Editor';
 import type { EditorHandle } from '../components/editor/Editor';
+import ConflictResolver from '../components/ConflictResolver';
 import { toMarkdownImageSrc } from '../components/editor/image-support';
 import { attachmentsApi } from '../api/attachments';
 import { foldersApi, notesApi } from '../api/notes';
+import { hasConflictMarkers } from '../utils/conflict';
 import { shortenFolder } from '../utils/path';
 import { COLLAPSE_ANIM_MS } from '@shared/anim';
 import type { GroupState, NoteColor } from '@shared/types';
@@ -249,6 +250,33 @@ export default function NoteView() {
     if (withToast) setToast('内容已被同步更新');
   }, []);
 
+  /** 冲突解决视图的「保存解决」：全量 upsert 落盘（与 autosave 同参数快照）。
+   *  解决视图不走自动保存（草稿是 ConflictResolver 内部 state，不碰 content），
+   *  只有这里显式保存；保存后 markers 消失 → hasConflict 转 false，
+   *  editorEpoch+1 触发 Editor key-remount 切回 Milkdown */
+  const saveResolution = useCallback(
+    (text: string) => {
+      setSaveState('saving');
+      notesApi
+        .save(noteId, { content: text, source: 'sticky', pin: pinned, color, tags, collapsed, folder: folderRef.current })
+        .then((note) => {
+          existsRef.current = true;
+          lastSavedRef.current = note.content;
+          contentRef.current = note.content;
+          dirtyRef.current = false;
+          setExternalUpdate(null);
+          setTitle(note.title);
+          setContent(note.content);
+          setEditorEpoch((n) => n + 1);
+          setSaveState('saved');
+          setToast('冲突已解决');
+          window.api.notifyNotesChanged(); // 广播：主界面列表近实时刷新
+        })
+        .catch(() => setSaveState('error'));
+    },
+    [noteId, pinned, color, tags, collapsed],
+  );
+
   // toast 轻提示 2.5s 自动消隐
   useEffect(() => {
     if (!toast) return;
@@ -341,8 +369,10 @@ export default function NoteView() {
   /** 显示用标题：实时跟随内容首行（与服务端同算法），兜底已保存标题 */
   const displayTitle = useMemo(() => deriveTitle(content) || title, [content, title]);
 
-  /** 冲突标记实时检测：随 content 派生，编辑删掉标记即消失（涵盖初始载入/外部重载/保存后） */
-  const hasConflict = useMemo(() => /^<<<<<<< /m.test(content), [content]);
+  /** 冲突标记实时检测：随 content 派生，编辑删掉标记即消失（涵盖初始载入/外部重载/保存后）。
+   *  true 时编辑区整换 ConflictResolver 原文解决视图（Milkdown 会把 markers 渲染成标题/引用），
+   *  解决保存后 markers 消失，自动切回 Milkdown */
+  const hasConflict = useMemo(() => hasConflictMarkers(content), [content]);
 
   // 窗口标题同步便签标题（任务栏/Alt+Tab 可辨识）
   useEffect(() => {
@@ -775,14 +805,6 @@ export default function NoteView() {
         </button>
       </div>
 
-      {/* 冲突横幅：内容含 git 冲突标记时常驻，删掉标记即消失 */}
-      {!collapsed && hasConflict && (
-        <div className="sticky-note__banner sticky-note__banner--conflict">
-          <WarningIcon />
-          <span>此便签有同步冲突，请解决后保存</span>
-        </div>
-      )}
-
       {/* 外部修改横幅：本地脏期间磁盘被改，由用户选择载入最新或保留我的 */}
       {!collapsed && externalUpdate !== null && (
         <div className="sticky-note__banner sticky-note__banner--external">
@@ -802,20 +824,29 @@ export default function NoteView() {
         </div>
       )}
 
-      {!collapsed && (
-        <div className="sticky-note__body" onMouseDown={handleBodyMouseDown}>
-          {saveState !== 'loading' && (
-            <Editor
-              key={editorEpoch}
-              ref={editorRef}
-              content={content}
-              onChange={handleChange}
-              mode="sticky"
-              folder={folderRef.current}
-            />
-          )}
-        </div>
-      )}
+      {/* 冲突时整换原文解决视图（横幅+快捷按钮在组件内，不再进 Milkdown）；
+          无冲突一切照旧：Milkdown 所见即所得 + 自动保存 */}
+      {!collapsed &&
+        (hasConflict ? (
+          <ConflictResolver
+            content={content}
+            saving={saveState === 'saving'}
+            onSave={saveResolution}
+          />
+        ) : (
+          <div className="sticky-note__body" onMouseDown={handleBodyMouseDown}>
+            {saveState !== 'loading' && (
+              <Editor
+                key={editorEpoch}
+                ref={editorRef}
+                content={content}
+                onChange={handleChange}
+                mode="sticky"
+                folder={folderRef.current}
+              />
+            )}
+          </div>
+        ))}
 
       {/* 自动重载完成的轻提示（折叠态不弹） */}
       {!collapsed && toast && <div className="sticky-note__toast">{toast}</div>}

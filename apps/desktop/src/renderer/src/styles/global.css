@@ -547,6 +547,63 @@ input.sticky-note__groupname-input::placeholder {
   background: rgba(21, 101, 192, 0.08);
 }
 
+/* 冲突横幅（琥珀系）上的快捷按钮 hover 用同族琥珀底，不用外部修改横幅的蓝 */
+.sticky-note__banner--conflict .sticky-note__banner-btn:hover {
+  background: rgba(141, 110, 0, 0.08);
+}
+
+/* ===== 冲突解决视图：等宽原文编辑区 + 底部「保存解决」栏 =====
+   六色适配：编辑区/底栏背景透明，直接继承便签底色；文字继承正文色 */
+.sticky-note__body--conflict {
+  display: flex;
+  padding: 0;
+}
+
+.sticky-note__conflict-textarea {
+  flex: 1;
+  min-height: 0;
+  resize: none;
+  border: none;
+  outline: none;
+  padding: 8px 10px;
+  background: transparent;
+  color: inherit;
+  font-family: ui-monospace, 'Cascadia Mono', 'SF Mono', Consolas, 'Courier New', monospace;
+  font-size: 12.5px;
+  line-height: 1.6;
+  white-space: pre;
+  overflow: auto;
+}
+
+.sticky-note__conflict-footer {
+  flex: none;
+  display: flex;
+  justify-content: flex-end;
+  padding: 2px 10px 8px;
+}
+
+.sticky-note__conflict-save {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  padding: 3px 12px;
+  border-radius: 4px;
+  border: 1px solid #e0a800;
+  background: #ffca2c;
+  color: #4e342e;
+  cursor: pointer;
+}
+
+.sticky-note__conflict-save:hover {
+  background: #ffc107;
+}
+
+.sticky-note__conflict-save:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
 /* 自动重载完成的轻提示：顶部居中深色药丸，不拦截点击 */
 .sticky-note__toast {
   position: absolute;
