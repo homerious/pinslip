@@ -11,6 +11,8 @@ interface AppSettings {
   vaultPath?: string;
   /** 退出时打开着的便签 id（下次启动会话恢复） */
   openNotes?: string[];
+  /** 界面语言偏好：'system'（跟随系统，缺省）或具体语言码（zh-CN/en/ja/ko/es/de/fr） */
+  language?: string;
 }
 
 let cache: AppSettings | null = null;
@@ -52,5 +54,15 @@ export function getOpenNotes(): string[] {
 
 export function setOpenNotes(ids: string[]): void {
   load().openNotes = ids;
+  persist();
+}
+
+/** 界面语言偏好（缺省 'system' = 跟随系统） */
+export function getLanguage(): string {
+  return load().language ?? 'system';
+}
+
+export function setLanguage(lang: string): void {
+  load().language = lang;
   persist();
 }

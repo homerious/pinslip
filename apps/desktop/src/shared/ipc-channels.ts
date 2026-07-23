@@ -35,6 +35,10 @@ export const IPC = {
   SettingsGetAutoStart: 'settings:get-auto-start',
   /** 设置开机自启，参数 enabled */
   SettingsSetAutoStart: 'settings:set-auto-start',
+  /** 查询界面语言：返回 { preference: 'system'|语言码, systemLocale: app.getLocale() } */
+  SettingsGetLanguage: 'settings:get-language',
+  /** 设置界面语言偏好，参数 lang（'system' 或 zh-CN/en/ja/ko/es/de/fr） */
+  SettingsSetLanguage: 'settings:set-language',
   /** 笔记数据变更（保存/删除/速记）：渲染进程→主进程→主窗口广播 */
   NotesChanged: 'notes:changed',
   /** 成组预告高亮（主进程→便签渲染层），参数 active: boolean */

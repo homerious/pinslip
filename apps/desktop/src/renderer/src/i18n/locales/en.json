@@ -1,0 +1,168 @@
+{
+  "setup": {
+    "text": "Choose a folder to store your notes. All notes are saved here as Markdown files, ready to open with any other tool.",
+    "button": "Choose folder",
+    "hint": "Suggested: Documents\\PinSlip (you can change this anytime)"
+  },
+  "header": {
+    "create": "New note",
+    "settings": "Settings"
+  },
+  "search": {
+    "placeholder": "Search notes…",
+    "results": "Search results ({{count}})",
+    "noResults": "No matching results"
+  },
+  "error": {
+    "serviceDown": "Cannot connect to the local service: {{message}}"
+  },
+  "tabs": {
+    "list": "List",
+    "folders": "Folders",
+    "tags": "Tags"
+  },
+  "note": {
+    "words": "{{count}} words",
+    "conflict": "Conflict",
+    "conflictTip": "This note contains git conflict markers. Open it to resolve.",
+    "openFolder": "Open containing folder",
+    "move": "Move to folder…",
+    "delete": "Delete",
+    "emptyLine1": "No notes yet",
+    "emptyLine2": "Click \"New note\" to start"
+  },
+  "list": {
+    "allNotes": "All notes ({{count}})",
+    "sortField": "Sort by",
+    "byUpdated": "Updated",
+    "byCreated": "Created",
+    "descTip": "Descending; click for ascending",
+    "ascTip": "Ascending; click for descending"
+  },
+  "folders": {
+    "all": "All",
+    "newNoteHere": "New note in \"{{folder}}\"",
+    "newNoteRoot": "New note in root",
+    "newFolder": "New folder",
+    "newFolderPlaceholder": "Folder name, Enter to create",
+    "createTip": "Create folder",
+    "renameTip": "Rename folder",
+    "deleteTip": "Delete folder…",
+    "current": "{{name}} ({{count}})",
+    "root": "Root ({{count}})",
+    "rootShort": "Root",
+    "empty": "This folder is empty",
+    "deleteTitle": "Delete folder \"{{name}}\"",
+    "deleteContains": " ({{count}} notes inside)",
+    "deleteMoveNotes": "Move notes to root, then delete",
+    "deleteEmpty": "Delete empty folder",
+    "deleteWithNotes": "Delete with notes (move to Trash)",
+    "cancelDelete": "Cancel deletion"
+  },
+  "move": {
+    "title": "Move \"{{title}}\" to…",
+    "filter": "Search folders",
+    "noFolders": "No folders yet — create one at the top right",
+    "noMatch": "No folders match \"{{query}}\"",
+    "cancel": "Cancel move"
+  },
+  "tags": {
+    "expand": "Expand group",
+    "collapse": "Collapse group",
+    "untagged": "Untagged ({{count}})"
+  },
+  "settings": {
+    "title": "Settings",
+    "back": "Back",
+    "close": "Close settings",
+    "general": "General",
+    "autoStart": "Launch at login",
+    "autoStartTip": "Start PinSlip automatically at login",
+    "autoStartPackagedOnly": "Available in the installed app",
+    "autoStartDevHint": "Not changeable in dev mode; applies to the installed app",
+    "language": "Language",
+    "languageSystem": "System",
+    "quick": "Quick note",
+    "quickTarget": "Save to",
+    "quickTargetNote": "One note each",
+    "quickTargetDaily": "Aggregate daily",
+    "quickClipboard": "Paste clipboard",
+    "quickClipboardTip": "Pre-fill with clipboard text when the quick note window opens",
+    "quickHint": "Ctrl+Shift+N opens the quick note window; daily mode appends to the \"Quick note YYYY-MM-DD\" note",
+    "data": "Data & storage",
+    "vaultLocation": "Storage location",
+    "openNotesFolder": "Open notes folder",
+    "changeLocation": "Change location…",
+    "trash": "Trash",
+    "trashContent": "Deleted items",
+    "trashEmpty": "Empty",
+    "trashStats": "{{count}} items · {{size}}",
+    "trashAutoClean": "Auto clean",
+    "trashDays": "{{count}} days",
+    "trashNoClean": "Never auto clean",
+    "openTrash": "Open Trash",
+    "emptyTrash": "Empty Trash",
+    "emptyTrashConfirm": "Really empty?",
+    "trashHint": "Deleted folders move to .trash; drag them back into notes/ to recover",
+    "update": "Updates",
+    "currentVersion": "Current version",
+    "restartInstall": "Restart to install v{{version}}",
+    "checkUpdate": "Check for updates",
+    "goDownload": "Go to download page",
+    "gitSync": "Git sync",
+    "mcp": "MCP service"
+  },
+  "update": {
+    "hintDev": "Update checks are unavailable in dev mode",
+    "hintIdle": "Updates are checked automatically after launch",
+    "hintChecking": "Checking for updates…",
+    "hintAvailable": "New version v{{version}} found, downloading in the background…",
+    "hintDownloading": "Downloading update {{percent}}%…",
+    "hintDownloaded": "v{{version}} is ready and takes effect after restart",
+    "hintLatest": "You're on the latest version",
+    "hintError": "Check failed: {{message}}. You can download the installer manually"
+  },
+  "sync": {
+    "repoUrl": "Repository URL",
+    "username": "Username",
+    "usernamePlaceholder": "git username",
+    "token": "Access token",
+    "tokenPlaceholderSet": "Leave empty to keep unchanged",
+    "branch": "Branch",
+    "cancel": "Cancel",
+    "connecting": "Connecting…",
+    "saveEnable": "Save & enable",
+    "formHint": "Supports HTTPS repos such as GitHub / cnb; the token is stored only in .pinslip/ inside your local vault and never uploaded",
+    "lastSync": "Last sync",
+    "disabled": "Disabled",
+    "pendingPush": " · {{count}} to push",
+    "autoSync": "Auto sync",
+    "minutes": "min",
+    "autoSyncAria": "Auto sync interval (minutes)",
+    "conflictFiles": "{{count}} files with conflicts",
+    "conflictEtc": " etc.",
+    "syncNow": "Sync now",
+    "editConfig": "Edit config",
+    "disable": "Disable",
+    "disableConfirm": "Really disable?",
+    "reenable": "Re-enable",
+    "statusHint": "Changes auto-commit after 3 idle minutes and sync every {{minutes}} min; conflicts are written as standard git markers and disappear once resolved"
+  },
+  "mcp": {
+    "aiAccess": "AI access",
+    "turnOff": "Turn off MCP service",
+    "turnOn": "Turn on MCP service",
+    "endpoint": "Endpoint",
+    "configFile": "Discovery file",
+    "copied": "Copied",
+    "copy": "Copy connection info",
+    "hint": "AI tools (Kimi / Claude, etc.) can search, read, write, and sync notes via MCP; the service only listens on 127.0.0.1 and is never exposed to the LAN"
+  },
+  "time": {
+    "never": "Never synced",
+    "justNow": "Just now",
+    "minutesAgo": "{{count}} min ago",
+    "hoursAgo": "{{count}} hr ago",
+    "daysAgo": "{{count}} days ago"
+  }
+}

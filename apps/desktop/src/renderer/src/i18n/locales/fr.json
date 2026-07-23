@@ -1,0 +1,168 @@
+{
+  "setup": {
+    "text": "Choisissez un dossier pour stocker vos notes. Toutes les notes y sont enregistrées en fichiers Markdown, ouvrables avec n'importe quel autre outil.",
+    "button": "Choisir un dossier",
+    "hint": "Suggestion : Documents\\PinSlip (modifiable à tout moment)"
+  },
+  "header": {
+    "create": "Nouvelle note",
+    "settings": "Réglages"
+  },
+  "search": {
+    "placeholder": "Rechercher des notes…",
+    "results": "Résultats ({{count}})",
+    "noResults": "Aucun résultat"
+  },
+  "error": {
+    "serviceDown": "Impossible de joindre le service local : {{message}}"
+  },
+  "tabs": {
+    "list": "Liste",
+    "folders": "Dossiers",
+    "tags": "Étiquettes"
+  },
+  "note": {
+    "words": "{{count}} mots",
+    "conflict": "Conflit à résoudre",
+    "conflictTip": "Cette note contient des marqueurs de conflit git. Ouvrez-la pour les résoudre",
+    "openFolder": "Ouvrir le dossier",
+    "move": "Déplacer vers un dossier…",
+    "delete": "Supprimer",
+    "emptyLine1": "Aucune note pour l'instant",
+    "emptyLine2": "Cliquez sur « Nouvelle note » pour commencer"
+  },
+  "list": {
+    "allNotes": "Toutes les notes ({{count}})",
+    "sortField": "Trier par",
+    "byUpdated": "Modification",
+    "byCreated": "Création",
+    "descTip": "Tri décroissant ; cliquer pour inverser",
+    "ascTip": "Tri croissant ; cliquer pour inverser"
+  },
+  "folders": {
+    "all": "Tout",
+    "newNoteHere": "Nouvelle note dans « {{folder}} »",
+    "newNoteRoot": "Nouvelle note à la racine",
+    "newFolder": "Nouveau dossier",
+    "newFolderPlaceholder": "Nom du dossier, Entrée pour créer",
+    "createTip": "Créer le dossier",
+    "renameTip": "Renommer le dossier",
+    "deleteTip": "Supprimer le dossier…",
+    "current": "{{name}} ({{count}})",
+    "root": "Racine ({{count}})",
+    "rootShort": "Racine",
+    "empty": "Ce dossier est vide",
+    "deleteTitle": "Supprimer le dossier « {{name}} »",
+    "deleteContains": " ({{count}} notes incluses)",
+    "deleteMoveNotes": "Déplacer les notes à la racine puis supprimer",
+    "deleteEmpty": "Supprimer le dossier vide",
+    "deleteWithNotes": "Supprimer avec les notes (vers la corbeille)",
+    "cancelDelete": "Annuler la suppression"
+  },
+  "move": {
+    "title": "Déplacer « {{title}} » vers…",
+    "filter": "Rechercher un dossier",
+    "noFolders": "Aucun dossier pour l'instant — créez-en un en haut à droite",
+    "noMatch": "Aucun dossier ne correspond à « {{query}} »",
+    "cancel": "Annuler le déplacement"
+  },
+  "tags": {
+    "expand": "Déplier le groupe",
+    "collapse": "Replier le groupe",
+    "untagged": "Sans étiquette ({{count}})"
+  },
+  "settings": {
+    "title": "Réglages",
+    "back": "Retour",
+    "close": "Fermer les réglages",
+    "general": "Général",
+    "autoStart": "Démarrage automatique",
+    "autoStartTip": "Lancer PinSlip au démarrage de la session",
+    "autoStartPackagedOnly": "Disponible dans la version installée",
+    "autoStartDevHint": "Non modifiable en mode développement ; s'applique à la version installée",
+    "language": "Langue",
+    "languageSystem": "Système",
+    "quick": "Note rapide",
+    "quickTarget": "Destination",
+    "quickTargetNote": "Une note à chaque fois",
+    "quickTargetDaily": "Regrouper par jour",
+    "quickClipboard": "Reprendre le presse-papiers",
+    "quickClipboardTip": "Préremplir avec le texte du presse-papiers à l'ouverture de la note rapide",
+    "quickHint": "Ctrl+Maj+N ouvre la note rapide ; le mode regroupé ajoute à la note « Note rapide YYYY-MM-DD »",
+    "data": "Données et stockage",
+    "vaultLocation": "Emplacement",
+    "openNotesFolder": "Ouvrir le dossier des notes",
+    "changeLocation": "Changer d'emplacement…",
+    "trash": "Corbeille",
+    "trashContent": "Éléments supprimés",
+    "trashEmpty": "Vide",
+    "trashStats": "{{count}} éléments · {{size}}",
+    "trashAutoClean": "Nettoyage automatique",
+    "trashDays": "{{count}} jours",
+    "trashNoClean": "Ne jamais nettoyer",
+    "openTrash": "Ouvrir la corbeille",
+    "emptyTrash": "Vider la corbeille",
+    "emptyTrashConfirm": "Vraiment vider ?",
+    "trashHint": "Les dossiers supprimés vont dans .trash ; faites-les glisser vers notes/ pour les récupérer",
+    "update": "Mises à jour",
+    "currentVersion": "Version actuelle",
+    "restartInstall": "Redémarrer pour installer v{{version}}",
+    "checkUpdate": "Rechercher des mises à jour",
+    "goDownload": "Aller à la page de téléchargement",
+    "gitSync": "Synchro git",
+    "mcp": "Service MCP"
+  },
+  "update": {
+    "hintDev": "La recherche de mises à jour est indisponible en mode développement",
+    "hintIdle": "Les mises à jour sont vérifiées automatiquement au lancement",
+    "hintChecking": "Recherche de mises à jour…",
+    "hintAvailable": "Nouvelle version v{{version}} trouvée, téléchargement en arrière-plan…",
+    "hintDownloading": "Téléchargement de la mise à jour {{percent}} %…",
+    "hintDownloaded": "v{{version}} est prête, elle s'appliquera au redémarrage",
+    "hintLatest": "Vous êtes à jour",
+    "hintError": "Échec de la vérification : {{message}}. Vous pouvez télécharger l'installateur manuellement"
+  },
+  "sync": {
+    "repoUrl": "URL du dépôt",
+    "username": "Nom d'utilisateur",
+    "usernamePlaceholder": "nom d'utilisateur git",
+    "token": "Jeton d'accès",
+    "tokenPlaceholderSet": "Vide = ne pas modifier",
+    "branch": "Branche",
+    "cancel": "Annuler",
+    "connecting": "Connexion…",
+    "saveEnable": "Enregistrer et activer",
+    "formHint": "Compatible avec les dépôts HTTPS comme GitHub / cnb ; le jeton est stocké uniquement dans .pinslip/ de votre coffre local et n'est jamais envoyé",
+    "lastSync": "Dernière synchro",
+    "disabled": "Désactivée",
+    "pendingPush": " · {{count}} à pousser",
+    "autoSync": "Synchro auto",
+    "minutes": "min",
+    "autoSyncAria": "Intervalle de synchro automatique (minutes)",
+    "conflictFiles": "{{count}} fichiers en conflit",
+    "conflictEtc": " etc.",
+    "syncNow": "Synchroniser",
+    "editConfig": "Modifier la config",
+    "disable": "Désactiver",
+    "disableConfirm": "Vraiment désactiver ?",
+    "reenable": "Réactiver",
+    "statusHint": "Les changements sont commités après 3 minutes d'inactivité puis poussés et tirés toutes les {{minutes}} min ; les conflits sont écrits en marqueurs git standard et disparaissent une fois résolus"
+  },
+  "mcp": {
+    "aiAccess": "Accès IA",
+    "turnOff": "Désactiver le service MCP",
+    "turnOn": "Activer le service MCP",
+    "endpoint": "Adresse d'accès",
+    "configFile": "Fichier de découverte",
+    "copied": "Copié",
+    "copy": "Copier les infos d'accès",
+    "hint": "Les outils IA (Kimi / Claude, etc.) peuvent rechercher, lire, écrire et synchroniser les notes via MCP ; le service n'écoute que sur 127.0.0.1 et n'est pas exposé au réseau local"
+  },
+  "time": {
+    "never": "Jamais synchronisé",
+    "justNow": "À l'instant",
+    "minutesAgo": "il y a {{count}} min",
+    "hoursAgo": "il y a {{count}} h",
+    "daysAgo": "il y a {{count}} j"
+  }
+}

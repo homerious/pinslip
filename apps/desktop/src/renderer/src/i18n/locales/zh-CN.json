@@ -1,0 +1,168 @@
+{
+  "setup": {
+    "text": "选择一个文件夹作为便签的存储位置。所有便签都会以 Markdown 文件保存在这里，随时可用其他工具打开。",
+    "button": "选择文件夹",
+    "hint": "推荐：文档\\PinSlip（之后可随时更改）"
+  },
+  "header": {
+    "create": "新建便签",
+    "settings": "设置"
+  },
+  "search": {
+    "placeholder": "搜索便签…",
+    "results": "搜索结果（{{count}}）",
+    "noResults": "无匹配结果"
+  },
+  "error": {
+    "serviceDown": "无法连接本地服务：{{message}}"
+  },
+  "tabs": {
+    "list": "列表",
+    "folders": "文件夹",
+    "tags": "标签"
+  },
+  "note": {
+    "words": "{{count}} 字",
+    "conflict": "待解冲突",
+    "conflictTip": "此便签有 git 冲突标记，请打开内容解决",
+    "openFolder": "打开所在目录",
+    "move": "移动到文件夹…",
+    "delete": "删除",
+    "emptyLine1": "还没有便签",
+    "emptyLine2": "点击「新建便签」开始"
+  },
+  "list": {
+    "allNotes": "全部便签（{{count}}）",
+    "sortField": "排序字段",
+    "byUpdated": "按更新",
+    "byCreated": "按创建",
+    "descTip": "当前倒序，点击切换正序",
+    "ascTip": "当前正序，点击切换倒序"
+  },
+  "folders": {
+    "all": "全部",
+    "newNoteHere": "在「{{folder}}」中新建便签",
+    "newNoteRoot": "在根目录新建便签",
+    "newFolder": "新建文件夹",
+    "newFolderPlaceholder": "文件夹名称，回车创建",
+    "createTip": "创建文件夹",
+    "renameTip": "重命名文件夹",
+    "deleteTip": "删除文件夹…",
+    "current": "{{name}}（{{count}}）",
+    "root": "根目录（{{count}}）",
+    "rootShort": "根目录",
+    "empty": "这个文件夹还是空的",
+    "deleteTitle": "删除文件夹「{{name}}」",
+    "deleteContains": "（含 {{count}} 张便签）",
+    "deleteMoveNotes": "便签移到根目录后删除",
+    "deleteEmpty": "删除空文件夹",
+    "deleteWithNotes": "连同便签一起删除（移入回收区）",
+    "cancelDelete": "取消删除"
+  },
+  "move": {
+    "title": "移动「{{title}}」到…",
+    "filter": "搜索目录",
+    "noFolders": "还没有文件夹，点右上角新建",
+    "noMatch": "没有匹配「{{query}}」的目录",
+    "cancel": "取消移动"
+  },
+  "tags": {
+    "expand": "展开分组",
+    "collapse": "收起分组",
+    "untagged": "无标签（{{count}}）"
+  },
+  "settings": {
+    "title": "设置",
+    "back": "返回",
+    "close": "关闭设置",
+    "general": "通用",
+    "autoStart": "开机自启",
+    "autoStartTip": "开机时自动启动 PinSlip",
+    "autoStartPackagedOnly": "安装版中可用",
+    "autoStartDevHint": "开发模式下不可改，安装版中生效",
+    "language": "语言",
+    "languageSystem": "跟随系统",
+    "quick": "速记",
+    "quickTarget": "落点",
+    "quickTargetNote": "逐条新建",
+    "quickTargetDaily": "聚合到今日",
+    "quickClipboard": "剪贴板带入",
+    "quickClipboardTip": "呼出速记窗时自动带入剪贴板文本",
+    "quickHint": "Ctrl+Shift+N 呼出速记窗；聚合模式把当天速记追加到「速记 YYYY-MM-DD」便签",
+    "data": "数据与存储",
+    "vaultLocation": "存储位置",
+    "openNotesFolder": "打开便签目录",
+    "changeLocation": "更改位置…",
+    "trash": "回收区",
+    "trashContent": "已删除内容",
+    "trashEmpty": "空",
+    "trashStats": "{{count}} 项 · {{size}}",
+    "trashAutoClean": "自动清理",
+    "trashDays": "{{count}} 天",
+    "trashNoClean": "不自动清理",
+    "openTrash": "打开回收区",
+    "emptyTrash": "清空回收区",
+    "emptyTrashConfirm": "确认清空？",
+    "trashHint": "删除的文件夹会移到 .trash 目录；误删内容可打开回收区拖回 notes/ 找回",
+    "update": "更新",
+    "currentVersion": "当前版本",
+    "restartInstall": "重启安装 v{{version}}",
+    "checkUpdate": "检查更新",
+    "goDownload": "前往下载页",
+    "gitSync": "Git 同步",
+    "mcp": "MCP 服务"
+  },
+  "update": {
+    "hintDev": "开发模式下不提供更新检查",
+    "hintIdle": "启动后会自动检查更新",
+    "hintChecking": "正在检查更新…",
+    "hintAvailable": "发现新版本 v{{version}}，正在后台下载…",
+    "hintDownloading": "正在下载更新 {{percent}}%…",
+    "hintDownloaded": "新版本 v{{version}} 已就绪，重启后生效",
+    "hintLatest": "已是最新版本",
+    "hintError": "检查失败：{{message}}，可手动下载安装包"
+  },
+  "sync": {
+    "repoUrl": "仓库地址",
+    "username": "用户名",
+    "usernamePlaceholder": "git 用户名",
+    "token": "访问令牌",
+    "tokenPlaceholderSet": "留空则不修改",
+    "branch": "分支",
+    "cancel": "取消",
+    "connecting": "接入中…",
+    "saveEnable": "保存并启用",
+    "formHint": "支持 GitHub / cnb 等 HTTPS 仓库（国内推荐 cnb，访问稳定）；token 只保存在本机 vault 的 .pinslip/ 内，不会上传",
+    "lastSync": "上次同步",
+    "disabled": "已停用",
+    "pendingPush": " · 待推送 {{count}} 条",
+    "autoSync": "自动同步",
+    "minutes": "分钟",
+    "autoSyncAria": "自动同步间隔（分钟）",
+    "conflictFiles": "待解冲突 {{count}} 个文件",
+    "conflictEtc": " 等",
+    "syncNow": "立即同步",
+    "editConfig": "修改配置",
+    "disable": "停用",
+    "disableConfirm": "确认停用？",
+    "reenable": "重新启用",
+    "statusHint": "便签变更 3 分钟无操作自动提交，每 {{minutes}} 分钟自动推拉；冲突内容会写入标准 git markers，解完即消失"
+  },
+  "mcp": {
+    "aiAccess": "AI 接入",
+    "turnOff": "关闭 MCP 服务",
+    "turnOn": "开启 MCP 服务",
+    "endpoint": "接入地址",
+    "configFile": "发现文件",
+    "copied": "已复制",
+    "copy": "复制接入信息",
+    "hint": "AI 工具（Kimi / Claude 等）可通过 MCP 搜索、读写、同步便签；服务仅监听本机 127.0.0.1，不会暴露到局域网"
+  },
+  "time": {
+    "never": "从未同步",
+    "justNow": "刚刚",
+    "minutesAgo": "{{count}} 分钟前",
+    "hoursAgo": "{{count}} 小时前",
+    "daysAgo": "{{count}} 天前"
+  }
+}

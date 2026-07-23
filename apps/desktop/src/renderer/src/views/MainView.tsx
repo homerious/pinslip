@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import PlusIcon from '~icons/ph/plus';
 import TrashIcon from '~icons/ph/trash';
 import TrayIcon from '~icons/ph/tray';
@@ -17,6 +19,7 @@ import ArrowLeftIcon from '~icons/ph/arrow-left';
 import ListBulletsIcon from '~icons/ph/list-bullets';
 import PowerIcon from '~icons/ph/power';
 import TimerIcon from '~icons/ph/timer';
+import TranslateIcon from '~icons/ph/translate';
 import CaretDownIcon from '~icons/ph/caret-down';
 import CaretRightIcon from '~icons/ph/caret-right';
 import SortAscendingIcon from '~icons/ph/sort-ascending';
@@ -38,6 +41,13 @@ import { syncApi } from '../api/sync';
 import { apiErrorMessage } from '../api/client';
 import { shortenFolder } from '../utils/path';
 import { highlightTerms, windowAroundMatch } from '../components/search-highlight';
+import {
+  applyLanguagePreference,
+  getLanguagePreference,
+  LANGUAGE_NATIVE_NAMES,
+  SUPPORTED_LANGUAGES,
+} from '../i18n';
+import type { LanguagePreference } from '../i18n';
 
 /** 紧凑时间格式：M/d HH:mm（窄面板下完整 locale 字符串放不下） */
 function formatTime(iso: string): string {
@@ -47,7 +57,7 @@ function formatTime(iso: string): string {
   return `${d.getMonth() + 1}/${d.getDate()} ${hh}:${mm}`;
 }
 
-/** 字节数人性化：B/KB/MB/GB 两档取整，回收区统计用 */
+/** 字节数人性化：B/KB/MB/GB 两档取整，回收区统计用（单位国际通用，不进语言包） */
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -56,54 +66,46 @@ function formatSize(bytes: number): string {
 }
 
 /** 相对时间：同步状态的「上次同步」用。Go 零值时间（0001 年）= 从未同步 */
-function formatRelativeTime(iso?: string): string {
-  if (!iso) return '从未同步';
-  const t = new Date(iso);
-  if (Number.isNaN(t.getTime()) || t.getFullYear() <= 1) return '从未同步';
-  const diff = Date.now() - t.getTime();
-  if (diff < 45_000) return '刚刚';
+function formatRelativeTime(t: TFunction, iso?: string): string {
+  if (!iso) return t('time.never');
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime()) || d.getFullYear() <= 1) return t('time.never');
+  const diff = Date.now() - d.getTime();
+  if (diff < 45_000) return t('time.justNow');
   const min = Math.floor(diff / 60_000);
-  if (min < 60) return `${min} 分钟前`;
+  if (min < 60) return t('time.minutesAgo', { count: min });
   const h = Math.floor(min / 60);
-  if (h < 24) return `${h} 小时前`;
-  return `${Math.floor(h / 24)} 天前`;
+  if (h < 24) return t('time.hoursAgo', { count: h });
+  return t('time.daysAgo', { count: Math.floor(h / 24) });
 }
 
 type Stage = 'loading' | 'setup' | 'ready';
 
-/** 空列表提示：强制两行排版——窄面板里自然换行会把「新建便签」拦腰折断 */
-const EMPTY_NOTE_HINT = (
-  <>
-    还没有便签
-    <br />
-    点击「新建便签」开始
-  </>
-);
-
 /** 更新状态 → 设置页提示文案（dev 环境固定提示不可检查） */
-function updateHint(state: UpdateState, isPackaged: boolean): string {
-  if (!isPackaged) return '开发模式下不提供更新检查';
+function updateHint(t: TFunction, state: UpdateState, isPackaged: boolean): string {
+  if (!isPackaged) return t('update.hintDev');
   switch (state.status) {
     case 'idle':
-      return '启动后会自动检查更新';
+      return t('update.hintIdle');
     case 'checking':
-      return '正在检查更新…';
+      return t('update.hintChecking');
     case 'available':
-      return `发现新版本 v${state.version}，正在后台下载…`;
+      return t('update.hintAvailable', { version: state.version });
     case 'downloading':
-      return `正在下载更新 ${state.percent}%…`;
+      return t('update.hintDownloading', { percent: state.percent });
     case 'downloaded':
-      return `新版本 v${state.version} 已就绪，重启后生效`;
+      return t('update.hintDownloaded', { version: state.version });
     case 'latest':
-      return '已是最新版本';
+      return t('update.hintLatest');
     case 'error':
-      return `检查失败：${state.message}，可手动下载安装包`;
+      return t('update.hintError', { message: state.message });
   }
 }
 
 /** 主窗口视图：笔记列表 + 搜索（管理入口；日常新建走便签 ＋ / 托盘 / 快捷键）。
  *  首次使用先引导选择保险库（便签存储目录，Obsidian 式） */
 export default function MainView() {
+  const { t } = useTranslation();
   const [stage, setStage] = useState<Stage>('loading');
   const [vaultPath, setVaultPath] = useState('');
   const [notes, setNotes] = useState<NoteMeta[]>([]);
@@ -118,6 +120,8 @@ export default function MainView() {
   /** 自动更新状态（主进程权威，这里只是镜像展示） */
   const [updateState, setUpdateState] = useState<UpdateState>({ status: 'idle' });
   const [autoStart, setAutoStart] = useState(false);
+  /** 界面语言偏好（'system' = 跟随系统；初值取自 i18n 模块的启动解析结果） */
+  const [langPref, setLangPref] = useState<LanguagePreference>(getLanguagePreference());
   // 回收区：统计快照 + 保留天数 + 清空两阶段确认态
   const [trashStats, setTrashStats] = useState<TrashStats | null>(null);
   const [trashRetention, setTrashRetention] = useState(30);
@@ -238,12 +242,12 @@ export default function MainView() {
         setNotes(list);
         setError('');
       })
-      .catch((err) => setError(`无法连接本地服务：${err.message}`));
+      .catch((err) => setError(t('error.serviceDown', { message: err.message })));
     foldersApi
       .list()
       .then(setFolders)
       .catch(() => {});
-  }, []);
+  }, [t]);
 
   // 进入文件夹（折叠状态复位，深层目录默认收起中间段）
   const enterFolder = useCallback((path: string) => {
@@ -531,6 +535,12 @@ export default function MainView() {
       .catch(() => setQuickClipboard(!next));
   }, [trashRetention, mcpEnabled, quickMode, quickClipboard]);
 
+  // 界面语言切换：乐观更新，立即生效（i18n.changeLanguage）并持久化到主进程设置
+  const changeLanguage = useCallback((pref: LanguagePreference) => {
+    setLangPref(pref);
+    void applyLanguagePreference(pref);
+  }, []);
+
   // 复制 MCP 接入配置（通用 mcpServers 形态，Claude Code / Kimi 等可直接粘贴）；
   // 成功后按钮短暂显示「已复制 ✓」（2s 恢复，与便签复制按钮同套路）
   const copyMcpConfig = useCallback(() => {
@@ -658,6 +668,15 @@ export default function MainView() {
       .catch(() => {});
   };
 
+  // 空列表提示：强制两行排版——窄面板里自然换行会把「新建便签」拦腰折断
+  const emptyNoteHint = (
+    <>
+      {t('note.emptyLine1')}
+      <br />
+      {t('note.emptyLine2')}
+    </>
+  );
+
   // 便签列表项（三视图共用）：颜色卡 + 标题/时间/标签 + 打开目录/移动/删除按钮。
   // showFolder：列表视图平铺全部便签，需要标注所在文件夹。
   const renderNoteItem = (note: NoteMeta, showFolder = false) => (
@@ -668,7 +687,7 @@ export default function MainView() {
         {note.title}
       </span>
       <span className="note-list__meta">
-        {formatTime(note.updatedAt)} · {note.wordCount} 字
+        {formatTime(note.updatedAt)} · {t('note.words', { count: note.wordCount })}
         {showFolder && note.folder && !note.inbox && (
           <span className="note-list__folder" title={note.folder}>
             <FolderFillIcon />
@@ -680,15 +699,15 @@ export default function MainView() {
       {(note.tags ?? []).length > 0 || note.conflicted ? (
         <span className="note-list__badges">
           {note.conflicted && (
-            <span className="note-list__conflict" title="此便签有 git 冲突标记，请打开内容解决">
+            <span className="note-list__conflict" title={t('note.conflictTip')}>
               <WarningIcon />
-              待解冲突
+              {t('note.conflict')}
             </span>
           )}
-          {(note.tags ?? []).slice(0, 2).map((t) => (
-            <span key={t} className="note-list__tag">
+          {(note.tags ?? []).slice(0, 2).map((tag) => (
+            <span key={tag} className="note-list__tag">
               <TagFillIcon />
-              {t}
+              {tag}
             </span>
           ))}
           {(note.tags ?? []).length > 2 && (
@@ -699,7 +718,7 @@ export default function MainView() {
       {!note.inbox && (
         <button
           className="note-list__open"
-          title="打开所在目录"
+          title={t('note.openFolder')}
           onClick={(e) => {
             e.stopPropagation();
             void window.api.openNoteFolder(note.folder ?? '');
@@ -710,7 +729,7 @@ export default function MainView() {
       )}
       <button
         className="note-list__move"
-        title="移动到文件夹…"
+        title={t('note.move')}
         onClick={(e) => {
           e.stopPropagation();
           setMoveTarget(note);
@@ -720,7 +739,7 @@ export default function MainView() {
       </button>
       <button
         className="note-list__delete"
-        title="删除"
+        title={t('note.delete')}
         onClick={(e) => {
           e.stopPropagation();
           removeNote(note.id);
@@ -741,13 +760,11 @@ export default function MainView() {
       <div className="main-view vault-setup">
         <h1 className="vault-setup__title">PinSlip</h1>
         <FolderIcon className="vault-setup__icon" />
-        <p className="vault-setup__text">
-          选择一个文件夹作为便签的存储位置。所有便签都会以 Markdown 文件保存在这里，随时可用其他工具打开。
-        </p>
+        <p className="vault-setup__text">{t('setup.text')}</p>
         <button className="vault-setup__btn" onClick={chooseVault}>
-          选择文件夹
+          {t('setup.button')}
         </button>
-        <p className="vault-setup__hint">推荐：文档\PinSlip（之后可随时更改）</p>
+        <p className="vault-setup__hint">{t('setup.hint')}</p>
       </div>
     );
   }
@@ -758,11 +775,11 @@ export default function MainView() {
         <h1>PinSlip</h1>
         <div className="main-view__actions">
           <button className="main-view__create" onClick={createNote}>
-            <PlusIcon /> 新建便签
+            <PlusIcon /> {t('header.create')}
           </button>
           <button
             className="main-view__settings"
-            title="设置"
+            title={t('header.settings')}
             onClick={() => setSettingsOpen((v) => !v)}
           >
             <GearSixIcon />
@@ -775,34 +792,52 @@ export default function MainView() {
         <>
           <button
             className="settings-drawer-backdrop"
-            aria-label="关闭设置"
+            aria-label={t('settings.close')}
             onClick={() => setSettingsOpen(false)}
           />
           <div className="settings-drawer">
             <header className="settings-drawer__header">
               <button
                 className="settings-drawer__close"
-                title="返回"
+                title={t('settings.back')}
                 onClick={() => setSettingsOpen(false)}
               >
                 <ArrowLeftIcon />
               </button>
-              <h2 className="settings-drawer__title">设置</h2>
+              <h2 className="settings-drawer__title">{t('settings.title')}</h2>
               <span className="settings-drawer__header-spacer" />
             </header>
 
-            <div className="settings-panel__section">通用</div>
+            <div className="settings-panel__section">{t('settings.general')}</div>
             <div className="settings-card settings-card--spaced">
               <div className="settings-panel__row">
+                <TranslateIcon className="settings-panel__row-icon" />
+                <span className="settings-panel__label">{t('settings.language')}</span>
+                <select
+                  className="settings-panel__select"
+                  value={langPref}
+                  onChange={(e) => changeLanguage(e.target.value as LanguagePreference)}
+                >
+                  <option value="system">{t('settings.languageSystem')}</option>
+                  {SUPPORTED_LANGUAGES.map((lang) => (
+                    <option key={lang} value={lang}>
+                      {LANGUAGE_NATIVE_NAMES[lang]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="settings-panel__row">
                 <PowerIcon className="settings-panel__row-icon" />
-                <span className="settings-panel__label">开机自启</span>
+                <span className="settings-panel__label">{t('settings.autoStart')}</span>
                 <button
                   className="settings-toggle"
                   role="switch"
                   aria-checked={autoStart}
                   data-on={autoStart}
                   disabled={!isPackaged}
-                  title={isPackaged ? '开机时自动启动 PinSlip' : '安装版中可用'}
+                  title={
+                    isPackaged ? t('settings.autoStartTip') : t('settings.autoStartPackagedOnly')
+                  }
                   onClick={() => {
                     const next = !autoStart;
                     setAutoStart(next);
@@ -813,48 +848,46 @@ export default function MainView() {
                 </button>
               </div>
               {!isPackaged && (
-                <div className="settings-panel__hint">开发模式下不可改，安装版中生效</div>
+                <div className="settings-panel__hint">{t('settings.autoStartDevHint')}</div>
               )}
             </div>
 
-            <div className="settings-panel__section">速记</div>
+            <div className="settings-panel__section">{t('settings.quick')}</div>
             <div className="settings-card settings-card--spaced">
               <div className="settings-panel__row">
                 <PencilSimpleIcon className="settings-panel__row-icon" />
-                <span className="settings-panel__label">落点</span>
+                <span className="settings-panel__label">{t('settings.quickTarget')}</span>
                 <select
                   className="settings-panel__select"
                   value={quickMode}
                   onChange={(e) => changeQuickMode(e.target.value as 'note' | 'daily')}
                 >
-                  <option value="note">逐条新建</option>
-                  <option value="daily">聚合到今日</option>
+                  <option value="note">{t('settings.quickTargetNote')}</option>
+                  <option value="daily">{t('settings.quickTargetDaily')}</option>
                 </select>
               </div>
               <div className="settings-panel__row">
                 <ClipboardIcon className="settings-panel__row-icon" />
-                <span className="settings-panel__label">剪贴板带入</span>
+                <span className="settings-panel__label">{t('settings.quickClipboard')}</span>
                 <button
                   className="settings-toggle"
                   role="switch"
                   aria-checked={quickClipboard}
                   data-on={quickClipboard}
-                  title="呼出速记窗时自动带入剪贴板文本"
+                  title={t('settings.quickClipboardTip')}
                   onClick={toggleQuickClipboard}
                 >
                   <span className="settings-toggle__thumb" />
                 </button>
               </div>
-              <div className="settings-panel__hint">
-                Ctrl+Shift+N 呼出速记窗；聚合模式把当天速记追加到「速记 YYYY-MM-DD」便签
-              </div>
+              <div className="settings-panel__hint">{t('settings.quickHint')}</div>
             </div>
 
-            <div className="settings-panel__section">数据与存储</div>
+            <div className="settings-panel__section">{t('settings.data')}</div>
             <div className="settings-card settings-card--spaced">
               <div className="settings-panel__row">
                 <FolderIcon className="settings-panel__row-icon" />
-                <span className="settings-panel__label">存储位置</span>
+                <span className="settings-panel__label">{t('settings.vaultLocation')}</span>
                 <span className="settings-panel__value settings-panel__value--rtl" title={vaultPath}>
                   {vaultPath}
                 </span>
@@ -864,7 +897,7 @@ export default function MainView() {
                   className="settings-panel__btn"
                   onClick={() => void window.api.openVaultFolder()}
                 >
-                  打开便签目录
+                  {t('settings.openNotesFolder')}
                 </button>
                 <button
                   className="settings-panel__btn"
@@ -873,36 +906,39 @@ export default function MainView() {
                     chooseVault();
                   }}
                 >
-                  更改位置…
+                  {t('settings.changeLocation')}
                 </button>
               </div>
             </div>
 
-            <div className="settings-panel__section">回收区</div>
+            <div className="settings-panel__section">{t('settings.trash')}</div>
             <div className="settings-card">
               <div className="settings-panel__row">
                 <TrashIcon className="settings-panel__row-icon" />
-                <span className="settings-panel__label">已删除内容</span>
+                <span className="settings-panel__label">{t('settings.trashContent')}</span>
                 <span className="settings-panel__value">
                   {trashStats
                     ? trashStats.count === 0
-                      ? '空'
-                      : `${trashStats.count} 项 · ${formatSize(trashStats.bytes)}`
+                      ? t('settings.trashEmpty')
+                      : t('settings.trashStats', {
+                          count: trashStats.count,
+                          size: formatSize(trashStats.bytes),
+                        })
                     : '…'}
                 </span>
               </div>
               <div className="settings-panel__row">
                 <TimerIcon className="settings-panel__row-icon" />
-                <span className="settings-panel__label">自动清理</span>
+                <span className="settings-panel__label">{t('settings.trashAutoClean')}</span>
                 <select
                   className="settings-panel__select"
                   value={trashRetention}
                   onChange={(e) => changeTrashRetention(Number(e.target.value))}
                 >
-                  <option value={7}>7 天</option>
-                  <option value={30}>30 天</option>
-                  <option value={90}>90 天</option>
-                  <option value={0}>不自动清理</option>
+                  <option value={7}>{t('settings.trashDays', { count: 7 })}</option>
+                  <option value={30}>{t('settings.trashDays', { count: 30 })}</option>
+                  <option value={90}>{t('settings.trashDays', { count: 90 })}</option>
+                  <option value={0}>{t('settings.trashNoClean')}</option>
                 </select>
               </div>
               <div className="settings-panel__actions">
@@ -910,26 +946,24 @@ export default function MainView() {
                   className="settings-panel__btn"
                   onClick={() => void window.api.openTrashFolder()}
                 >
-                  打开回收区
+                  {t('settings.openTrash')}
                 </button>
                 <button
                   className={`settings-panel__btn${emptyConfirm ? ' is-danger' : ''}`}
                   disabled={!trashStats || trashStats.count === 0}
                   onClick={emptyTrash}
                 >
-                  {emptyConfirm ? '确认清空？' : '清空回收区'}
+                  {emptyConfirm ? t('settings.emptyTrashConfirm') : t('settings.emptyTrash')}
                 </button>
               </div>
-              <div className="settings-panel__hint">
-                删除的文件夹会移到 .trash 目录；误删内容可打开回收区拖回 notes/ 找回
-              </div>
+              <div className="settings-panel__hint">{t('settings.trashHint')}</div>
             </div>
 
-            <div className="settings-panel__section">更新</div>
+            <div className="settings-panel__section">{t('settings.update')}</div>
             <div className="settings-card">
               <div className="settings-panel__row">
                 <InfoIcon className="settings-panel__row-icon" />
-                <span className="settings-panel__label">当前版本</span>
+                <span className="settings-panel__label">{t('settings.currentVersion')}</span>
                 <span className="settings-panel__value">
                   {version ? `v${version}` : '…'}
                 </span>
@@ -940,7 +974,7 @@ export default function MainView() {
                     className="settings-panel__btn"
                     onClick={() => void window.api.installUpdate()}
                   >
-                    重启安装 v{updateState.version}
+                    {t('settings.restartInstall', { version: updateState.version })}
                   </button>
                 ) : (
                   <button
@@ -953,7 +987,7 @@ export default function MainView() {
                     }
                     onClick={() => void window.api.checkUpdate()}
                   >
-                    <ArrowsClockwiseIcon /> 检查更新
+                    <ArrowsClockwiseIcon /> {t('settings.checkUpdate')}
                   </button>
                 )}
                 {updateState.status === 'error' && (
@@ -961,20 +995,20 @@ export default function MainView() {
                     className="settings-panel__btn"
                     onClick={() => void window.api.openDownloadPage()}
                   >
-                    前往下载页
+                    {t('settings.goDownload')}
                   </button>
                 )}
               </div>
-              <div className="settings-panel__hint">{updateHint(updateState, isPackaged)}</div>
+              <div className="settings-panel__hint">{updateHint(t, updateState, isPackaged)}</div>
             </div>
 
-            <div className="settings-panel__section">Git 同步</div>
+            <div className="settings-panel__section">{t('settings.gitSync')}</div>
             <div className="settings-card">
               {/* 未配置 / 编辑态：配置表单（token 永不回显，留空=不修改） */}
               {!syncStatus?.configured || syncEditing ? (
                 <>
                   <div className="settings-panel__field">
-                    <span className="settings-panel__field-label">仓库地址</span>
+                    <span className="settings-panel__field-label">{t('sync.repoUrl')}</span>
                     <input
                       className="settings-panel__input"
                       value={syncForm.url}
@@ -987,11 +1021,11 @@ export default function MainView() {
                     />
                   </div>
                   <div className="settings-panel__field">
-                    <span className="settings-panel__field-label">用户名</span>
+                    <span className="settings-panel__field-label">{t('sync.username')}</span>
                     <input
                       className="settings-panel__input"
                       value={syncForm.username}
-                      placeholder="git 用户名"
+                      placeholder={t('sync.usernamePlaceholder')}
                       spellCheck={false}
                       onChange={(e) => {
                         syncFormDirtyRef.current = true;
@@ -1000,12 +1034,14 @@ export default function MainView() {
                     />
                   </div>
                   <div className="settings-panel__field">
-                    <span className="settings-panel__field-label">访问令牌</span>
+                    <span className="settings-panel__field-label">{t('sync.token')}</span>
                     <input
                       className="settings-panel__input"
                       type="password"
                       value={syncForm.token}
-                      placeholder={syncStatus?.configured ? '留空则不修改' : 'personal access token'}
+                      placeholder={
+                        syncStatus?.configured ? t('sync.tokenPlaceholderSet') : 'personal access token'
+                      }
                       autoComplete="off"
                       onChange={(e) => {
                         syncFormDirtyRef.current = true;
@@ -1014,7 +1050,7 @@ export default function MainView() {
                     />
                   </div>
                   <div className="settings-panel__field">
-                    <span className="settings-panel__field-label">分支</span>
+                    <span className="settings-panel__field-label">{t('sync.branch')}</span>
                     <input
                       className="settings-panel__input"
                       value={syncForm.branch}
@@ -1046,7 +1082,7 @@ export default function MainView() {
                           }
                         }}
                       >
-                        取消
+                        {t('sync.cancel')}
                       </button>
                     )}
                     <button
@@ -1054,13 +1090,10 @@ export default function MainView() {
                       disabled={syncBusy || !syncForm.url.trim()}
                       onClick={saveSyncConfig}
                     >
-                      {syncBusy ? '接入中…' : '保存并启用'}
+                      {syncBusy ? t('sync.connecting') : t('sync.saveEnable')}
                     </button>
                   </div>
-                  <div className="settings-panel__hint">
-                    支持 GitHub / cnb 等 HTTPS 仓库（国内推荐 cnb，访问稳定）；token 只保存在本机 vault 的 .pinslip/
-                    内，不会上传
-                  </div>
+                  <div className="settings-panel__hint">{t('sync.formHint')}</div>
                 </>
               ) : (
                 <>
@@ -1073,20 +1106,22 @@ export default function MainView() {
                   </div>
                   <div className="settings-panel__row">
                     <ArrowsClockwiseIcon className="settings-panel__row-icon" />
-                    <span className="settings-panel__label">上次同步</span>
+                    <span className="settings-panel__label">{t('sync.lastSync')}</span>
                     <span className="settings-panel__value">
                       {syncStatus.enabled
-                        ? `${formatRelativeTime(syncStatus.lastSyncAt)}${
-                            syncStatus.ahead > 0 ? ` · 待推送 ${syncStatus.ahead} 条` : ''
+                        ? `${formatRelativeTime(t, syncStatus.lastSyncAt)}${
+                            syncStatus.ahead > 0
+                              ? t('sync.pendingPush', { count: syncStatus.ahead })
+                              : ''
                           }`
-                        : '已停用'}
+                        : t('sync.disabled')}
                     </span>
                   </div>
                   {/* 自动推拉间隔：数字输入在左、单位「分钟」在右，失焦/Enter 即改即存 */}
                   {syncStatus.enabled && (
                     <div className="settings-panel__row">
                       <TimerIcon className="settings-panel__row-icon" />
-                      <span className="settings-panel__label">自动同步</span>
+                      <span className="settings-panel__label">{t('sync.autoSync')}</span>
                       <span className="settings-panel__interval">
                         <input
                           className="settings-panel__input settings-panel__input--number"
@@ -1096,7 +1131,7 @@ export default function MainView() {
                           step={1}
                           value={syncIntervalInput}
                           disabled={syncBusy}
-                          aria-label="自动同步间隔（分钟）"
+                          aria-label={t('sync.autoSyncAria')}
                           onChange={(e) => {
                             syncIntervalDirtyRef.current = true;
                             setSyncIntervalInput(e.target.value);
@@ -1106,7 +1141,7 @@ export default function MainView() {
                             if (e.key === 'Enter') e.currentTarget.blur();
                           }}
                         />
-                        分钟
+                        {t('sync.minutes')}
                       </span>
                     </div>
                   )}
@@ -1114,14 +1149,14 @@ export default function MainView() {
                     <div className="settings-panel__row">
                       <WarningIcon className="settings-panel__row-icon settings-panel__row-icon--danger" />
                       <span className="settings-panel__label settings-panel__label--danger">
-                        待解冲突 {syncStatus.conflictedFiles.length} 个文件
+                        {t('sync.conflictFiles', { count: syncStatus.conflictedFiles.length })}
                       </span>
                       <span
                         className="settings-panel__value settings-panel__value--rtl"
                         title={syncStatus.conflictedFiles.join('\n')}
                       >
                         {syncStatus.conflictedFiles[0]}
-                        {syncStatus.conflictedFiles.length > 1 ? ' 等' : ''}
+                        {syncStatus.conflictedFiles.length > 1 ? t('sync.conflictEtc') : ''}
                       </span>
                     </div>
                   )}
@@ -1136,21 +1171,21 @@ export default function MainView() {
                           disabled={syncBusy}
                           onClick={doSyncNow}
                         >
-                          <ArrowsClockwiseIcon /> 立即同步
+                          <ArrowsClockwiseIcon /> {t('sync.syncNow')}
                         </button>
                         <button
                           className="settings-panel__btn"
                           disabled={syncBusy}
                           onClick={() => setSyncEditing(true)}
                         >
-                          修改配置
+                          {t('sync.editConfig')}
                         </button>
                         <button
                           className={`settings-panel__btn${syncDisableConfirm ? ' is-danger' : ''}`}
                           disabled={syncBusy}
                           onClick={disableSync}
                         >
-                          {syncDisableConfirm ? '确认停用？' : '停用'}
+                          {syncDisableConfirm ? t('sync.disableConfirm') : t('sync.disable')}
                         </button>
                       </>
                     ) : (
@@ -1160,38 +1195,37 @@ export default function MainView() {
                           disabled={syncBusy || !syncForm.url.trim()}
                           onClick={saveSyncConfig}
                         >
-                          重新启用
+                          {t('sync.reenable')}
                         </button>
                         <button
                           className="settings-panel__btn"
                           disabled={syncBusy}
                           onClick={() => setSyncEditing(true)}
                         >
-                          修改配置
+                          {t('sync.editConfig')}
                         </button>
                       </>
                     )}
                   </div>
                   <div className="settings-panel__hint">
-                    便签变更 3 分钟无操作自动提交，每 {syncStatus.pushIntervalMin ?? 10}{' '}
-                    分钟自动推拉；冲突内容会写入标准 git markers，解完即消失
+                    {t('sync.statusHint', { minutes: syncStatus.pushIntervalMin ?? 10 })}
                   </div>
                 </>
               )}
             </div>
 
-            <div className="settings-panel__section">MCP 服务</div>
+            <div className="settings-panel__section">{t('settings.mcp')}</div>
             <div className="settings-card">
               {/* 总开关：mcpEnabled 缺省开；关闭时 Go 侧 /mcp 端点整体 404 */}
               <div className="settings-panel__row">
                 <RobotIcon className="settings-panel__row-icon" />
-                <span className="settings-panel__label">AI 接入</span>
+                <span className="settings-panel__label">{t('mcp.aiAccess')}</span>
                 <button
                   className="settings-toggle"
                   role="switch"
                   aria-checked={mcpEnabled}
                   data-on={mcpEnabled}
-                  title={mcpEnabled ? '关闭 MCP 服务' : '开启 MCP 服务'}
+                  title={mcpEnabled ? t('mcp.turnOff') : t('mcp.turnOn')}
                   onClick={toggleMcp}
                 >
                   <span className="settings-toggle__thumb" />
@@ -1202,7 +1236,7 @@ export default function MainView() {
                 <>
                   <div className="settings-panel__row">
                     <LinkIcon className="settings-panel__row-icon" />
-                    <span className="settings-panel__label">接入地址</span>
+                    <span className="settings-panel__label">{t('mcp.endpoint')}</span>
                     <span
                       className="settings-panel__value settings-panel__value--rtl"
                       title={goPort ? `http://127.0.0.1:${goPort}/mcp` : ''}
@@ -1212,7 +1246,7 @@ export default function MainView() {
                   </div>
                   <div className="settings-panel__row">
                     <FileCodeIcon className="settings-panel__row-icon" />
-                    <span className="settings-panel__label">发现文件</span>
+                    <span className="settings-panel__label">{t('mcp.configFile')}</span>
                     <span
                       className="settings-panel__value settings-panel__value--rtl"
                       title={`${vaultPath}/.pinslip/mcp.json`}
@@ -1227,15 +1261,12 @@ export default function MainView() {
                       onClick={copyMcpConfig}
                     >
                       {mcpCopied ? <CheckIcon /> : <CopyIcon />}
-                      {mcpCopied ? '已复制' : '复制接入信息'}
+                      {mcpCopied ? t('mcp.copied') : t('mcp.copy')}
                     </button>
                   </div>
                 </>
               )}
-              <div className="settings-panel__hint">
-                AI 工具（Kimi / Claude 等）可通过 MCP 搜索、读写、同步便签；服务仅监听本机
-                127.0.0.1，不会暴露到局域网
-              </div>
+              <div className="settings-panel__hint">{t('mcp.hint')}</div>
             </div>
           </div>
         </>
@@ -1245,7 +1276,7 @@ export default function MainView() {
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="搜索便签…"
+          placeholder={t('search.placeholder')}
         />
       </div>
 
@@ -1258,19 +1289,19 @@ export default function MainView() {
             className={`main-view__tab${view === 'list' ? ' is-active' : ''}`}
             onClick={() => setView('list')}
           >
-            <ListBulletsIcon /> 列表
+            <ListBulletsIcon /> {t('tabs.list')}
           </button>
           <button
             className={`main-view__tab${view === 'folders' ? ' is-active' : ''}`}
             onClick={() => setView('folders')}
           >
-            <FolderIcon /> 文件夹
+            <FolderIcon /> {t('tabs.folders')}
           </button>
           <button
             className={`main-view__tab${view === 'tags' ? ' is-active' : ''}`}
             onClick={() => setView('tags')}
           >
-            <TagIcon /> 标签
+            <TagIcon /> {t('tabs.tags')}
           </button>
         </div>
       )}
@@ -1283,7 +1314,7 @@ export default function MainView() {
             className={`main-view__crumb${currentFolder === '' ? ' is-here' : ''}`}
             onClick={() => enterFolder('')}
           >
-            全部
+            {t('folders.all')}
           </button>
           {!crumbsExpanded && crumbs.length > 3 && (
             <span className="main-view__crumb-seg">
@@ -1317,8 +1348,8 @@ export default function MainView() {
               className="main-view__newfolder-btn"
               title={
                 currentFolder
-                  ? `在「${shortenFolder(currentFolder, 14)}」中新建便签`
-                  : '在根目录新建便签'
+                  ? t('folders.newNoteHere', { folder: shortenFolder(currentFolder, 14) })
+                  : t('folders.newNoteRoot')
               }
               onClick={() => void window.api.createNote(undefined, currentFolder)}
             >
@@ -1326,7 +1357,7 @@ export default function MainView() {
             </button>
             <button
               className="main-view__newfolder-btn"
-              title="新建文件夹"
+              title={t('folders.newFolder')}
               onClick={() => setNewFolderOpen((v) => !v)}
             >
               <FolderPlusIcon />
@@ -1341,7 +1372,7 @@ export default function MainView() {
           <input
             autoFocus
             value={newFolderName}
-            placeholder="文件夹名称，回车创建"
+            placeholder={t('folders.newFolderPlaceholder')}
             onChange={(e) => setNewFolderName(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter') createFolder();
@@ -1353,7 +1384,7 @@ export default function MainView() {
           />
           <button
             className="main-view__newfolder-create"
-            title="创建文件夹"
+            title={t('folders.createTip')}
             disabled={!newFolderName.trim()}
             onClick={createFolder}
           >
@@ -1364,7 +1395,7 @@ export default function MainView() {
 
       {hits ? (
         <section className="main-view__section">
-          <h2>搜索结果（{hits.length}）</h2>
+          <h2>{t('search.results', { count: hits.length })}</h2>
           <ul className="note-list">
             {hits.map((hit) => (
               <li key={hit.id} onClick={() => openNote(hit.id)}>
@@ -1376,18 +1407,15 @@ export default function MainView() {
                 <span className="note-list__snippet">{highlightTerms(hit.snippet, hitTerms)}</span>
                 {hit.conflicted && (
                   <span className="note-list__badges">
-                    <span
-                      className="note-list__conflict"
-                      title="此便签有 git 冲突标记，请打开内容解决"
-                    >
+                    <span className="note-list__conflict" title={t('note.conflictTip')}>
                       <WarningIcon />
-                      待解冲突
+                      {t('note.conflict')}
                     </span>
                   </span>
                 )}
               </li>
             ))}
-            {hits.length === 0 && <li className="note-list__empty">无匹配结果</li>}
+            {hits.length === 0 && <li className="note-list__empty">{t('search.noResults')}</li>}
           </ul>
         </section>
       ) : view === 'list' ? (
@@ -1395,18 +1423,18 @@ export default function MainView() {
            支持按更新/创建时间 × 升/倒序排序 */
         <section className="main-view__section">
           <div className="main-view__listhead">
-            <h2>全部便签（{notes.length}）</h2>
+            <h2>{t('list.allNotes', { count: notes.length })}</h2>
             <div className="main-view__sort">
               <select
                 value={sortKey}
-                title="排序字段"
+                title={t('list.sortField')}
                 onChange={(e) => setSortKey(e.target.value as 'updated' | 'created')}
               >
-                <option value="updated">按更新</option>
-                <option value="created">按创建</option>
+                <option value="updated">{t('list.byUpdated')}</option>
+                <option value="created">{t('list.byCreated')}</option>
               </select>
               <button
-                title={sortDir === 'desc' ? '当前倒序，点击切换正序' : '当前正序，点击切换倒序'}
+                title={sortDir === 'desc' ? t('list.descTip') : t('list.ascTip')}
                 onClick={() => setSortDir((d) => (d === 'desc' ? 'asc' : 'desc'))}
               >
                 {sortDir === 'desc' ? <SortDescendingIcon /> : <SortAscendingIcon />}
@@ -1416,7 +1444,7 @@ export default function MainView() {
           <ul className="note-list">
             {sortedNotes.map((note) => renderNoteItem(note, true))}
             {notes.length === 0 && !error && (
-              <li className="note-list__empty">{EMPTY_NOTE_HINT}</li>
+              <li className="note-list__empty">{emptyNoteHint}</li>
             )}
           </ul>
         </section>
@@ -1425,8 +1453,8 @@ export default function MainView() {
         <section className="main-view__section">
           <h2 title={currentFolder || undefined}>
             {currentFolder
-              ? `${shortenFolder(currentFolder, 18)}（${layerNotes.length}）`
-              : `根目录（${layerNotes.length}）`}
+              ? t('folders.current', { name: shortenFolder(currentFolder, 18), count: layerNotes.length })
+              : t('folders.root', { count: layerNotes.length })}
           </h2>
           <ul className="note-list">
             {childFolders.map((f) => (
@@ -1458,7 +1486,7 @@ export default function MainView() {
                 )}
                 <button
                   className="note-list__rename"
-                  title="重命名文件夹"
+                  title={t('folders.renameTip')}
                   onClick={(e) => {
                     e.stopPropagation();
                     setRenamingFolder(f);
@@ -1469,7 +1497,7 @@ export default function MainView() {
                 </button>
                 <button
                   className="note-list__delete"
-                  title="删除文件夹…"
+                  title={t('folders.deleteTip')}
                   onClick={(e) => {
                     e.stopPropagation();
                     setDeleteFolderTarget(f);
@@ -1482,7 +1510,7 @@ export default function MainView() {
             {layerNotes.map((note) => renderNoteItem(note))}
             {layerNotes.length === 0 && childFolders.length === 0 && !error && (
               <li className="note-list__empty">
-                {currentFolder ? '这个文件夹还是空的' : EMPTY_NOTE_HINT}
+                {currentFolder ? t('folders.empty') : emptyNoteHint}
               </li>
             )}
           </ul>
@@ -1497,7 +1525,7 @@ export default function MainView() {
               <section key={g.tag} className="main-view__section">
                 <h2
                   className="main-view__grouphead"
-                  title={collapsed ? '展开分组' : '收起分组'}
+                  title={collapsed ? t('tags.expand') : t('tags.collapse')}
                   onClick={() => toggleTagGroup(g.tag)}
                 >
                   {collapsed ? <CaretRightIcon /> : <CaretDownIcon />}
@@ -1513,11 +1541,11 @@ export default function MainView() {
             <section className="main-view__section">
               <h2
                 className="main-view__grouphead"
-                title={collapsedTags.has('__untagged__') ? '展开分组' : '收起分组'}
+                title={collapsedTags.has('__untagged__') ? t('tags.expand') : t('tags.collapse')}
                 onClick={() => toggleTagGroup('__untagged__')}
               >
                 {collapsedTags.has('__untagged__') ? <CaretRightIcon /> : <CaretDownIcon />}
-                无标签（{tagGroups.untagged.length}）
+                {t('tags.untagged', { count: tagGroups.untagged.length })}
               </h2>
               {!collapsedTags.has('__untagged__') && (
                 <ul className="note-list">
@@ -1529,7 +1557,7 @@ export default function MainView() {
           {notes.length === 0 && !error && (
             <section className="main-view__section">
               <ul className="note-list">
-                <li className="note-list__empty">{EMPTY_NOTE_HINT}</li>
+                <li className="note-list__empty">{emptyNoteHint}</li>
               </ul>
             </section>
           )}
@@ -1541,17 +1569,17 @@ export default function MainView() {
         <>
           <button
             className="move-pop__backdrop"
-            aria-label="取消移动"
+            aria-label={t('move.cancel')}
             onClick={() => setMoveTarget(null)}
           />
           <div className="move-pop">
-            <h3 className="move-pop__title">移动「{moveTarget.title}」到…</h3>
+            <h3 className="move-pop__title">{t('move.title', { title: moveTarget.title })}</h3>
             {/* 路径筛选：目录多的时候快速定位（大小写不敏感子串） */}
             {folders.length > 5 && (
               <input
                 className="move-pop__filter"
                 value={moveFilter}
-                placeholder="搜索目录"
+                placeholder={t('move.filter')}
                 autoFocus
                 onChange={(e) => setMoveFilter(e.target.value)}
                 onKeyDown={(e) => {
@@ -1560,9 +1588,9 @@ export default function MainView() {
               />
             )}
             <div className="move-pop__list">
-              {(!moveFilter.trim() || '根目录'.includes(moveFilter.trim())) && (
+              {(!moveFilter.trim() || t('folders.rootShort').includes(moveFilter.trim())) && (
                 <button className="move-pop__item" onClick={() => moveNoteTo('')}>
-                  <FolderIcon /> 根目录
+                  <FolderIcon /> {t('folders.rootShort')}
                 </button>
               )}
               {filteredMoveFolders.map((f) => (
@@ -1576,10 +1604,10 @@ export default function MainView() {
                 </button>
               ))}
               {folders.length === 0 && (
-                <div className="move-pop__empty">还没有文件夹，点右上角新建</div>
+                <div className="move-pop__empty">{t('move.noFolders')}</div>
               )}
               {folders.length > 0 && filteredMoveFolders.length === 0 && (
-                <div className="move-pop__empty">没有匹配「{moveFilter.trim()}」的目录</div>
+                <div className="move-pop__empty">{t('move.noMatch', { query: moveFilter.trim() })}</div>
               )}
             </div>
           </div>
@@ -1592,14 +1620,14 @@ export default function MainView() {
         <>
           <button
             className="move-pop__backdrop"
-            aria-label="取消删除"
+            aria-label={t('folders.cancelDelete')}
             onClick={() => setDeleteFolderTarget(null)}
           />
           <div className="move-pop">
             <h3 className="move-pop__title" title={deleteFolderTarget}>
-              删除文件夹「{deleteFolderTarget.split('/').pop()}」
+              {t('folders.deleteTitle', { name: deleteFolderTarget.split('/').pop() })}
               {folderNoteCount(deleteFolderTarget) > 0 &&
-                `（含 ${folderNoteCount(deleteFolderTarget)} 张便签）`}
+                t('folders.deleteContains', { count: folderNoteCount(deleteFolderTarget) })}
             </h3>
             <div className="move-pop__list">
               <button
@@ -1608,15 +1636,15 @@ export default function MainView() {
               >
                 <FolderIcon />
                 {folderNoteCount(deleteFolderTarget) > 0
-                  ? '便签移到根目录后删除'
-                  : '删除空文件夹'}
+                  ? t('folders.deleteMoveNotes')
+                  : t('folders.deleteEmpty')}
               </button>
               {folderNoteCount(deleteFolderTarget) > 0 && (
                 <button
                   className="move-pop__item move-pop__item--danger"
                   onClick={() => deleteFolder(deleteFolderTarget, 'trash')}
                 >
-                  <TrashIcon /> 连同便签一起删除（移入回收区）
+                  <TrashIcon /> {t('folders.deleteWithNotes')}
                 </button>
               )}
             </div>

@@ -5,7 +5,7 @@ import { IPC } from '../../shared/ipc-channels';
 import type { RuntimeInfo } from '../../shared/types';
 import type { WindowManager } from '../windows/window-manager';
 import type { GoProcess } from '../services/go-process';
-import { getVaultPath, setVaultPath } from '../settings';
+import { getLanguage, getVaultPath, setLanguage, setVaultPath } from '../settings';
 import { getAutoStart, setAutoStart } from '../autostart';
 import { startVaultWatch } from '../services/vault-watch';
 import { checkForUpdate, getUpdateState, quitAndInstall } from '../updater';
@@ -157,6 +157,15 @@ export function registerIpcHandlers({ windowManager, goProcess }: IpcContext): v
   ipcMain.handle(IPC.SettingsGetAutoStart, () => getAutoStart());
   ipcMain.handle(IPC.SettingsSetAutoStart, (_event, enabled: boolean) => {
     setAutoStart(enabled);
+  });
+
+  // 界面语言：偏好存 userData/settings.json；systemLocale 给渲染层解析「跟随系统」
+  ipcMain.handle(IPC.SettingsGetLanguage, () => ({
+    preference: getLanguage(),
+    systemLocale: app.getLocale(),
+  }));
+  ipcMain.handle(IPC.SettingsSetLanguage, (_event, lang: string) => {
+    setLanguage(lang);
   });
 
   // 笔记变更广播：任一渲染进程上报 → 转发主窗口刷新列表

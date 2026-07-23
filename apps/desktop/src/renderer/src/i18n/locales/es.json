@@ -1,0 +1,168 @@
+{
+  "setup": {
+    "text": "Elige una carpeta para guardar tus notas. Todas se guardan aquí como archivos Markdown, listas para abrir con cualquier otra herramienta.",
+    "button": "Elegir carpeta",
+    "hint": "Sugerencia: Documentos\\PinSlip (puedes cambiarlo cuando quieras)"
+  },
+  "header": {
+    "create": "Nueva nota",
+    "settings": "Ajustes"
+  },
+  "search": {
+    "placeholder": "Buscar notas…",
+    "results": "Resultados ({{count}})",
+    "noResults": "Sin resultados"
+  },
+  "error": {
+    "serviceDown": "No se puede conectar con el servicio local: {{message}}"
+  },
+  "tabs": {
+    "list": "Lista",
+    "folders": "Carpetas",
+    "tags": "Etiquetas"
+  },
+  "note": {
+    "words": "{{count}} palabras",
+    "conflict": "Conflicto pendiente",
+    "conflictTip": "Esta nota tiene marcadores de conflicto de git. Ábrela para resolverlos",
+    "openFolder": "Abrir carpeta contenedora",
+    "move": "Mover a carpeta…",
+    "delete": "Eliminar",
+    "emptyLine1": "Aún no hay notas",
+    "emptyLine2": "Pulsa «Nueva nota» para empezar"
+  },
+  "list": {
+    "allNotes": "Todas las notas ({{count}})",
+    "sortField": "Ordenar por",
+    "byUpdated": "Actualización",
+    "byCreated": "Creación",
+    "descTip": "Descendente; clic para ascendente",
+    "ascTip": "Ascendente; clic para descendente"
+  },
+  "folders": {
+    "all": "Todo",
+    "newNoteHere": "Nueva nota en «{{folder}}»",
+    "newNoteRoot": "Nueva nota en la raíz",
+    "newFolder": "Nueva carpeta",
+    "newFolderPlaceholder": "Nombre de carpeta, Enter para crear",
+    "createTip": "Crear carpeta",
+    "renameTip": "Renombrar carpeta",
+    "deleteTip": "Eliminar carpeta…",
+    "current": "{{name}} ({{count}})",
+    "root": "Raíz ({{count}})",
+    "rootShort": "Raíz",
+    "empty": "Esta carpeta está vacía",
+    "deleteTitle": "Eliminar carpeta «{{name}}»",
+    "deleteContains": " (contiene {{count}} notas)",
+    "deleteMoveNotes": "Mover notas a la raíz y eliminar",
+    "deleteEmpty": "Eliminar carpeta vacía",
+    "deleteWithNotes": "Eliminar con las notas (a la papelera)",
+    "cancelDelete": "Cancelar eliminación"
+  },
+  "move": {
+    "title": "Mover «{{title}}» a…",
+    "filter": "Buscar carpetas",
+    "noFolders": "Aún no hay carpetas; crea una arriba a la derecha",
+    "noMatch": "Ninguna carpeta coincide con «{{query}}»",
+    "cancel": "Cancelar traslado"
+  },
+  "tags": {
+    "expand": "Expandir grupo",
+    "collapse": "Contraer grupo",
+    "untagged": "Sin etiqueta ({{count}})"
+  },
+  "settings": {
+    "title": "Ajustes",
+    "back": "Volver",
+    "close": "Cerrar ajustes",
+    "general": "General",
+    "autoStart": "Inicio automático",
+    "autoStartTip": "Iniciar PinSlip al arrancar el sistema",
+    "autoStartPackagedOnly": "Disponible en la versión instalada",
+    "autoStartDevHint": "No se puede cambiar en modo desarrollo; se aplica en la versión instalada",
+    "language": "Idioma",
+    "languageSystem": "Sistema",
+    "quick": "Nota rápida",
+    "quickTarget": "Destino",
+    "quickTargetNote": "Una nota cada vez",
+    "quickTargetDaily": "Agrupar por día",
+    "quickClipboard": "Traer portapapeles",
+    "quickClipboardTip": "Rellenar con el texto del portapapeles al abrir la nota rápida",
+    "quickHint": "Ctrl+Shift+N abre la nota rápida; el modo agrupado añade a la nota «Nota rápida YYYY-MM-DD»",
+    "data": "Datos y almacenamiento",
+    "vaultLocation": "Ubicación",
+    "openNotesFolder": "Abrir carpeta de notas",
+    "changeLocation": "Cambiar ubicación…",
+    "trash": "Papelera",
+    "trashContent": "Elementos eliminados",
+    "trashEmpty": "Vacía",
+    "trashStats": "{{count}} elementos · {{size}}",
+    "trashAutoClean": "Limpieza automática",
+    "trashDays": "{{count}} días",
+    "trashNoClean": "No limpiar automáticamente",
+    "openTrash": "Abrir papelera",
+    "emptyTrash": "Vaciar papelera",
+    "emptyTrashConfirm": "¿Vaciar de verdad?",
+    "trashHint": "Las carpetas eliminadas van a .trash; arrástralas de vuelta a notes/ para recuperarlas",
+    "update": "Actualizaciones",
+    "currentVersion": "Versión actual",
+    "restartInstall": "Reiniciar e instalar v{{version}}",
+    "checkUpdate": "Buscar actualizaciones",
+    "goDownload": "Ir a la página de descarga",
+    "gitSync": "Sincronización git",
+    "mcp": "Servicio MCP"
+  },
+  "update": {
+    "hintDev": "La búsqueda de actualizaciones no está disponible en modo desarrollo",
+    "hintIdle": "Se buscan actualizaciones automáticamente al iniciar",
+    "hintChecking": "Buscando actualizaciones…",
+    "hintAvailable": "Nueva versión v{{version}} encontrada; descargando en segundo plano…",
+    "hintDownloading": "Descargando actualización {{percent}}%…",
+    "hintDownloaded": "v{{version}} lista; se aplicará al reiniciar",
+    "hintLatest": "Ya tienes la última versión",
+    "hintError": "Error al buscar: {{message}}. Puedes descargar el instalador manualmente"
+  },
+  "sync": {
+    "repoUrl": "URL del repositorio",
+    "username": "Usuario",
+    "usernamePlaceholder": "usuario de git",
+    "token": "Token de acceso",
+    "tokenPlaceholderSet": "Vacío = no modificar",
+    "branch": "Rama",
+    "cancel": "Cancelar",
+    "connecting": "Conectando…",
+    "saveEnable": "Guardar y activar",
+    "formHint": "Compatible con repositorios HTTPS como GitHub / cnb; el token solo se guarda en .pinslip/ dentro de tu vault local y nunca se sube",
+    "lastSync": "Última sincronización",
+    "disabled": "Desactivado",
+    "pendingPush": " · {{count}} por enviar",
+    "autoSync": "Sincronización automática",
+    "minutes": "min",
+    "autoSyncAria": "Intervalo de sincronización (minutos)",
+    "conflictFiles": "{{count}} archivos con conflictos",
+    "conflictEtc": " etc.",
+    "syncNow": "Sincronizar ahora",
+    "editConfig": "Editar configuración",
+    "disable": "Desactivar",
+    "disableConfirm": "¿Desactivar de verdad?",
+    "reenable": "Reactivar",
+    "statusHint": "Los cambios se confirman automáticamente tras 3 minutos sin actividad y se sincronizan cada {{minutes}} min; los conflictos se escriben como marcadores git estándar y desaparecen al resolverlos"
+  },
+  "mcp": {
+    "aiAccess": "Acceso de IA",
+    "turnOff": "Desactivar servicio MCP",
+    "turnOn": "Activar servicio MCP",
+    "endpoint": "Dirección de acceso",
+    "configFile": "Archivo de detección",
+    "copied": "Copiado",
+    "copy": "Copiar información de acceso",
+    "hint": "Las herramientas de IA (Kimi / Claude, etc.) pueden buscar, leer, escribir y sincronizar notas vía MCP; el servicio solo escucha en 127.0.0.1 y no se expone a la red local"
+  },
+  "time": {
+    "never": "Nunca sincronizado",
+    "justNow": "Ahora mismo",
+    "minutesAgo": "hace {{count}} min",
+    "hoursAgo": "hace {{count}} h",
+    "daysAgo": "hace {{count}} días"
+  }
+}

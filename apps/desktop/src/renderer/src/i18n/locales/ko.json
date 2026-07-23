@@ -1,0 +1,168 @@
+{
+  "setup": {
+    "text": "메모를 저장할 폴더를 선택하세요. 모든 메모는 Markdown 파일로 이곳에 저장되며, 다른 도구에서도 열 수 있습니다.",
+    "button": "폴더 선택",
+    "hint": "추천: 문서\\PinSlip (나중에 언제든 변경 가능)"
+  },
+  "header": {
+    "create": "새 메모",
+    "settings": "설정"
+  },
+  "search": {
+    "placeholder": "메모 검색…",
+    "results": "검색 결과 ({{count}})",
+    "noResults": "일치하는 결과 없음"
+  },
+  "error": {
+    "serviceDown": "로컬 서비스에 연결할 수 없습니다: {{message}}"
+  },
+  "tabs": {
+    "list": "목록",
+    "folders": "폴더",
+    "tags": "태그"
+  },
+  "note": {
+    "words": "{{count}}자",
+    "conflict": "충돌 해결 필요",
+    "conflictTip": "이 메모에 git 충돌 마커가 있습니다. 열어서 해결하세요",
+    "openFolder": "폴더 열기",
+    "move": "폴더로 이동…",
+    "delete": "삭제",
+    "emptyLine1": "아직 메모가 없습니다",
+    "emptyLine2": "'새 메모'를 눌러 시작하세요"
+  },
+  "list": {
+    "allNotes": "모든 메모 ({{count}})",
+    "sortField": "정렬 기준",
+    "byUpdated": "수정순",
+    "byCreated": "생성순",
+    "descTip": "내림차순입니다. 클릭하면 오름차순으로 전환",
+    "ascTip": "오름차순입니다. 클릭하면 내림차순으로 전환"
+  },
+  "folders": {
+    "all": "전체",
+    "newNoteHere": "'{{folder}}'에 새 메모",
+    "newNoteRoot": "루트에 새 메모",
+    "newFolder": "새 폴더",
+    "newFolderPlaceholder": "폴더 이름 입력 후 Enter로 생성",
+    "createTip": "폴더 만들기",
+    "renameTip": "폴더 이름 바꾸기",
+    "deleteTip": "폴더 삭제…",
+    "current": "{{name}} ({{count}})",
+    "root": "루트 ({{count}})",
+    "rootShort": "루트",
+    "empty": "이 폴더는 비어 있습니다",
+    "deleteTitle": "'{{name}}' 폴더 삭제",
+    "deleteContains": " (메모 {{count}}개 포함)",
+    "deleteMoveNotes": "메모를 루트로 옮기고 삭제",
+    "deleteEmpty": "빈 폴더 삭제",
+    "deleteWithNotes": "메모까지 함께 삭제 (휴지통으로)",
+    "cancelDelete": "삭제 취소"
+  },
+  "move": {
+    "title": "'{{title}}' 이동…",
+    "filter": "폴더 검색",
+    "noFolders": "아직 폴더가 없습니다. 오른쪽 위에서 만드세요",
+    "noMatch": "'{{query}}'와 일치하는 폴더 없음",
+    "cancel": "이동 취소"
+  },
+  "tags": {
+    "expand": "그룹 펼치기",
+    "collapse": "그룹 접기",
+    "untagged": "태그 없음 ({{count}})"
+  },
+  "settings": {
+    "title": "설정",
+    "back": "뒤로",
+    "close": "설정 닫기",
+    "general": "일반",
+    "autoStart": "시작 시 자동 실행",
+    "autoStartTip": "로그인할 때 PinSlip 자동 실행",
+    "autoStartPackagedOnly": "설치 버전에서 사용 가능",
+    "autoStartDevHint": "개발 모드에서는 변경할 수 없으며 설치 버전에서 적용됩니다",
+    "language": "언어",
+    "languageSystem": "시스템 설정",
+    "quick": "빠른 메모",
+    "quickTarget": "저장 위치",
+    "quickTargetNote": "걸별 새 메모",
+    "quickTargetDaily": "오늘 메모에 모으기",
+    "quickClipboard": "클립보드 가져오기",
+    "quickClipboardTip": "빠른 메모 창을 열 때 클립보드 텍스트를 자동 입력",
+    "quickHint": "Ctrl+Shift+N으로 빠른 메모를 엽니다. 모으기 모드에서는 '빠른 메모 YYYY-MM-DD' 메모에 추가됩니다",
+    "data": "데이터 및 저장소",
+    "vaultLocation": "저장 위치",
+    "openNotesFolder": "메모 폴더 열기",
+    "changeLocation": "위치 변경…",
+    "trash": "휴지통",
+    "trashContent": "삭제된 항목",
+    "trashEmpty": "비어 있음",
+    "trashStats": "{{count}}개 · {{size}}",
+    "trashAutoClean": "자동 정리",
+    "trashDays": "{{count}}일",
+    "trashNoClean": "자동 정리 안 함",
+    "openTrash": "휴지통 열기",
+    "emptyTrash": "휴지통 비우기",
+    "emptyTrashConfirm": "정말 비울까요?",
+    "trashHint": "삭제된 폴더는 .trash로 이동합니다. 휴지통에서 notes/로 드래그하면 복구됩니다",
+    "update": "업데이트",
+    "currentVersion": "현재 버전",
+    "restartInstall": "재시작하여 v{{version}} 설치",
+    "checkUpdate": "업데이트 확인",
+    "goDownload": "다운로드 페이지로",
+    "gitSync": "Git 동기화",
+    "mcp": "MCP 서비스"
+  },
+  "update": {
+    "hintDev": "개발 모드에서는 업데이트를 확인할 수 없습니다",
+    "hintIdle": "시작 후 자동으로 업데이트를 확인합니다",
+    "hintChecking": "업데이트 확인 중…",
+    "hintAvailable": "새 버전 v{{version}} 발견, 백그라운드에서 다운로드 중…",
+    "hintDownloading": "업데이트 다운로드 중 {{percent}}%…",
+    "hintDownloaded": "v{{version}}이 준비되었습니다. 재시작 후 적용됩니다",
+    "hintLatest": "최신 버전입니다",
+    "hintError": "확인 실패: {{message}}. 수동으로 설치 파일을 다운로드할 수 있습니다"
+  },
+  "sync": {
+    "repoUrl": "저장소 주소",
+    "username": "사용자 이름",
+    "usernamePlaceholder": "git 사용자 이름",
+    "token": "액세스 토큰",
+    "tokenPlaceholderSet": "비워 두면 변경하지 않음",
+    "branch": "브랜치",
+    "cancel": "취소",
+    "connecting": "연결 중…",
+    "saveEnable": "저장하고 활성화",
+    "formHint": "GitHub / cnb 등 HTTPS 저장소를 지원합니다. token은 로컬 vault의 .pinslip/에만 저장되며 업로드되지 않습니다",
+    "lastSync": "마지막 동기화",
+    "disabled": "비활성화됨",
+    "pendingPush": " · 푸시 대기 {{count}}개",
+    "autoSync": "자동 동기화",
+    "minutes": "분",
+    "autoSyncAria": "자동 동기화 간격(분)",
+    "conflictFiles": "충돌 해결 필요 {{count}}개 파일",
+    "conflictEtc": " 외",
+    "syncNow": "지금 동기화",
+    "editConfig": "설정 수정",
+    "disable": "비활성화",
+    "disableConfirm": "정말 비활성화할까요?",
+    "reenable": "다시 활성화",
+    "statusHint": "변경 후 3분간 조작이 없으면 자동 커밋되고, {{minutes}}분마다 자동으로 푸시·풀합니다. 충돌은 표준 git 마커로 기록되며 해결하면 사라집니다"
+  },
+  "mcp": {
+    "aiAccess": "AI 연동",
+    "turnOff": "MCP 서비스 끄기",
+    "turnOn": "MCP 서비스 켜기",
+    "endpoint": "접속 주소",
+    "configFile": "검색 파일",
+    "copied": "복사됨",
+    "copy": "접속 정보 복사",
+    "hint": "AI 도구(Kimi / Claude 등)가 MCP로 메모를 검색·읽기·쓰기·동기화할 수 있습니다. 서비스는 127.0.0.1에서만 수신하며 LAN에 노출되지 않습니다"
+  },
+  "time": {
+    "never": "동기화한 적 없음",
+    "justNow": "방금",
+    "minutesAgo": "{{count}}분 전",
+    "hoursAgo": "{{count}}시간 전",
+    "daysAgo": "{{count}}일 전"
+  }
+}

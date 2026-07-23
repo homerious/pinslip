@@ -1,0 +1,168 @@
+{
+  "setup": {
+    "text": "ノートの保存先フォルダを選んでください。すべてのノートは Markdown ファイルとしてここに保存され、他のツールでも開けます。",
+    "button": "フォルダを選択",
+    "hint": "おすすめ：ドキュメント\\PinSlip（あとで変更できます）"
+  },
+  "header": {
+    "create": "新規ノート",
+    "settings": "設定"
+  },
+  "search": {
+    "placeholder": "ノートを検索…",
+    "results": "検索結果（{{count}}）",
+    "noResults": "一致する結果がありません"
+  },
+  "error": {
+    "serviceDown": "ローカルサービスに接続できません：{{message}}"
+  },
+  "tabs": {
+    "list": "リスト",
+    "folders": "フォルダ",
+    "tags": "タグ"
+  },
+  "note": {
+    "words": "{{count}} 文字",
+    "conflict": "要解決の競合",
+    "conflictTip": "このノートには git の競合マーカーがあります。開いて解決してください",
+    "openFolder": "フォルダを開く",
+    "move": "フォルダへ移動…",
+    "delete": "削除",
+    "emptyLine1": "ノートはまだありません",
+    "emptyLine2": "「新規ノート」から始めましょう"
+  },
+  "list": {
+    "allNotes": "すべてのノート（{{count}}）",
+    "sortField": "並び替え",
+    "byUpdated": "更新順",
+    "byCreated": "作成順",
+    "descTip": "降順です。クリックで昇順に切替",
+    "ascTip": "昇順です。クリックで降順に切替"
+  },
+  "folders": {
+    "all": "すべて",
+    "newNoteHere": "「{{folder}}」に新規ノート",
+    "newNoteRoot": "ルートに新規ノート",
+    "newFolder": "新規フォルダ",
+    "newFolderPlaceholder": "フォルダ名を入力して Enter で作成",
+    "createTip": "フォルダを作成",
+    "renameTip": "フォルダ名を変更",
+    "deleteTip": "フォルダを削除…",
+    "current": "{{name}}（{{count}}）",
+    "root": "ルート（{{count}}）",
+    "rootShort": "ルート",
+    "empty": "このフォルダは空です",
+    "deleteTitle": "フォルダ「{{name}}」を削除",
+    "deleteContains": "（{{count}} 件のノートを含む）",
+    "deleteMoveNotes": "ノートをルートへ移して削除",
+    "deleteEmpty": "空のフォルダを削除",
+    "deleteWithNotes": "ノートごと削除（ゴミ箱へ移動）",
+    "cancelDelete": "削除をキャンセル"
+  },
+  "move": {
+    "title": "「{{title}}」の移動先…",
+    "filter": "フォルダを検索",
+    "noFolders": "フォルダがまだありません。右上で作成できます",
+    "noMatch": "「{{query}}」に一致するフォルダがありません",
+    "cancel": "移動をキャンセル"
+  },
+  "tags": {
+    "expand": "グループを展開",
+    "collapse": "グループを折りたたむ",
+    "untagged": "タグなし（{{count}}）"
+  },
+  "settings": {
+    "title": "設定",
+    "back": "戻る",
+    "close": "設定を閉じる",
+    "general": "一般",
+    "autoStart": "自動起動",
+    "autoStartTip": "ログイン時に PinSlip を自動起動",
+    "autoStartPackagedOnly": "インストール版で利用可能",
+    "autoStartDevHint": "開発モードでは変更できません。インストール版で有効です",
+    "language": "言語",
+    "languageSystem": "システムに従う",
+    "quick": "クイックメモ",
+    "quickTarget": "保存先",
+    "quickTargetNote": "1件ずつ作成",
+    "quickTargetDaily": "今日のノートに集約",
+    "quickClipboard": "クリップボードを引き継ぐ",
+    "quickClipboardTip": "クイックメモ起動時にクリップボードのテキストを自動入力",
+    "quickHint": "Ctrl+Shift+N でクイックメモを起動。集約モードでは「クイックメモ YYYY-MM-DD」ノートに追記されます",
+    "data": "データとストレージ",
+    "vaultLocation": "保存場所",
+    "openNotesFolder": "ノートフォルダを開く",
+    "changeLocation": "場所を変更…",
+    "trash": "ゴミ箱",
+    "trashContent": "削除済み",
+    "trashEmpty": "空",
+    "trashStats": "{{count}} 件 · {{size}}",
+    "trashAutoClean": "自動クリーン",
+    "trashDays": "{{count}} 日",
+    "trashNoClean": "自動クリーンしない",
+    "openTrash": "ゴミ箱を開く",
+    "emptyTrash": "ゴミ箱を空にする",
+    "emptyTrashConfirm": "本当に空にしますか？",
+    "trashHint": "削除したフォルダは .trash に移動します。ゴミ箱から notes/ にドラッグして復元できます",
+    "update": "アップデート",
+    "currentVersion": "現在のバージョン",
+    "restartInstall": "再起動して v{{version}} をインストール",
+    "checkUpdate": "アップデートを確認",
+    "goDownload": "ダウンロードページへ",
+    "gitSync": "Git 同期",
+    "mcp": "MCP サービス"
+  },
+  "update": {
+    "hintDev": "開発モードではアップデート確認を利用できません",
+    "hintIdle": "起動後に自動でアップデートを確認します",
+    "hintChecking": "アップデートを確認中…",
+    "hintAvailable": "新バージョン v{{version}} を検出。バックグラウンドでダウンロード中…",
+    "hintDownloading": "アップデートをダウンロード中 {{percent}}%…",
+    "hintDownloaded": "v{{version}} の準備ができました。再起動後に有効になります",
+    "hintLatest": "最新バージョンです",
+    "hintError": "確認に失敗しました：{{message}}。手動でインストーラーをダウンロードできます"
+  },
+  "sync": {
+    "repoUrl": "リポジトリ URL",
+    "username": "ユーザー名",
+    "usernamePlaceholder": "git ユーザー名",
+    "token": "アクセストークン",
+    "tokenPlaceholderSet": "空欄なら変更しません",
+    "branch": "ブランチ",
+    "cancel": "キャンセル",
+    "connecting": "接続中…",
+    "saveEnable": "保存して有効化",
+    "formHint": "GitHub / cnb などの HTTPS リポジトリに対応。token はローカル vault の .pinslip/ にのみ保存され、アップロードされません",
+    "lastSync": "前回の同期",
+    "disabled": "無効",
+    "pendingPush": " · 未プッシュ {{count}} 件",
+    "autoSync": "自動同期",
+    "minutes": "分",
+    "autoSyncAria": "自動同期の間隔（分）",
+    "conflictFiles": "要解決の競合 {{count}} ファイル",
+    "conflictEtc": " ほか",
+    "syncNow": "今すぐ同期",
+    "editConfig": "設定を変更",
+    "disable": "無効にする",
+    "disableConfirm": "本当に無効にしますか？",
+    "reenable": "再度有効化",
+    "statusHint": "変更は 3 分操作がないと自動コミットされ、{{minutes}} 分ごとに自動でプッシュ＆プルされます。競合は標準の git マーカーとして書き込まれ、解決すると消えます"
+  },
+  "mcp": {
+    "aiAccess": "AI 連携",
+    "turnOff": "MCP サービスをオフ",
+    "turnOn": "MCP サービスをオン",
+    "endpoint": "接続アドレス",
+    "configFile": "検出ファイル",
+    "copied": "コピーしました",
+    "copy": "接続情報をコピー",
+    "hint": "AI ツール（Kimi / Claude など）が MCP 経由でノートを検索・読み書き・同期できます。サービスは 127.0.0.1 のみで待受け、LAN には公開されません"
+  },
+  "time": {
+    "never": "未同期",
+    "justNow": "たった今",
+    "minutesAgo": "{{count}} 分前",
+    "hoursAgo": "{{count}} 時間前",
+    "daysAgo": "{{count}} 日前"
+  }
+}

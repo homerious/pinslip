@@ -1,0 +1,168 @@
+{
+  "setup": {
+    "text": "Wähle einen Ordner als Speicherort für deine Notizen. Alle Notizen werden dort als Markdown-Dateien gespeichert und lassen sich mit jedem anderen Tool öffnen.",
+    "button": "Ordner wählen",
+    "hint": "Empfehlung: Dokumente\\PinSlip (jederzeit änderbar)"
+  },
+  "header": {
+    "create": "Neue Notiz",
+    "settings": "Einstellungen"
+  },
+  "search": {
+    "placeholder": "Notizen suchen…",
+    "results": "Suchergebnisse ({{count}})",
+    "noResults": "Keine Treffer"
+  },
+  "error": {
+    "serviceDown": "Lokaler Dienst nicht erreichbar: {{message}}"
+  },
+  "tabs": {
+    "list": "Liste",
+    "folders": "Ordner",
+    "tags": "Tags"
+  },
+  "note": {
+    "words": "{{count}} Wörter",
+    "conflict": "Konflikt offen",
+    "conflictTip": "Diese Notiz enthält git-Konfliktmarker. Zum Auflösen öffnen",
+    "openFolder": "Ordner öffnen",
+    "move": "In Ordner verschieben…",
+    "delete": "Löschen",
+    "emptyLine1": "Noch keine Notizen",
+    "emptyLine2": "Tippe auf „Neue Notiz“, um zu starten"
+  },
+  "list": {
+    "allNotes": "Alle Notizen ({{count}})",
+    "sortField": "Sortierung",
+    "byUpdated": "Änderung",
+    "byCreated": "Erstellung",
+    "descTip": "Absteigend; klicken für aufsteigend",
+    "ascTip": "Aufsteigend; klicken für absteigend"
+  },
+  "folders": {
+    "all": "Alle",
+    "newNoteHere": "Neue Notiz in „{{folder}}“",
+    "newNoteRoot": "Neue Notiz im Stammordner",
+    "newFolder": "Neuer Ordner",
+    "newFolderPlaceholder": "Ordnername, Enter erstellt",
+    "createTip": "Ordner erstellen",
+    "renameTip": "Ordner umbenennen",
+    "deleteTip": "Ordner löschen…",
+    "current": "{{name}} ({{count}})",
+    "root": "Stamm ({{count}})",
+    "rootShort": "Stamm",
+    "empty": "Dieser Ordner ist leer",
+    "deleteTitle": "Ordner „{{name}}“ löschen",
+    "deleteContains": " (mit {{count}} Notizen)",
+    "deleteMoveNotes": "Notizen in den Stamm verschieben, dann löschen",
+    "deleteEmpty": "Leeren Ordner löschen",
+    "deleteWithNotes": "Mit Notizen löschen (in den Papierkorb)",
+    "cancelDelete": "Löschen abbrechen"
+  },
+  "move": {
+    "title": "„{{title}}“ verschieben nach…",
+    "filter": "Ordner suchen",
+    "noFolders": "Noch keine Ordner – oben rechts anlegen",
+    "noMatch": "Keine Ordner passen zu „{{query}}“",
+    "cancel": "Verschieben abbrechen"
+  },
+  "tags": {
+    "expand": "Gruppe aufklappen",
+    "collapse": "Gruppe zuklappen",
+    "untagged": "Ohne Tag ({{count}})"
+  },
+  "settings": {
+    "title": "Einstellungen",
+    "back": "Zurück",
+    "close": "Einstellungen schließen",
+    "general": "Allgemein",
+    "autoStart": "Autostart",
+    "autoStartTip": "PinSlip beim Anmelden automatisch starten",
+    "autoStartPackagedOnly": "In der installierten Version verfügbar",
+    "autoStartDevHint": "Im Entwicklungsmodus nicht änderbar; gilt für die installierte Version",
+    "language": "Sprache",
+    "languageSystem": "System",
+    "quick": "Schnellnotiz",
+    "quickTarget": "Ablage",
+    "quickTargetNote": "Einzeln anlegen",
+    "quickTargetDaily": "Täglich sammeln",
+    "quickClipboard": "Zwischenablage übernehmen",
+    "quickClipboardTip": "Text aus der Zwischenablage beim Öffnen der Schnellnotiz einfügen",
+    "quickHint": "Strg+Umschalt+N öffnet die Schnellnotiz; im Sammelmodus wird an „Schnellnotiz YYYY-MM-DD“ angehängt",
+    "data": "Daten & Speicher",
+    "vaultLocation": "Speicherort",
+    "openNotesFolder": "Notizordner öffnen",
+    "changeLocation": "Ort ändern…",
+    "trash": "Papierkorb",
+    "trashContent": "Gelöschte Inhalte",
+    "trashEmpty": "Leer",
+    "trashStats": "{{count}} Einträge · {{size}}",
+    "trashAutoClean": "Automatisch bereinigen",
+    "trashDays": "{{count}} Tage",
+    "trashNoClean": "Nie automatisch bereinigen",
+    "openTrash": "Papierkorb öffnen",
+    "emptyTrash": "Papierkorb leeren",
+    "emptyTrashConfirm": "Wirklich leeren?",
+    "trashHint": "Gelöschte Ordner landen in .trash; zum Wiederherstellen zurück nach notes/ ziehen",
+    "update": "Updates",
+    "currentVersion": "Aktuelle Version",
+    "restartInstall": "Neustart & v{{version}} installieren",
+    "checkUpdate": "Nach Updates suchen",
+    "goDownload": "Zur Download-Seite",
+    "gitSync": "Git-Sync",
+    "mcp": "MCP-Dienst"
+  },
+  "update": {
+    "hintDev": "Update-Prüfung im Entwicklungsmodus nicht verfügbar",
+    "hintIdle": "Updates werden nach dem Start automatisch geprüft",
+    "hintChecking": "Suche nach Updates…",
+    "hintAvailable": "Neue Version v{{version}} gefunden, Download im Hintergrund…",
+    "hintDownloading": "Update wird geladen: {{percent}} %…",
+    "hintDownloaded": "v{{version}} ist bereit und wird nach dem Neustart aktiv",
+    "hintLatest": "Du bist auf dem neuesten Stand",
+    "hintError": "Prüfung fehlgeschlagen: {{message}}. Installer kann manuell geladen werden"
+  },
+  "sync": {
+    "repoUrl": "Repository-URL",
+    "username": "Benutzername",
+    "usernamePlaceholder": "git-Benutzername",
+    "token": "Zugriffstoken",
+    "tokenPlaceholderSet": "Leer lassen = unverändert",
+    "branch": "Branch",
+    "cancel": "Abbrechen",
+    "connecting": "Verbinde…",
+    "saveEnable": "Speichern & aktivieren",
+    "formHint": "Unterstützt HTTPS-Repos wie GitHub / cnb; das Token liegt nur lokal in .pinslip/ deines Vaults und wird nie hochgeladen",
+    "lastSync": "Letzter Sync",
+    "disabled": "Deaktiviert",
+    "pendingPush": " · {{count}} ausstehend",
+    "autoSync": "Auto-Sync",
+    "minutes": "Min.",
+    "autoSyncAria": "Auto-Sync-Intervall (Minuten)",
+    "conflictFiles": "{{count}} Dateien mit Konflikten",
+    "conflictEtc": " usw.",
+    "syncNow": "Jetzt synchronisieren",
+    "editConfig": "Konfiguration ändern",
+    "disable": "Deaktivieren",
+    "disableConfirm": "Wirklich deaktivieren?",
+    "reenable": "Wieder aktivieren",
+    "statusHint": "Änderungen werden nach 3 Minuten ohne Eingabe automatisch committet und alle {{minutes}} Min. gepusht & gepullt; Konflikte werden als Standard-git-Marker geschrieben und verschwinden nach dem Auflösen"
+  },
+  "mcp": {
+    "aiAccess": "KI-Zugriff",
+    "turnOff": "MCP-Dienst ausschalten",
+    "turnOn": "MCP-Dienst einschalten",
+    "endpoint": "Endpunkt",
+    "configFile": "Discovery-Datei",
+    "copied": "Kopiert",
+    "copy": "Verbindungsdaten kopieren",
+    "hint": "KI-Tools (Kimi / Claude usw.) können Notizen per MCP suchen, lesen, schreiben und synchronisieren; der Dienst lauscht nur auf 127.0.0.1 und ist nicht im LAN sichtbar"
+  },
+  "time": {
+    "never": "Nie synchronisiert",
+    "justNow": "Gerade eben",
+    "minutesAgo": "vor {{count}} Min.",
+    "hoursAgo": "vor {{count}} Std.",
+    "daysAgo": "vor {{count}} Tagen"
+  }
+}

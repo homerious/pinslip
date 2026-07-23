@@ -166,6 +166,10 @@ export interface ElectronAPI {
   getAutoStart(): Promise<boolean>;
   /** 设置开机自启（dev 环境下为 no-op） */
   setAutoStart(enabled: boolean): Promise<void>;
+  /** 查询界面语言偏好与系统 locale（渲染层据此解析「跟随系统」） */
+  getLanguage(): Promise<{ preference: string; systemLocale: string }>;
+  /** 持久化界面语言偏好（'system' 或具体语言码） */
+  setLanguage(lang: string): Promise<void>;
   /** 通知主进程：笔记数据已变更（保存/删除/速记），用于广播刷新主界面列表 */
   notifyNotesChanged(): void;
   /** 订阅笔记变更广播（主界面列表近实时刷新），返回取消订阅函数 */
