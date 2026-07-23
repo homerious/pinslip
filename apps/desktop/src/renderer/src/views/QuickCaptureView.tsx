@@ -1,7 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { notesApi, settingsApi } from '../api/notes';
 import { attachmentsApi } from '../api/attachments';
-import { toMarkdownImageSrc } from '../components/editor/image-support';
+import { resolveImageSrc, toMarkdownImageSrc } from '../components/editor/image-support';
+
+/** 文本里的 attachments 图片引用（与 image-support 的相对路径写法一致） */
+const IMAGE_REF_RE = /!\[[^\]]*\]\(((?:\.\.\/)*attachments\/[^)\s]+)\)/g;
 
 /**
  * 速记浮窗视图：全局快捷键呼出。
@@ -20,6 +23,21 @@ export default function QuickCaptureView() {
   textRef.current = text;
   const savingRef = useRef(false);
   savingRef.current = saving;
+
+  // 已贴图片缩略图：从文本派生（删掉引用即消失），不单独维护状态
+  const thumbs = useMemo(() => {
+    const srcs: string[] = [];
+    for (const m of text.matchAll(IMAGE_REF_RE)) srcs.push(m[1]);
+    return srcs;
+  }, [text]);
+
+  // 聚焦兜底：保存期间 textarea 被 disabled，同步 focus 会在 DOM 提交前落空——
+  // 等一帧再聚焦，确保禁用已解除、焦点确实回到输入框
+  const refocusTextarea = () => {
+    requestAnimationFrame(() => {
+      setTimeout(() => textareaRef.current?.focus(), 0);
+    });
+  };
 
   // 挂载：按设置带入剪贴板文本并全选
   useEffect(() => {
@@ -57,10 +75,11 @@ export default function QuickCaptureView() {
       setSavedFlash(true);
       setSaving(false);
       setTimeout(() => setSavedFlash(false), 1500);
-      textareaRef.current?.focus();
+      refocusTextarea();
     } catch (err) {
       console.error('速记保存失败:', err);
       setSaving(false);
+      refocusTextarea(); // 失败也要把焦点还回输入框，内容不丢、可立即重试
     }
   };
 
@@ -141,6 +160,13 @@ export default function QuickCaptureView() {
         autoFocus
         disabled={saving}
       />
+      {thumbs.length > 0 && (
+        <div className="quick-capture__thumbs">
+          {thumbs.map((src, i) => (
+            <img key={`${src}-${i}`} src={resolveImageSrc(src)} alt="已贴图片" />
+          ))}
+        </div>
+      )}
       <div className="quick-capture__hint">
         {saving
           ? '保存中…'

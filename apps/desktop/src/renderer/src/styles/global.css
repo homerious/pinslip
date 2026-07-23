@@ -1236,6 +1236,28 @@ input.sticky-note__groupname-input::placeholder {
   color: #999;
 }
 
+/* 已贴图片缩略图条：从文本派生，无图时整条不渲染；
+   flex:none 不参与伸缩，textarea 自动让出高度，220px 窗口布局不挤坏 */
+.quick-capture__thumbs {
+  flex: none;
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 2px; /* 给横向滚动条留位 */
+}
+
+.quick-capture__thumbs img {
+  flex: none;
+  height: 48px;
+  max-width: 96px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid var(--quick-border);
+  background: var(--quick-bg);
+}
+
 /* ===== 主窗口（main-view）：窄条便签列表面板，停靠右下角 ===== */
 .main-view {
   width: 100vw;
