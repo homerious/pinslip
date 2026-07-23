@@ -1,5 +1,11 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
+import {
+  resolveLanguage,
+  resolveSystemLanguage,
+  SUPPORTED_LANGUAGES,
+} from '@shared/languages';
+import type { Language, LanguagePreference } from '@shared/languages';
 import zhCN from './locales/zh-CN.json';
 import en from './locales/en.json';
 import ja from './locales/ja.json';
@@ -9,39 +15,16 @@ import de from './locales/de.json';
 import fr from './locales/fr.json';
 
 /**
- * i18n 骨架（第①期：主界面 + 设置抽屉）。
+ * i18n 骨架（renderer 侧：主界面/设置抽屉/便签窗/速记窗共用，每个窗口独立实例）。
  * - 资源直接 import 打包：Electron file:// 环境下不走 HTTP lazy load；
  * - 语言策略：默认跟随系统（main 进程 app.getLocale() 经 IPC 获取），
  *   设置里可固定语言，选择持久化到 userData/settings.json；
- * - key 规范：英文语义命名（settings.trash.emptyTrash），中文为基准语言。
+ * - key 规范：英文语义命名（settings.trash.emptyTrash），中文为基准语言；
+ * - 语言常量与系统映射逻辑在 @shared/languages（main 进程 i18n 共用同一份）。
  */
 
-export const SUPPORTED_LANGUAGES = ['zh-CN', 'en', 'ja', 'ko', 'es', 'de', 'fr'] as const;
-export type Language = (typeof SUPPORTED_LANGUAGES)[number];
-
-/** 语言偏好：'system' = 跟随系统 */
-export type LanguagePreference = 'system' | Language;
-
-/** 切换器选项的显示名（各语言的母语写法，不随界面语言变化） */
-export const LANGUAGE_NATIVE_NAMES: Record<Language, string> = {
-  'zh-CN': '中文',
-  en: 'English',
-  ja: '日本語',
-  ko: '한국어',
-  es: 'Español',
-  de: 'Deutsch',
-  fr: 'Français',
-};
-
-/** 系统 locale → 支持的语言：zh*→zh-CN，ja/ko/es/de/fr 精确匹配，其余回退 en */
-export function resolveSystemLanguage(locale: string): Language {
-  const tag = locale.toLowerCase();
-  if (tag.startsWith('zh')) return 'zh-CN';
-  for (const lang of SUPPORTED_LANGUAGES) {
-    if (lang !== 'zh-CN' && tag.startsWith(lang)) return lang;
-  }
-  return 'en';
-}
+export { LANGUAGE_NATIVE_NAMES, SUPPORTED_LANGUAGES } from '@shared/languages';
+export type { Language, LanguagePreference } from '@shared/languages';
 
 let preference: LanguagePreference = 'system';
 let systemLocale = 'en';
@@ -63,10 +46,11 @@ void i18n.use(initReactI18next).init({
 });
 
 function effectiveLanguage(): Language {
-  return preference === 'system' ? resolveSystemLanguage(systemLocale) : preference;
+  return resolveLanguage(preference, systemLocale);
 }
 
-/** 启动时调用一次：从主进程读语言偏好 + 系统 locale，校正当前语言 */
+/** 启动时调用一次：从主进程读语言偏好 + 系统 locale，校正当前语言；
+ *  并订阅语言切换广播（任一窗口改了语言，其他已开窗口即时跟进） */
 export async function initI18n(): Promise<void> {
   try {
     const info = await window.api.getLanguage();
@@ -78,9 +62,17 @@ export async function initI18n(): Promise<void> {
     /* IPC 失败保持默认：跟随系统（en 回退） */
   }
   await i18n.changeLanguage(effectiveLanguage());
+  window.api.onLanguageChanged((lang) => {
+    void i18n.changeLanguage(
+      SUPPORTED_LANGUAGES.includes(lang as Language)
+        ? (lang as Language)
+        : resolveSystemLanguage(systemLocale),
+    );
+  });
 }
 
-/** 设置页切换语言：持久化偏好并即时生效（不重启） */
+/** 设置页切换语言：持久化偏好并即时生效（不重启）；main 侧收到 set-language
+ *  后会同步托盘/更新文案并广播其他窗口（见 ipc handler） */
 export async function applyLanguagePreference(next: LanguagePreference): Promise<void> {
   preference = next;
   await i18n.changeLanguage(effectiveLanguage());

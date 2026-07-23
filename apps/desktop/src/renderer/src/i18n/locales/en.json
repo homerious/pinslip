@@ -29,7 +29,53 @@
     "move": "Move to folder…",
     "delete": "Delete",
     "emptyLine1": "No notes yet",
-    "emptyLine2": "Click \"New note\" to start"
+    "emptyLine2": "Click \"New note\" to start",
+    "newTitle": "New note",
+    "pin": "Pin",
+    "unpin": "Unpin",
+    "pickColor": "Choose color",
+    "collapse": "Collapse note",
+    "expand": "Expand note",
+    "close": "Close",
+    "dismiss": "Dismiss",
+    "stateLoading": "Loading",
+    "stateSaving": "Saving…",
+    "stateSaved": "Saved",
+    "stateError": "Save failed",
+    "tipBold": "Bold",
+    "tipStrike": "Strikethrough",
+    "tipTask": "Task list",
+    "tipImage": "Add image",
+    "copyAll": "Copy all",
+    "copied": "Copied",
+    "more": "More",
+    "resizeTip": "Drag to resize",
+    "tags": "Tags",
+    "folderTip": "Folder",
+    "folderTipWith": "Folder: {{folder}}",
+    "newToFolder": "New in {{folder}}",
+    "newToRoot": "New in root",
+    "externalBanner": "File changed by sync",
+    "loadLatest": "Load latest",
+    "keepMine": "Keep mine",
+    "toastSynced": "Content updated by sync",
+    "toastResolved": "Conflict resolved",
+    "addTagPlaceholder": "Add tag…",
+    "addTag": "Add",
+    "addTagAria": "Add tag",
+    "removeTagAria": "Remove tag {{tag}}",
+    "rootSuffix": "(root)",
+    "openFolderBtn": "Open folder",
+    "moveToFolder": "Move to folder",
+    "noSubfolders": "No subfolders yet — create them in the main window",
+    "noteList": "Notes list",
+    "deleteNote": "Delete note",
+    "deleteConfirm": "Really delete?",
+    "groupDragAria": "Drag group",
+    "groupHandleTip": "Drag to move group · double-click to name · right-click menu",
+    "groupHandleTipNamed": "Group \"{{name}}\" · drag to move · double-click to rename · right-click menu",
+    "groupNamePlaceholder": "Group name",
+    "dissolveGroup": "Dissolve group"
   },
   "list": {
     "allNotes": "All notes ({{count}})",
@@ -120,7 +166,9 @@
     "hintDownloading": "Downloading update {{percent}}%…",
     "hintDownloaded": "v{{version}} is ready and takes effect after restart",
     "hintLatest": "You're on the latest version",
-    "hintError": "Check failed: {{message}}. You can download the installer manually"
+    "hintError": "Check failed: {{message}}. You can download the installer manually",
+    "devUnsupported": "Update checks are not supported in dev mode",
+    "genericError": "Update error"
   },
   "sync": {
     "repoUrl": "Repository URL",
@@ -164,5 +212,31 @@
     "minutesAgo": "{{count}} min ago",
     "hoursAgo": "{{count}} hr ago",
     "daysAgo": "{{count}} days ago"
+  },
+  "color": {
+    "yellow": "Yellow",
+    "pink": "Pink",
+    "green": "Green",
+    "blue": "Blue",
+    "purple": "Purple",
+    "orange": "Orange"
+  },
+  "conflict": {
+    "banner": "This note has sync conflicts — resolve them and save",
+    "useLocal": "Use all local",
+    "useRemote": "Use all remote",
+    "save": "Save resolution",
+    "saving": "Saving…"
+  },
+  "quick": {
+    "placeholder": "Type a quick note…",
+    "saving": "Saving…",
+    "saved": "Saved — keep going",
+    "hint": "Enter to save · Ctrl+Enter to save & continue · Shift+Enter for newline · Esc to close"
+  },
+  "tray": {
+    "quick": "Quick note (Ctrl+Shift+N)",
+    "openMain": "Open main window",
+    "quit": "Quit PinSlip"
   }
 }

@@ -29,7 +29,53 @@
     "move": "フォルダへ移動…",
     "delete": "削除",
     "emptyLine1": "ノートはまだありません",
-    "emptyLine2": "「新規ノート」から始めましょう"
+    "emptyLine2": "「新規ノート」から始めましょう",
+    "newTitle": "新規ノート",
+    "pin": "ピン留め",
+    "unpin": "ピン留めを解除",
+    "pickColor": "色を選択",
+    "collapse": "ノートを折りたたむ",
+    "expand": "ノートを展開",
+    "close": "閉じる",
+    "dismiss": "閉じる",
+    "stateLoading": "読み込み中",
+    "stateSaving": "保存中…",
+    "stateSaved": "保存済み",
+    "stateError": "保存に失敗しました",
+    "tipBold": "太字",
+    "tipStrike": "取り消し線",
+    "tipTask": "タスクリスト",
+    "tipImage": "画像を追加",
+    "copyAll": "すべてコピー",
+    "copied": "コピーしました",
+    "more": "その他",
+    "resizeTip": "ドラッグでサイズ変更",
+    "tags": "タグ",
+    "folderTip": "フォルダ",
+    "folderTipWith": "フォルダ：{{folder}}",
+    "newToFolder": "{{folder}} に新規作成",
+    "newToRoot": "ルートに新規作成",
+    "externalBanner": "ファイルが同期で変更されました",
+    "loadLatest": "最新を読み込む",
+    "keepMine": "自分の内容を保持",
+    "toastSynced": "内容が同期で更新されました",
+    "toastResolved": "競合を解決しました",
+    "addTagPlaceholder": "タグを追加…",
+    "addTag": "追加",
+    "addTagAria": "タグを追加",
+    "removeTagAria": "タグ {{tag}} を削除",
+    "rootSuffix": "（ルート）",
+    "openFolderBtn": "フォルダを開く",
+    "moveToFolder": "フォルダへ移動",
+    "noSubfolders": "サブフォルダはまだありません。メイン画面で作成できます",
+    "noteList": "ノート一覧",
+    "deleteNote": "ノートを削除",
+    "deleteConfirm": "本当に削除しますか？",
+    "groupDragAria": "グループをドラッグ",
+    "groupHandleTip": "ドラッグでグループ移動 · ダブルクリックで命名 · 右クリックメニュー",
+    "groupHandleTipNamed": "グループ「{{name}}」· ドラッグで移動 · ダブルクリックで改名 · 右クリックメニュー",
+    "groupNamePlaceholder": "グループ名",
+    "dissolveGroup": "グループを解散"
   },
   "list": {
     "allNotes": "すべてのノート（{{count}}）",
@@ -120,7 +166,9 @@
     "hintDownloading": "アップデートをダウンロード中 {{percent}}%…",
     "hintDownloaded": "v{{version}} の準備ができました。再起動後に有効になります",
     "hintLatest": "最新バージョンです",
-    "hintError": "確認に失敗しました：{{message}}。手動でインストーラーをダウンロードできます"
+    "hintError": "確認に失敗しました：{{message}}。手動でインストーラーをダウンロードできます",
+    "devUnsupported": "開発モードではアップデート確認を利用できません",
+    "genericError": "アップデートエラー"
   },
   "sync": {
     "repoUrl": "リポジトリ URL",
@@ -164,5 +212,31 @@
     "minutesAgo": "{{count}} 分前",
     "hoursAgo": "{{count}} 時間前",
     "daysAgo": "{{count}} 日前"
+  },
+  "color": {
+    "yellow": "黄",
+    "pink": "ピンク",
+    "green": "緑",
+    "blue": "青",
+    "purple": "紫",
+    "orange": "オレンジ"
+  },
+  "conflict": {
+    "banner": "このノートには同期の競合があります。解決して保存してください",
+    "useLocal": "すべてローカルを使用",
+    "useRemote": "すべてリモートを使用",
+    "save": "解決を保存",
+    "saving": "保存中…"
+  },
+  "quick": {
+    "placeholder": "クイックメモを入力…",
+    "saving": "保存中…",
+    "saved": "保存しました。続けてどうぞ",
+    "hint": "Enter で保存 · Ctrl+Enter で保存して続ける · Shift+Enter で改行 · Esc で閉じる"
+  },
+  "tray": {
+    "quick": "クイックメモ（Ctrl+Shift+N）",
+    "openMain": "メイン画面を開く",
+    "quit": "PinSlip を終了"
   }
 }

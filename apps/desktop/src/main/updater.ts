@@ -1,6 +1,7 @@
 import { app, BrowserWindow } from 'electron';
 import electronUpdater from 'electron-updater';
 import { IPC } from '../shared/ipc-channels';
+import { tMain } from './i18n';
 import type { UpdateState } from '../shared/types';
 
 // 自动更新（electron-updater + GitHub Releases 主源 + OSS 镜像兜底）：
@@ -55,7 +56,7 @@ function doCheck(silent: boolean): void {
 /** 手动检查更新（设置页按钮）。dev 环境没有更新元信息，返回提示性错误态而非静默 */
 export function checkForUpdate(): void {
   if (!app.isPackaged) {
-    setState({ status: 'error', message: '开发模式不支持更新检查' });
+    setState({ status: 'error', message: tMain('update.devUnsupported') });
     return;
   }
   doCheck(false);
@@ -102,7 +103,7 @@ export function initAutoUpdater(): void {
       return;
     }
     if (silentCheck) return; // 启动静默检查失败不打扰，用户可手动重试
-    setState({ status: 'error', message: err.message || '更新出错' });
+    setState({ status: 'error', message: err.message || tMain('update.genericError') });
   });
 
   setTimeout(() => {

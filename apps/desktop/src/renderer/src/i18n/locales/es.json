@@ -29,7 +29,53 @@
     "move": "Mover a carpeta…",
     "delete": "Eliminar",
     "emptyLine1": "Aún no hay notas",
-    "emptyLine2": "Pulsa «Nueva nota» para empezar"
+    "emptyLine2": "Pulsa «Nueva nota» para empezar",
+    "newTitle": "Nueva nota",
+    "pin": "Fijar",
+    "unpin": "Quitar fijación",
+    "pickColor": "Elegir color",
+    "collapse": "Contraer nota",
+    "expand": "Expandir nota",
+    "close": "Cerrar",
+    "dismiss": "Cerrar",
+    "stateLoading": "Cargando",
+    "stateSaving": "Guardando…",
+    "stateSaved": "Guardado",
+    "stateError": "Error al guardar",
+    "tipBold": "Negrita",
+    "tipStrike": "Tachado",
+    "tipTask": "Lista de tareas",
+    "tipImage": "Añadir imagen",
+    "copyAll": "Copiar todo",
+    "copied": "Copiado",
+    "more": "Más",
+    "resizeTip": "Arrastra para redimensionar",
+    "tags": "Etiquetas",
+    "folderTip": "Carpeta",
+    "folderTipWith": "Carpeta: {{folder}}",
+    "newToFolder": "Nueva en {{folder}}",
+    "newToRoot": "Nueva en la raíz",
+    "externalBanner": "El archivo cambió por sincronización",
+    "loadLatest": "Cargar última",
+    "keepMine": "Conservar la mía",
+    "toastSynced": "Contenido actualizado por sincronización",
+    "toastResolved": "Conflicto resuelto",
+    "addTagPlaceholder": "Añadir etiqueta…",
+    "addTag": "Añadir",
+    "addTagAria": "Añadir etiqueta",
+    "removeTagAria": "Quitar etiqueta {{tag}}",
+    "rootSuffix": "(raíz)",
+    "openFolderBtn": "Abrir carpeta",
+    "moveToFolder": "Mover a carpeta",
+    "noSubfolders": "Aún no hay subcarpetas; créalas en la ventana principal",
+    "noteList": "Lista de notas",
+    "deleteNote": "Eliminar nota",
+    "deleteConfirm": "¿Eliminar de verdad?",
+    "groupDragAria": "Arrastrar grupo",
+    "groupHandleTip": "Arrastra para mover el grupo · doble clic para nombrar · menú con clic derecho",
+    "groupHandleTipNamed": "Grupo «{{name}}» · arrastra para mover · doble clic para renombrar · menú con clic derecho",
+    "groupNamePlaceholder": "Nombre del grupo",
+    "dissolveGroup": "Disolver grupo"
   },
   "list": {
     "allNotes": "Todas las notas ({{count}})",
@@ -120,7 +166,9 @@
     "hintDownloading": "Descargando actualización {{percent}}%…",
     "hintDownloaded": "v{{version}} lista; se aplicará al reiniciar",
     "hintLatest": "Ya tienes la última versión",
-    "hintError": "Error al buscar: {{message}}. Puedes descargar el instalador manualmente"
+    "hintError": "Error al buscar: {{message}}. Puedes descargar el instalador manualmente",
+    "devUnsupported": "La búsqueda de actualizaciones no está disponible en modo desarrollo",
+    "genericError": "Error de actualización"
   },
   "sync": {
     "repoUrl": "URL del repositorio",
@@ -164,5 +212,31 @@
     "minutesAgo": "hace {{count}} min",
     "hoursAgo": "hace {{count}} h",
     "daysAgo": "hace {{count}} días"
+  },
+  "color": {
+    "yellow": "Amarillo",
+    "pink": "Rosa",
+    "green": "Verde",
+    "blue": "Azul",
+    "purple": "Morado",
+    "orange": "Naranja"
+  },
+  "conflict": {
+    "banner": "Esta nota tiene conflictos de sincronización; resuélvelos y guarda",
+    "useLocal": "Usar todo lo local",
+    "useRemote": "Usar todo lo remoto",
+    "save": "Guardar resolución",
+    "saving": "Guardando…"
+  },
+  "quick": {
+    "placeholder": "Escribe una nota rápida…",
+    "saving": "Guardando…",
+    "saved": "Guardada, sigue escribiendo",
+    "hint": "Enter guarda · Ctrl+Enter guarda y sigue · Shift+Enter nueva línea · Esc cierra"
+  },
+  "tray": {
+    "quick": "Nota rápida (Ctrl+Shift+N)",
+    "openMain": "Abrir ventana principal",
+    "quit": "Salir de PinSlip"
   }
 }

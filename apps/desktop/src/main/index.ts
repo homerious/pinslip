@@ -8,6 +8,7 @@ import { registerIpcHandlers } from './ipc';
 import { createTray } from './tray';
 import { initAutoStart } from './autostart';
 import { getVaultPath } from './settings';
+import { initMainI18n } from './i18n';
 import { registerShortcuts, unregisterShortcuts } from './shortcuts';
 import { startVaultWatch, stopVaultWatch } from './services/vault-watch';
 import { initAutoUpdater } from './updater';
@@ -45,6 +46,7 @@ app.whenReady().then(() => {
   });
 
   registerIpcHandlers({ windowManager, goProcess });
+  initMainI18n(); // 主进程 i18n（托盘/更新文案），须在 createTray 之前
   createTray(windowManager);
   registerShortcuts(windowManager);
   initAutoStart(); // 打包后首次运行默认开启开机自启

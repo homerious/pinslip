@@ -29,7 +29,53 @@
     "move": "In Ordner verschieben…",
     "delete": "Löschen",
     "emptyLine1": "Noch keine Notizen",
-    "emptyLine2": "Tippe auf „Neue Notiz“, um zu starten"
+    "emptyLine2": "Tippe auf „Neue Notiz“, um zu starten",
+    "newTitle": "Neue Notiz",
+    "pin": "Anheften",
+    "unpin": "Lösen",
+    "pickColor": "Farbe wählen",
+    "collapse": "Notiz einklappen",
+    "expand": "Notiz ausklappen",
+    "close": "Schließen",
+    "dismiss": "Schließen",
+    "stateLoading": "Laden",
+    "stateSaving": "Speichern…",
+    "stateSaved": "Gespeichert",
+    "stateError": "Speichern fehlgeschlagen",
+    "tipBold": "Fett",
+    "tipStrike": "Durchgestrichen",
+    "tipTask": "Aufgabenliste",
+    "tipImage": "Bild hinzufügen",
+    "copyAll": "Alles kopieren",
+    "copied": "Kopiert",
+    "more": "Mehr",
+    "resizeTip": "Ziehen zum Ändern der Größe",
+    "tags": "Tags",
+    "folderTip": "Ordner",
+    "folderTipWith": "Ordner: {{folder}}",
+    "newToFolder": "Neu in {{folder}}",
+    "newToRoot": "Neu im Stammordner",
+    "externalBanner": "Datei wurde per Sync geändert",
+    "loadLatest": "Neueste laden",
+    "keepMine": "Meine behalten",
+    "toastSynced": "Inhalt per Sync aktualisiert",
+    "toastResolved": "Konflikt aufgelöst",
+    "addTagPlaceholder": "Tag hinzufügen…",
+    "addTag": "Hinzufügen",
+    "addTagAria": "Tag hinzufügen",
+    "removeTagAria": "Tag {{tag}} entfernen",
+    "rootSuffix": "(Stamm)",
+    "openFolderBtn": "Ordner öffnen",
+    "moveToFolder": "In Ordner verschieben",
+    "noSubfolders": "Noch keine Unterordner – im Hauptfenster anlegen",
+    "noteList": "Notizliste",
+    "deleteNote": "Notiz löschen",
+    "deleteConfirm": "Wirklich löschen?",
+    "groupDragAria": "Gruppe ziehen",
+    "groupHandleTip": "Ziehen bewegt die Gruppe · Doppelklick zum Benennen · Rechtsklick-Menü",
+    "groupHandleTipNamed": "Gruppe „{{name}}“ · Ziehen bewegt · Doppelklick zum Umbenennen · Rechtsklick-Menü",
+    "groupNamePlaceholder": "Gruppenname",
+    "dissolveGroup": "Gruppe auflösen"
   },
   "list": {
     "allNotes": "Alle Notizen ({{count}})",
@@ -120,7 +166,9 @@
     "hintDownloading": "Update wird geladen: {{percent}} %…",
     "hintDownloaded": "v{{version}} ist bereit und wird nach dem Neustart aktiv",
     "hintLatest": "Du bist auf dem neuesten Stand",
-    "hintError": "Prüfung fehlgeschlagen: {{message}}. Installer kann manuell geladen werden"
+    "hintError": "Prüfung fehlgeschlagen: {{message}}. Installer kann manuell geladen werden",
+    "devUnsupported": "Update-Prüfung im Entwicklungsmodus nicht verfügbar",
+    "genericError": "Update-Fehler"
   },
   "sync": {
     "repoUrl": "Repository-URL",
@@ -164,5 +212,31 @@
     "minutesAgo": "vor {{count}} Min.",
     "hoursAgo": "vor {{count}} Std.",
     "daysAgo": "vor {{count}} Tagen"
+  },
+  "color": {
+    "yellow": "Gelb",
+    "pink": "Rosa",
+    "green": "Grün",
+    "blue": "Blau",
+    "purple": "Lila",
+    "orange": "Orange"
+  },
+  "conflict": {
+    "banner": "Diese Notiz hat Sync-Konflikte – bitte auflösen und speichern",
+    "useLocal": "Alles Lokale verwenden",
+    "useRemote": "Alles Entfernte verwenden",
+    "save": "Auflösung speichern",
+    "saving": "Speichern…"
+  },
+  "quick": {
+    "placeholder": "Schnellnotiz eingeben…",
+    "saving": "Speichern…",
+    "saved": "Gespeichert, weiter geht’s",
+    "hint": "Enter speichert · Strg+Enter speichert & weiter · Umschalt+Enter Zeilenumbruch · Esc schließt"
+  },
+  "tray": {
+    "quick": "Schnellnotiz (Strg+Umschalt+N)",
+    "openMain": "Hauptfenster öffnen",
+    "quit": "PinSlip beenden"
   }
 }

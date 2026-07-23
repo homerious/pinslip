@@ -29,7 +29,53 @@
     "move": "移动到文件夹…",
     "delete": "删除",
     "emptyLine1": "还没有便签",
-    "emptyLine2": "点击「新建便签」开始"
+    "emptyLine2": "点击「新建便签」开始",
+    "newTitle": "新便签",
+    "pin": "置顶",
+    "unpin": "取消置顶",
+    "pickColor": "选择颜色",
+    "collapse": "收起便签",
+    "expand": "展开便签",
+    "close": "关闭",
+    "dismiss": "收起",
+    "stateLoading": "加载中",
+    "stateSaving": "保存中…",
+    "stateSaved": "已保存",
+    "stateError": "保存失败",
+    "tipBold": "加粗",
+    "tipStrike": "删除线",
+    "tipTask": "任务列表",
+    "tipImage": "添加图像",
+    "copyAll": "复制全部",
+    "copied": "已复制",
+    "more": "更多",
+    "resizeTip": "拖拽调整大小",
+    "tags": "标签",
+    "folderTip": "文件夹",
+    "folderTipWith": "文件夹：{{folder}}",
+    "newToFolder": "新建到 {{folder}}",
+    "newToRoot": "新建到根目录",
+    "externalBanner": "文件已被同步修改",
+    "loadLatest": "载入最新",
+    "keepMine": "保留我的",
+    "toastSynced": "内容已被同步更新",
+    "toastResolved": "冲突已解决",
+    "addTagPlaceholder": "添加标签…",
+    "addTag": "添加",
+    "addTagAria": "添加标签",
+    "removeTagAria": "移除标签 {{tag}}",
+    "rootSuffix": "（根目录）",
+    "openFolderBtn": "打开目录",
+    "moveToFolder": "移动到文件夹",
+    "noSubfolders": "还没有子文件夹，去主界面创建",
+    "noteList": "便签列表",
+    "deleteNote": "删除便签",
+    "deleteConfirm": "确认删除？",
+    "groupDragAria": "拖动整组",
+    "groupHandleTip": "拖动整组 · 双击命名 · 右键菜单",
+    "groupHandleTipNamed": "组「{{name}}」· 拖动整组 · 双击改名 · 右键菜单",
+    "groupNamePlaceholder": "组名",
+    "dissolveGroup": "解散此组"
   },
   "list": {
     "allNotes": "全部便签（{{count}}）",
@@ -120,7 +166,9 @@
     "hintDownloading": "正在下载更新 {{percent}}%…",
     "hintDownloaded": "新版本 v{{version}} 已就绪，重启后生效",
     "hintLatest": "已是最新版本",
-    "hintError": "检查失败：{{message}}，可手动下载安装包"
+    "hintError": "检查失败：{{message}}，可手动下载安装包",
+    "devUnsupported": "开发模式不支持更新检查",
+    "genericError": "更新出错"
   },
   "sync": {
     "repoUrl": "仓库地址",
@@ -164,5 +212,31 @@
     "minutesAgo": "{{count}} 分钟前",
     "hoursAgo": "{{count}} 小时前",
     "daysAgo": "{{count}} 天前"
+  },
+  "color": {
+    "yellow": "黄",
+    "pink": "粉",
+    "green": "绿",
+    "blue": "蓝",
+    "purple": "紫",
+    "orange": "橙"
+  },
+  "conflict": {
+    "banner": "此便签有同步冲突，请解决后保存",
+    "useLocal": "全部用本地",
+    "useRemote": "全部用远端",
+    "save": "保存解决",
+    "saving": "保存中…"
+  },
+  "quick": {
+    "placeholder": "输入速记内容…",
+    "saving": "保存中…",
+    "saved": "已保存，继续记",
+    "hint": "Enter 保存 · Ctrl+Enter 保存并继续 · Shift+Enter 换行 · Esc 关闭"
+  },
+  "tray": {
+    "quick": "速记（Ctrl+Shift+N）",
+    "openMain": "打开主窗口",
+    "quit": "退出 PinSlip"
   }
 }

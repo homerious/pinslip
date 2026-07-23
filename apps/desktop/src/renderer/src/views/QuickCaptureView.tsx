@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { notesApi, settingsApi } from '../api/notes';
 import { attachmentsApi } from '../api/attachments';
 import { resolveImageSrc, toMarkdownImageSrc } from '../components/editor/image-support';
@@ -14,6 +15,7 @@ const IMAGE_REF_RE = /!\[[^\]]*\]\(((?:\.\.\/)*attachments\/[^)\s]+)\)/g;
  * - 设置开启时带入剪贴板文本并全选（默认开启）。
  */
 export default function QuickCaptureView() {
+  const { t } = useTranslation();
   const [text, setText] = useState('');
   const [saving, setSaving] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
@@ -156,23 +158,19 @@ export default function QuickCaptureView() {
         onChange={(e) => setText(e.target.value)}
         onKeyDown={handleKeyDown}
         onPaste={handlePaste}
-        placeholder="输入速记内容…"
+        placeholder={t('quick.placeholder')}
         autoFocus
         disabled={saving}
       />
       {thumbs.length > 0 && (
         <div className="quick-capture__thumbs">
           {thumbs.map((src, i) => (
-            <img key={`${src}-${i}`} src={resolveImageSrc(src)} alt="已贴图片" />
+            <img key={`${src}-${i}`} src={resolveImageSrc(src)} alt="" />
           ))}
         </div>
       )}
       <div className="quick-capture__hint">
-        {saving
-          ? '保存中…'
-          : savedFlash
-            ? '已保存，继续记'
-            : 'Enter 保存 · Ctrl+Enter 保存并继续 · Shift+Enter 换行 · Esc 关闭'}
+        {saving ? t('quick.saving') : savedFlash ? t('quick.saved') : t('quick.hint')}
       </div>
     </div>
   );

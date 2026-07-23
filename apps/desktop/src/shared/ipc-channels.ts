@@ -39,6 +39,8 @@ export const IPC = {
   SettingsGetLanguage: 'settings:get-language',
   /** 设置界面语言偏好，参数 lang（'system' 或 zh-CN/en/ja/ko/es/de/fr） */
   SettingsSetLanguage: 'settings:set-language',
+  /** 界面语言切换广播（主进程→所有窗口）：参数为生效语言码，已开窗口即时跟进 */
+  LanguageChanged: 'app:language-changed',
   /** 笔记数据变更（保存/删除/速记）：渲染进程→主进程→主窗口广播 */
   NotesChanged: 'notes:changed',
   /** 成组预告高亮（主进程→便签渲染层），参数 active: boolean */

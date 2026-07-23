@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import WarningIcon from '~icons/ph/warning';
 import CheckIcon from '~icons/ph/check';
 import { resolveConflicts } from '../utils/conflict';
@@ -17,6 +18,7 @@ interface ConflictResolverProps {
  *  + 底部「保存解决」栏。不走自动保存，只有点保存才落盘；
  *  编辑草稿是本组件内部 state，不回写 NoteView 的 content（避免触发 autosave） */
 export default function ConflictResolver({ content, saving, onSave }: ConflictResolverProps) {
+  const { t } = useTranslation();
   const [text, setText] = useState(content);
 
   // 外部内容进来（applyExternal 重载 / 保存回包）时直接替换编辑区草稿
@@ -29,19 +31,19 @@ export default function ConflictResolver({ content, saving, onSave }: ConflictRe
       {/* 冲突横幅：沿用现有琥珀样式，右侧加两个快捷剥取按钮 */}
       <div className="sticky-note__banner sticky-note__banner--conflict">
         <WarningIcon />
-        <span>此便签有同步冲突，请解决后保存</span>
+        <span>{t('conflict.banner')}</span>
         <div className="sticky-note__banner-actions">
           <button
             className="sticky-note__banner-btn"
-            onClick={() => setText((t) => resolveConflicts(t, 'local'))}
+            onClick={() => setText((cur) => resolveConflicts(cur, 'local'))}
           >
-            全部用本地
+            {t('conflict.useLocal')}
           </button>
           <button
             className="sticky-note__banner-btn"
-            onClick={() => setText((t) => resolveConflicts(t, 'remote'))}
+            onClick={() => setText((cur) => resolveConflicts(cur, 'remote'))}
           >
-            全部用远端
+            {t('conflict.useRemote')}
           </button>
         </div>
       </div>
@@ -65,7 +67,7 @@ export default function ConflictResolver({ content, saving, onSave }: ConflictRe
           onClick={() => onSave(text)}
         >
           <CheckIcon />
-          {saving ? '保存中…' : '保存解决'}
+          {saving ? t('conflict.saving') : t('conflict.save')}
         </button>
       </div>
     </>

@@ -29,7 +29,53 @@
     "move": "폴더로 이동…",
     "delete": "삭제",
     "emptyLine1": "아직 메모가 없습니다",
-    "emptyLine2": "'새 메모'를 눌러 시작하세요"
+    "emptyLine2": "'새 메모'를 눌러 시작하세요",
+    "newTitle": "새 메모",
+    "pin": "고정",
+    "unpin": "고정 해제",
+    "pickColor": "색상 선택",
+    "collapse": "메모 접기",
+    "expand": "메모 펼치기",
+    "close": "닫기",
+    "dismiss": "닫기",
+    "stateLoading": "불러오는 중",
+    "stateSaving": "저장 중…",
+    "stateSaved": "저장됨",
+    "stateError": "저장 실패",
+    "tipBold": "굵게",
+    "tipStrike": "취소선",
+    "tipTask": "작업 목록",
+    "tipImage": "이미지 추가",
+    "copyAll": "전체 복사",
+    "copied": "복사됨",
+    "more": "더 보기",
+    "resizeTip": "드래그하여 크기 조절",
+    "tags": "태그",
+    "folderTip": "폴더",
+    "folderTipWith": "폴더: {{folder}}",
+    "newToFolder": "{{folder}}에 새 메모",
+    "newToRoot": "루트에 새 메모",
+    "externalBanner": "동기화로 파일이 변경되었습니다",
+    "loadLatest": "최신 불러오기",
+    "keepMine": "내 내용 유지",
+    "toastSynced": "동기화로 내용이 업데이트되었습니다",
+    "toastResolved": "충돌이 해결되었습니다",
+    "addTagPlaceholder": "태그 추가…",
+    "addTag": "추가",
+    "addTagAria": "태그 추가",
+    "removeTagAria": "태그 {{tag}} 제거",
+    "rootSuffix": "(루트)",
+    "openFolderBtn": "폴더 열기",
+    "moveToFolder": "폴더로 이동",
+    "noSubfolders": "아직 하위 폴더가 없습니다. 메인 화면에서 만드세요",
+    "noteList": "메모 목록",
+    "deleteNote": "메모 삭제",
+    "deleteConfirm": "정말 삭제할까요?",
+    "groupDragAria": "그룹 드래그",
+    "groupHandleTip": "드래그로 그룹 이동 · 더블 클릭으로 이름 지정 · 우클릭 메뉴",
+    "groupHandleTipNamed": "그룹 '{{name}}' · 드래그로 이동 · 더블 클릭으로 이름 변경 · 우클릭 메뉴",
+    "groupNamePlaceholder": "그룹 이름",
+    "dissolveGroup": "그룹 해체"
   },
   "list": {
     "allNotes": "모든 메모 ({{count}})",
@@ -120,7 +166,9 @@
     "hintDownloading": "업데이트 다운로드 중 {{percent}}%…",
     "hintDownloaded": "v{{version}}이 준비되었습니다. 재시작 후 적용됩니다",
     "hintLatest": "최신 버전입니다",
-    "hintError": "확인 실패: {{message}}. 수동으로 설치 파일을 다운로드할 수 있습니다"
+    "hintError": "확인 실패: {{message}}. 수동으로 설치 파일을 다운로드할 수 있습니다",
+    "devUnsupported": "개발 모드에서는 업데이트를 확인할 수 없습니다",
+    "genericError": "업데이트 오류"
   },
   "sync": {
     "repoUrl": "저장소 주소",
@@ -164,5 +212,31 @@
     "minutesAgo": "{{count}}분 전",
     "hoursAgo": "{{count}}시간 전",
     "daysAgo": "{{count}}일 전"
+  },
+  "color": {
+    "yellow": "노랑",
+    "pink": "분홍",
+    "green": "초록",
+    "blue": "파랑",
+    "purple": "보라",
+    "orange": "주황"
+  },
+  "conflict": {
+    "banner": "이 메모에 동기화 충돌이 있습니다. 해결 후 저장하세요",
+    "useLocal": "모두 로컬 사용",
+    "useRemote": "모두 원격 사용",
+    "save": "해결 내용 저장",
+    "saving": "저장 중…"
+  },
+  "quick": {
+    "placeholder": "빠른 메모 입력…",
+    "saving": "저장 중…",
+    "saved": "저장됨, 계속 작성",
+    "hint": "Enter 저장 · Ctrl+Enter 저장하고 계속 · Shift+Enter 줄바꿈 · Esc 닫기"
+  },
+  "tray": {
+    "quick": "빠른 메모(Ctrl+Shift+N)",
+    "openMain": "메인 창 열기",
+    "quit": "PinSlip 종료"
   }
 }

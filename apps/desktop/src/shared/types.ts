@@ -170,6 +170,8 @@ export interface ElectronAPI {
   getLanguage(): Promise<{ preference: string; systemLocale: string }>;
   /** 持久化界面语言偏好（'system' 或具体语言码） */
   setLanguage(lang: string): Promise<void>;
+  /** 订阅界面语言切换广播（任一窗口改语言后，其他已开窗口即时跟进），返回取消订阅函数 */
+  onLanguageChanged(cb: (lang: string) => void): () => void;
   /** 通知主进程：笔记数据已变更（保存/删除/速记），用于广播刷新主界面列表 */
   notifyNotesChanged(): void;
   /** 订阅笔记变更广播（主界面列表近实时刷新），返回取消订阅函数 */

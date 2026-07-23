@@ -5,8 +5,11 @@ import { IPC } from '../../shared/ipc-channels';
 import type { RuntimeInfo } from '../../shared/types';
 import type { WindowManager } from '../windows/window-manager';
 import type { GoProcess } from '../services/go-process';
-import { getLanguage, getVaultPath, setLanguage, setVaultPath } from '../settings';
+import { getVaultPath, setVaultPath, getLanguage, setLanguage } from '../settings';
 import { getAutoStart, setAutoStart } from '../autostart';
+import { setMainLanguage } from '../i18n';
+import { refreshTrayMenu } from '../tray';
+import { resolveSystemLanguage } from '../../shared/languages';
 import { startVaultWatch } from '../services/vault-watch';
 import { checkForUpdate, getUpdateState, quitAndInstall } from '../updater';
 
@@ -166,6 +169,14 @@ export function registerIpcHandlers({ windowManager, goProcess }: IpcContext): v
   }));
   ipcMain.handle(IPC.SettingsSetLanguage, (_event, lang: string) => {
     setLanguage(lang);
+    setMainLanguage(lang); // main 侧（托盘/更新文案）即时跟进
+    refreshTrayMenu();
+    // 广播给所有已开窗口：各 renderer 的 i18n 实例即时切换（语言偏好已持久化，
+    // 广播只发生效语言码，'system' 由各端按自己的系统 locale 解析——同一机器结果一致）
+    const effective = lang === 'system' ? resolveSystemLanguage(app.getLocale()) : lang;
+    for (const win of BrowserWindow.getAllWindows()) {
+      if (!win.isDestroyed()) win.webContents.send(IPC.LanguageChanged, effective);
+    }
   });
 
   // 笔记变更广播：任一渲染进程上报 → 转发主窗口刷新列表

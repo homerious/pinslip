@@ -25,6 +25,11 @@ const api: ElectronAPI = {
   setAutoStart: (enabled) => ipcRenderer.invoke(IPC.SettingsSetAutoStart, enabled),
   getLanguage: () => ipcRenderer.invoke(IPC.SettingsGetLanguage),
   setLanguage: (lang) => ipcRenderer.invoke(IPC.SettingsSetLanguage, lang),
+  onLanguageChanged: (cb) => {
+    const listener = (_e: Electron.IpcRendererEvent, lang: string): void => cb(lang);
+    ipcRenderer.on(IPC.LanguageChanged, listener);
+    return () => ipcRenderer.removeListener(IPC.LanguageChanged, listener);
+  },
   notifyNotesChanged: () => ipcRenderer.send(IPC.NotesChanged),
   onNotesChanged: (cb) => {
     const listener = (): void => cb();

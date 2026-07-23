@@ -29,7 +29,53 @@
     "move": "Déplacer vers un dossier…",
     "delete": "Supprimer",
     "emptyLine1": "Aucune note pour l'instant",
-    "emptyLine2": "Cliquez sur « Nouvelle note » pour commencer"
+    "emptyLine2": "Cliquez sur « Nouvelle note » pour commencer",
+    "newTitle": "Nouvelle note",
+    "pin": "Épingler",
+    "unpin": "Désépingler",
+    "pickColor": "Choisir une couleur",
+    "collapse": "Replier la note",
+    "expand": "Déplier la note",
+    "close": "Fermer",
+    "dismiss": "Fermer",
+    "stateLoading": "Chargement",
+    "stateSaving": "Enregistrement…",
+    "stateSaved": "Enregistré",
+    "stateError": "Échec de l'enregistrement",
+    "tipBold": "Gras",
+    "tipStrike": "Barré",
+    "tipTask": "Liste de tâches",
+    "tipImage": "Ajouter une image",
+    "copyAll": "Tout copier",
+    "copied": "Copié",
+    "more": "Plus",
+    "resizeTip": "Glisser pour redimensionner",
+    "tags": "Étiquettes",
+    "folderTip": "Dossier",
+    "folderTipWith": "Dossier : {{folder}}",
+    "newToFolder": "Nouvelle dans {{folder}}",
+    "newToRoot": "Nouvelle à la racine",
+    "externalBanner": "Fichier modifié par la synchro",
+    "loadLatest": "Charger la dernière",
+    "keepMine": "Garder la mienne",
+    "toastSynced": "Contenu mis à jour par la synchro",
+    "toastResolved": "Conflit résolu",
+    "addTagPlaceholder": "Ajouter une étiquette…",
+    "addTag": "Ajouter",
+    "addTagAria": "Ajouter une étiquette",
+    "removeTagAria": "Retirer l'étiquette {{tag}}",
+    "rootSuffix": "(racine)",
+    "openFolderBtn": "Ouvrir le dossier",
+    "moveToFolder": "Déplacer vers un dossier",
+    "noSubfolders": "Aucun sous-dossier pour l’instant — créez-en dans la fenêtre principale",
+    "noteList": "Liste des notes",
+    "deleteNote": "Supprimer la note",
+    "deleteConfirm": "Vraiment supprimer ?",
+    "groupDragAria": "Déplacer le groupe",
+    "groupHandleTip": "Glisser pour déplacer le groupe · double-clic pour nommer · clic droit pour le menu",
+    "groupHandleTipNamed": "Groupe « {{name}} » · glisser pour déplacer · double-clic pour renommer · clic droit pour le menu",
+    "groupNamePlaceholder": "Nom du groupe",
+    "dissolveGroup": "Dissoudre le groupe"
   },
   "list": {
     "allNotes": "Toutes les notes ({{count}})",
@@ -120,7 +166,9 @@
     "hintDownloading": "Téléchargement de la mise à jour {{percent}} %…",
     "hintDownloaded": "v{{version}} est prête, elle s'appliquera au redémarrage",
     "hintLatest": "Vous êtes à jour",
-    "hintError": "Échec de la vérification : {{message}}. Vous pouvez télécharger l'installateur manuellement"
+    "hintError": "Échec de la vérification : {{message}}. Vous pouvez télécharger l'installateur manuellement",
+    "devUnsupported": "La recherche de mises à jour est indisponible en mode développement",
+    "genericError": "Erreur de mise à jour"
   },
   "sync": {
     "repoUrl": "URL du dépôt",
@@ -164,5 +212,31 @@
     "minutesAgo": "il y a {{count}} min",
     "hoursAgo": "il y a {{count}} h",
     "daysAgo": "il y a {{count}} j"
+  },
+  "color": {
+    "yellow": "Jaune",
+    "pink": "Rose",
+    "green": "Vert",
+    "blue": "Bleu",
+    "purple": "Violet",
+    "orange": "Orange"
+  },
+  "conflict": {
+    "banner": "Cette note a des conflits de synchro — résolvez-les puis enregistrez",
+    "useLocal": "Tout garder en local",
+    "useRemote": "Tout prendre du distant",
+    "save": "Enregistrer la résolution",
+    "saving": "Enregistrement…"
+  },
+  "quick": {
+    "placeholder": "Saisissez une note rapide…",
+    "saving": "Enregistrement…",
+    "saved": "Enregistrée, continuez",
+    "hint": "Entrée enregistre · Ctrl+Entrée enregistre et continue · Maj+Entrée saut de ligne · Échap ferme"
+  },
+  "tray": {
+    "quick": "Note rapide (Ctrl+Maj+N)",
+    "openMain": "Ouvrir la fenêtre principale",
+    "quit": "Quitter PinSlip"
   }
 }

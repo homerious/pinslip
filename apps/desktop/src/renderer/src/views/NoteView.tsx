@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import PlusIcon from '~icons/ph/plus';
 import XIcon from '~icons/ph/x';
 import CaretUpIcon from '~icons/ph/caret-up';
@@ -84,24 +85,26 @@ function deriveTitle(markdown: string): string {
 }
 
 /** 六色定义：dot = 标题栏色；ink = 同色加深版（颜色按钮图标着色，
- *  直接用标题栏本色会在同色标题栏上隐身，故用 600 档深色） */
-const COLORS: { key: Exclude<NoteColor, ''>; label: string; dot: string; ink: string }[] = [
-  { key: 'yellow', label: '黄', dot: '#ffe97a', ink: '#f9a825' },
-  { key: 'pink', label: '粉', dot: '#f48fb1', ink: '#d81b60' },
-  { key: 'green', label: '绿', dot: '#a5d6a7', ink: '#43a047' },
-  { key: 'blue', label: '蓝', dot: '#90caf9', ink: '#1e88e5' },
-  { key: 'purple', label: '紫', dot: '#ce93d8', ink: '#8e24aa' },
-  { key: 'orange', label: '橙', dot: '#ffcc80', ink: '#fb8c00' },
+ *  直接用标题栏本色会在同色标题栏上隐身，故用 600 档深色）。
+ *  显示名在语言包 color.<key>，渲染时 t() 取 */
+const COLORS: { key: Exclude<NoteColor, ''>; dot: string; ink: string }[] = [
+  { key: 'yellow', dot: '#ffe97a', ink: '#f9a825' },
+  { key: 'pink', dot: '#f48fb1', ink: '#d81b60' },
+  { key: 'green', dot: '#a5d6a7', ink: '#43a047' },
+  { key: 'blue', dot: '#90caf9', ink: '#1e88e5' },
+  { key: 'purple', dot: '#ce93d8', ink: '#8e24aa' },
+  { key: 'orange', dot: '#ffcc80', ink: '#fb8c00' },
 ];
 
 /** 便签窗口视图：无边框窗内的编辑界面；
  *  标题栏承载 新建/颜色/置顶/关闭，底部工具栏（focus 浮现）承载 ⋯菜单/保存状态 */
 export default function NoteView() {
+  const { t } = useTranslation();
   const { noteId = '' } = useParams<{ noteId: string }>();
   const [searchParams] = useSearchParams();
   /** 新建便签的落盘文件夹（窗口创建时经路由 query 下发；已存在便签忽略，以 note.folder 为准） */
   const initialFolder = searchParams.get('folder') ?? '';
-  const [title, setTitle] = useState('新便签');
+  const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [pinned, setPinned] = useState(true); // 新便签默认置顶
   const [collapsed, setCollapsed] = useState(false); // 折叠成标题条（只显示标题栏）
@@ -240,16 +243,19 @@ export default function NoteView() {
    *  setContent 驱动 UI，editorEpoch+1 触发 Editor key-remount 以磁盘内容重建——
    *  remount 走 defaultValue 初始化，不触发 listener 回声，也不会多写一次盘。
    *  代价是撤销历史清空（外部更新极少发生，可接受）；不主动 refocus，避免抢滚动 */
-  const applyExternal = useCallback((disk: string, diskTitle: string, withToast: boolean) => {
-    contentRef.current = disk;
-    lastSavedRef.current = disk;
-    dirtyRef.current = false;
-    setContent(disk);
-    setTitle(diskTitle); // 兜底标题顺手刷新（显示标题仍由 deriveTitle 实时推导）
-    setExternalUpdate(null);
-    setEditorEpoch((n) => n + 1);
-    if (withToast) setToast('内容已被同步更新');
-  }, []);
+  const applyExternal = useCallback(
+    (disk: string, diskTitle: string, withToast: boolean) => {
+      contentRef.current = disk;
+      lastSavedRef.current = disk;
+      dirtyRef.current = false;
+      setContent(disk);
+      setTitle(diskTitle); // 兜底标题顺手刷新（显示标题仍由 deriveTitle 实时推导）
+      setExternalUpdate(null);
+      setEditorEpoch((n) => n + 1);
+      if (withToast) setToast(t('note.toastSynced'));
+    },
+    [t],
+  );
 
   /** 冲突解决视图的「保存解决」：全量 upsert 落盘（与 autosave 同参数快照）。
    *  解决视图不走自动保存（草稿是 ConflictResolver 内部 state，不碰 content），
@@ -270,7 +276,7 @@ export default function NoteView() {
           setContent(note.content);
           setEditorEpoch((n) => n + 1);
           setSaveState('saved');
-          setToast('冲突已解决');
+          setToast(t('note.toastResolved'));
           window.api.notifyNotesChanged(); // 广播：主界面列表近实时刷新
           // 内容已无冲突 markers：立即触发一轮 git 同步，不必等下个自动周期。
           // 异步静默触发，不阻塞保存反馈；失败不打扰（错误体现在设置抽屉同步状态的
@@ -281,14 +287,14 @@ export default function NoteView() {
         })
         .catch(() => setSaveState('error'));
     },
-    [noteId, pinned, color, tags, collapsed],
+    [noteId, pinned, color, tags, collapsed, t],
   );
 
   // toast 轻提示 2.5s 自动消隐
   useEffect(() => {
     if (!toast) return;
-    const t = setTimeout(() => setToast(null), 2500);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setToast(null), 2500);
+    return () => clearTimeout(timer);
   }, [toast]);
 
   // 外部变更感知：notes-changed 广播（含 vault watch 的外部变更）后拉取磁盘内容——
@@ -357,7 +363,7 @@ export default function NoteView() {
         setFolder(note.folder ?? '');
       })
       .catch(() => {
-        setTitle('新便签');
+        setTitle('');
         contentRef.current = '';
         setContent('');
         // 新建便签：落盘文件夹来自窗口路由 query（主界面文件夹视图/便签＋菜单传入）；
@@ -373,8 +379,11 @@ export default function NoteView() {
       });
   }, [noteId, focusEditorIfIdle, initialFolder]);
 
-  /** 显示用标题：实时跟随内容首行（与服务端同算法），兜底已保存标题 */
-  const displayTitle = useMemo(() => deriveTitle(content) || title, [content, title]);
+  /** 显示用标题：实时跟随内容首行（与服务端同算法），兜底已保存标题，再兜底「新便签」 */
+  const displayTitle = useMemo(
+    () => deriveTitle(content) || title || t('note.newTitle'),
+    [content, title, t],
+  );
 
   /** 冲突标记实时检测：随 content 派生，编辑删掉标记即消失（涵盖初始载入/外部重载/保存后）。
    *  true 时编辑区整换 ConflictResolver 原文解决视图（Milkdown 会把 markers 渲染成标题/引用），
@@ -621,11 +630,11 @@ export default function NoteView() {
   );
 
   const stateText: Record<SaveState, string> = {
-    loading: '加载中',
+    loading: t('note.stateLoading'),
     idle: '',
-    saving: '保存中…',
-    saved: '已保存',
-    error: '保存失败',
+    saving: t('note.stateSaving'),
+    saved: t('note.stateSaved'),
+    error: t('note.stateError'),
   };
 
   /** 编辑辅助区按钮：数组顺序即优先级（高 → 低），宽度不够时从尾部藏起，保底留加粗。
@@ -633,25 +642,25 @@ export default function NoteView() {
   const editButtons = [
     {
       key: 'bold',
-      tip: '加粗',
+      tip: t('note.tipBold'),
       icon: <TextBolderIcon />,
       act: () => editorRef.current?.toggleMark('strong'),
     },
     {
       key: 'strike',
-      tip: '删除线',
+      tip: t('note.tipStrike'),
       icon: <TextStrikethroughIcon />,
       act: () => editorRef.current?.toggleMark('strikethrough'),
     },
     {
       key: 'task',
-      tip: '任务列表',
+      tip: t('note.tipTask'),
       icon: <ListChecksIcon />,
       act: () => editorRef.current?.toggleTaskList(),
     },
     {
       key: 'image',
-      tip: '添加图像',
+      tip: t('note.tipImage'),
       icon: <ImageIcon />,
       act: () => imageInputRef.current?.click(),
     },
@@ -689,7 +698,7 @@ export default function NoteView() {
             autoFocus
             defaultValue={groupState.name ?? ''}
             maxLength={30}
-            placeholder="组名"
+            placeholder={t('note.groupNamePlaceholder')}
             onFocus={(e) => e.currentTarget.select()}
             onBlur={(e) => {
               setGroupRenaming(false);
@@ -714,9 +723,13 @@ export default function NoteView() {
              未命名只显示 ⋮ 圆点，命名后药丸展开显示组名 */
           <button
             className={`sticky-note__grouphandle${groupDragging ? ' is-dragging' : ''}${groupState.name ? ' has-name' : ''}`}
-            data-tip={groupState.name ? `组「${groupState.name}」· 拖动整组 · 双击改名 · 右键菜单` : '拖动整组 · 双击命名 · 右键菜单'}
+            data-tip={
+              groupState.name
+                ? t('note.groupHandleTipNamed', { name: groupState.name })
+                : t('note.groupHandleTip')
+            }
             data-tip-align="left"
-            aria-label="拖动整组"
+            aria-label={t('note.groupDragAria')}
             onPointerDown={(e) => {
               setGroupMenuOpen(false); // 拖动起手即收菜单（左键拖动与右键菜单互斥）
               startGroupDrag(e);
@@ -743,9 +756,9 @@ export default function NoteView() {
             折叠态隐藏 新建/颜色，只留 置顶/折叠/关闭 */}
         <button
           className={`sticky-note__btn sticky-note__pin${pinned ? ' is-pinned' : ''}`}
-          data-tip={pinned ? '取消置顶' : '置顶'}
+          data-tip={pinned ? t('note.unpin') : t('note.pin')}
           data-tip-align="left"
-          aria-label={pinned ? '取消置顶' : '置顶'}
+          aria-label={pinned ? t('note.unpin') : t('note.pin')}
           onClick={togglePin}
         >
           <PinIcon />
@@ -755,8 +768,8 @@ export default function NoteView() {
         {!collapsed && (
           <button
             className="sticky-note__btn"
-            data-tip="新建便签"
-            aria-label="新建便签"
+            data-tip={t('header.create')}
+            aria-label={t('header.create')}
             onClick={() => {
               if (!folder) {
                 void window.api.createNote(); // 根目录便签：直接新建到根目录（默认操作）
@@ -777,9 +790,9 @@ export default function NoteView() {
         {!collapsed && (
           <button
             className="sticky-note__btn sticky-note__color"
-            data-tip="选择颜色"
+            data-tip={t('note.pickColor')}
             data-tip-align="right"
-            aria-label="选择颜色"
+            aria-label={t('note.pickColor')}
             style={{ color: COLORS.find((c) => c.key === color)?.ink }}
             onClick={() => {
               setMenuOpen(false);
@@ -794,18 +807,18 @@ export default function NoteView() {
         )}
         <button
           className="sticky-note__btn"
-          data-tip={collapsed ? '展开便签' : '收起便签'}
+          data-tip={collapsed ? t('note.expand') : t('note.collapse')}
           data-tip-align="right"
-          aria-label={collapsed ? '展开便签' : '收起便签'}
+          aria-label={collapsed ? t('note.expand') : t('note.collapse')}
           onClick={toggleCollapse}
         >
           {collapsed ? <CaretDownIcon /> : <CaretUpIcon />}
         </button>
         <button
           className="sticky-note__btn sticky-note__close"
-          data-tip="关闭"
+          data-tip={t('note.close')}
           data-tip-align="right"
-          aria-label="关闭"
+          aria-label={t('note.close')}
           onClick={() => window.close()}
         >
           <XIcon />
@@ -816,16 +829,16 @@ export default function NoteView() {
       {!collapsed && externalUpdate !== null && (
         <div className="sticky-note__banner sticky-note__banner--external">
           <ArrowsClockwiseIcon />
-          <span>文件已被同步修改</span>
+          <span>{t('note.externalBanner')}</span>
           <div className="sticky-note__banner-actions">
             <button
               className="sticky-note__banner-btn"
               onClick={() => applyExternal(externalUpdate, title, false)}
             >
-              载入最新
+              {t('note.loadLatest')}
             </button>
             <button className="sticky-note__banner-btn" onClick={() => setExternalUpdate(null)}>
-              保留我的
+              {t('note.keepMine')}
             </button>
           </div>
         </div>
@@ -862,7 +875,7 @@ export default function NoteView() {
       {overlayOpen && (
         <button
           className="sticky-note__backdrop"
-          aria-label="收起"
+          aria-label={t('note.dismiss')}
           onClick={() => {
             setPaletteOpen(false);
             setMenuOpen(false);
@@ -887,7 +900,7 @@ export default function NoteView() {
             }}
           >
             <FolderIcon />
-            新建到 {shortenFolder(folder, 14)}
+            {t('note.newToFolder', { folder: shortenFolder(folder, 14) })}
           </button>
           <button
             className="sticky-note__menu-item"
@@ -897,7 +910,7 @@ export default function NoteView() {
             }}
           >
             <PlusIcon />
-            新建到根目录
+            {t('note.newToRoot')}
           </button>
         </div>
       )}
@@ -908,7 +921,7 @@ export default function NoteView() {
           <button
             key={c.key}
             className={`sticky-note__palette-strip${color === c.key ? ' is-current' : ''}`}
-            title={c.label}
+            title={t(`color.${c.key}`)}
             style={
               {
                 background: c.dot,
@@ -947,10 +960,10 @@ export default function NoteView() {
         <div className="sticky-note__toolbar-zone sticky-note__toolbar-zone--right">
           <button
             className="sticky-note__btn sticky-note__tagbtn"
-            data-tip="标签"
+            data-tip={t('note.tags')}
             data-tip-place="top"
             data-tip-align="left"
-            aria-label="标签"
+            aria-label={t('note.tags')}
             /* 有标签时换 fill 款图标 + 便签主题色（ink），无标签保持线框灰 */
             style={
               tags.length > 0 ? { color: COLORS.find((c) => c.key === color)?.ink } : undefined
@@ -969,10 +982,12 @@ export default function NoteView() {
           </button>
           <button
             className="sticky-note__btn"
-            data-tip={folder ? `文件夹：${shortenFolder(folder, 24)}` : '文件夹'}
+            data-tip={
+              folder ? t('note.folderTipWith', { folder: shortenFolder(folder, 24) }) : t('note.folderTip')
+            }
             data-tip-place="top"
             data-tip-align="left"
-            aria-label="文件夹"
+            aria-label={t('note.folderTip')}
             /* 已在子文件夹中时换 fill 款图标 + 便签主题色（同标签按钮的两态逻辑） */
             style={folder ? { color: COLORS.find((c) => c.key === color)?.ink } : undefined}
             onClick={() => {
@@ -992,10 +1007,10 @@ export default function NoteView() {
           {hiddenAux < 1 && (
             <button
               className="sticky-note__btn"
-              data-tip={copied ? '已复制' : '复制全部'}
+              data-tip={copied ? t('note.copied') : t('note.copyAll')}
               data-tip-place="top"
               data-tip-align="right"
-              aria-label="复制全部"
+              aria-label={t('note.copyAll')}
               onClick={copyAll}
             >
               {copied ? <CheckIcon /> : <CopyIcon />}
@@ -1003,10 +1018,10 @@ export default function NoteView() {
           )}
           <button
             className="sticky-note__btn"
-            data-tip="更多"
+            data-tip={t('note.more')}
             data-tip-place="top"
             data-tip-align="right"
-            aria-label="更多"
+            aria-label={t('note.more')}
             onClick={() => {
               setPaletteOpen(false);
               setNewMenuOpen(false);
@@ -1045,7 +1060,7 @@ export default function NoteView() {
           />
           <div
             className="sticky-note__grip"
-            data-tip="拖拽调整大小"
+            data-tip={t('note.resizeTip')}
             data-tip-place="top"
             data-tip-align="right"
             onPointerDown={(e) => startResize(e, 'both')}
@@ -1056,13 +1071,13 @@ export default function NoteView() {
       {/* 标签面板：chips + 输入框，Enter/✓ 添加，Backspace 删尾 */}
       {tagPanelOpen && (
         <div className="sticky-note__tagpanel">
-          {tags.map((t) => (
-            <span key={t} className="tag-chip">
-              {t}
+          {tags.map((tag) => (
+            <span key={tag} className="tag-chip">
+              {tag}
               <button
                 className="tag-chip__x"
-                aria-label={`移除标签 ${t}`}
-                onClick={() => saveTags(tags.filter((x) => x !== t))}
+                aria-label={t('note.removeTagAria', { tag })}
+                onClick={() => saveTags(tags.filter((x) => x !== tag))}
               >
                 ×
               </button>
@@ -1071,7 +1086,7 @@ export default function NoteView() {
           <input
             className="sticky-note__taginput"
             value={tagInput}
-            placeholder="添加标签…"
+            placeholder={t('note.addTagPlaceholder')}
             autoFocus
             onChange={(e) => setTagInput(e.target.value)}
             onKeyDown={(e) => {
@@ -1086,10 +1101,10 @@ export default function NoteView() {
           />
           <button
             className="sticky-note__tagadd"
-            data-tip="添加"
+            data-tip={t('note.addTag')}
             data-tip-place="top"
             data-tip-align="right"
-            aria-label="添加标签"
+            aria-label={t('note.addTagAria')}
             disabled={!tagInput.trim()}
             onClick={commitTag}
           >
@@ -1105,22 +1120,24 @@ export default function NoteView() {
             <FolderIcon />
             <span className="sticky-note__folderpath-text">
               notes/{folder ? shortenFolder(folder, 20) : ''}
-              {!folder && <span className="sticky-note__folderpath-root">（根目录）</span>}
+              {!folder && (
+                <span className="sticky-note__folderpath-root">{t('note.rootSuffix')}</span>
+              )}
             </span>
             <button
               className="sticky-note__folderopen"
               onClick={() => void window.api.openNoteFolder(folder)}
             >
-              打开目录
+              {t('note.openFolderBtn')}
             </button>
           </div>
-          <div className="sticky-note__folderlist-title">移动到文件夹</div>
+          <div className="sticky-note__folderlist-title">{t('note.moveToFolder')}</div>
           {/* 路径筛选：目录多的时候快速定位；大小写不敏感子串匹配 */}
           {allFolders.length > 5 && (
             <input
               className="sticky-note__folderfilter"
               value={folderFilter}
-              placeholder="搜索目录"
+              placeholder={t('move.filter')}
               onChange={(e) => setFolderFilter(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Escape') setFolderPanelOpen(false);
@@ -1128,13 +1145,13 @@ export default function NoteView() {
             />
           )}
           <div className="sticky-note__folderlist">
-            {(!folderFilter.trim() || '根目录'.includes(folderFilter.trim())) && (
+            {(!folderFilter.trim() || t('folders.rootShort').includes(folderFilter.trim())) && (
               <button
                 className={`sticky-note__folderitem${folder === '' ? ' is-current' : ''}`}
                 disabled={folder === ''}
                 onClick={() => moveToFolder('')}
               >
-                根目录
+                {t('folders.rootShort')}
               </button>
             )}
             {filteredFolders.map((f) => (
@@ -1149,10 +1166,12 @@ export default function NoteView() {
               </button>
             ))}
             {allFolders.length === 0 && (
-              <div className="sticky-note__folderempty">还没有子文件夹，去主界面创建</div>
+              <div className="sticky-note__folderempty">{t('note.noSubfolders')}</div>
             )}
             {allFolders.length > 0 && filteredFolders.length === 0 && (
-              <div className="sticky-note__folderempty">没有匹配「{folderFilter.trim()}」的目录</div>
+              <div className="sticky-note__folderempty">
+                {t('move.noMatch', { query: folderFilter.trim() })}
+              </div>
             )}
           </div>
         </div>
@@ -1169,14 +1188,14 @@ export default function NoteView() {
             }}
           >
             <ListBulletsIcon />
-            便签列表
+            {t('note.noteList')}
           </button>
           <button
             className={`sticky-note__menu-item${confirmDelete ? ' is-danger' : ''}`}
             onClick={handleDelete}
           >
             <TrashIcon />
-            {confirmDelete ? '确认删除？' : '删除便签'}
+            {confirmDelete ? t('note.deleteConfirm') : t('note.deleteNote')}
           </button>
         </div>
       )}
@@ -1194,7 +1213,7 @@ export default function NoteView() {
             }}
           >
             <LinkBreakIcon />
-            解散此组
+            {t('note.dissolveGroup')}
           </button>
         </div>
       )}
