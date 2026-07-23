@@ -76,6 +76,8 @@ export const trashApi = {
 /** vault 设置（对应 .pinslip/settings.json） */
 export interface VaultSettings {
   trashRetentionDays: number; // 回收区保留天数；<= 0 = 不自动清理
+  /** MCP 服务开关；缺省（字段缺失）= 开启。PUT 未带此键时 Go 侧保留现值 */
+  mcpEnabled?: boolean;
 }
 
 /** vault 设置 API */

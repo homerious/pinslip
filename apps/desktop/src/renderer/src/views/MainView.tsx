@@ -25,6 +25,11 @@ import ArrowsClockwiseIcon from '~icons/ph/arrows-clockwise';
 import InfoIcon from '~icons/ph/info';
 import GitBranchIcon from '~icons/ph/git-branch';
 import WarningIcon from '~icons/ph/warning';
+import RobotIcon from '~icons/ph/robot';
+import LinkIcon from '~icons/ph/link';
+import FileCodeIcon from '~icons/ph/file-code';
+import CopyIcon from '~icons/ph/copy';
+import CheckIcon from '~icons/ph/check';
 import type { NoteMeta, SearchHit, SyncStatus, UpdateState } from '@shared/types';
 import { foldersApi, notesApi, settingsApi, trashApi } from '../api/notes';
 import type { TrashStats } from '../api/notes';
@@ -127,6 +132,10 @@ export default function MainView() {
    *  dirty 标记防止 30s 轮询回填覆盖用户正在输入的内容 */
   const [syncIntervalInput, setSyncIntervalInput] = useState('10');
   const syncIntervalDirtyRef = useRef(false);
+  // MCP 服务：Go 端口（拼接入地址）+ mcpEnabled 开关（缺省开）+ 复制反馈
+  const [goPort, setGoPort] = useState(0);
+  const [mcpEnabled, setMcpEnabled] = useState(true);
+  const [mcpCopied, setMcpCopied] = useState(false);
   /** 配置表单 dirty 标记：编辑中不被 30s 轮询回填覆盖；保存/取消/重开抽屉时复位 */
   const syncFormDirtyRef = useRef(false);
   // 三视图：列表（全部平铺）/ 文件夹（分层导航）/ 标签（按标签分组）
@@ -331,6 +340,7 @@ export default function MainView() {
       .then((info) => {
         setIsPackaged(info.isPackaged);
         setVersion(info.version);
+        setGoPort(info.goPort);
         if (info.vaultPath) {
           setVaultPath(info.vaultPath);
           setStage('ready');
@@ -401,7 +411,10 @@ export default function MainView() {
       .catch(() => setTrashStats(null));
     settingsApi
       .get()
-      .then((s) => setTrashRetention(s.trashRetentionDays))
+      .then((s) => {
+        setTrashRetention(s.trashRetentionDays);
+        setMcpEnabled(s.mcpEnabled ?? true); // 字段缺失 = 缺省开启
+      })
       .catch(() => {});
   }, [settingsOpen]);
 
@@ -469,6 +482,33 @@ export default function MainView() {
     setTrashRetention(days);
     settingsApi.update({ trashRetentionDays: days }).catch(() => {});
   }, []);
+
+  // MCP 总开关：乐观切换，失败回滚。
+  // PUT 必须带上 trashRetentionDays 现值——Go 侧是整体写入（只发 mcpEnabled
+  // 会把回收区天数抹成 0）；反向同理（changeTrashRetention 不带 mcpEnabled 时
+  // Go 侧保留现值，不会互相覆盖）
+  const toggleMcp = useCallback(() => {
+    const next = !mcpEnabled;
+    setMcpEnabled(next);
+    settingsApi
+      .update({ trashRetentionDays: trashRetention, mcpEnabled: next })
+      .catch(() => setMcpEnabled(!next));
+  }, [mcpEnabled, trashRetention]);
+
+  // 复制 MCP 接入配置（通用 mcpServers 形态，Claude Code / Kimi 等可直接粘贴）；
+  // 成功后按钮短暂显示「已复制 ✓」（2s 恢复，与便签复制按钮同套路）
+  const copyMcpConfig = useCallback(() => {
+    const config = JSON.stringify({
+      mcpServers: { pinslip: { type: 'http', url: `http://127.0.0.1:${goPort}/mcp` } },
+    });
+    void navigator.clipboard
+      .writeText(config)
+      .then(() => {
+        setMcpCopied(true);
+        setTimeout(() => setMcpCopied(false), 2000);
+      })
+      .catch(() => {});
+  }, [goPort]);
 
   // 保存 git 同步配置（含首次接入；接入失败原因进表单错误区）
   const saveSyncConfig = useCallback(() => {
@@ -1069,6 +1109,64 @@ export default function MainView() {
                   </div>
                 </>
               )}
+            </div>
+
+            <div className="settings-panel__section">MCP 服务</div>
+            <div className="settings-card">
+              {/* 总开关：mcpEnabled 缺省开；关闭时 Go 侧 /mcp 端点整体 404 */}
+              <div className="settings-panel__row">
+                <RobotIcon className="settings-panel__row-icon" />
+                <span className="settings-panel__label">AI 接入</span>
+                <button
+                  className="settings-toggle"
+                  role="switch"
+                  aria-checked={mcpEnabled}
+                  data-on={mcpEnabled}
+                  title={mcpEnabled ? '关闭 MCP 服务' : '开启 MCP 服务'}
+                  onClick={toggleMcp}
+                >
+                  <span className="settings-toggle__thumb" />
+                </button>
+              </div>
+              {/* 接入信息：仅开启时展示（关闭后端点不存在，信息无意义） */}
+              {mcpEnabled && (
+                <>
+                  <div className="settings-panel__row">
+                    <LinkIcon className="settings-panel__row-icon" />
+                    <span className="settings-panel__label">接入地址</span>
+                    <span
+                      className="settings-panel__value settings-panel__value--rtl"
+                      title={goPort ? `http://127.0.0.1:${goPort}/mcp` : ''}
+                    >
+                      {goPort ? `http://127.0.0.1:${goPort}/mcp` : '…'}
+                    </span>
+                  </div>
+                  <div className="settings-panel__row">
+                    <FileCodeIcon className="settings-panel__row-icon" />
+                    <span className="settings-panel__label">发现文件</span>
+                    <span
+                      className="settings-panel__value settings-panel__value--rtl"
+                      title={`${vaultPath}/.pinslip/mcp.json`}
+                    >
+                      {vaultPath ? `${vaultPath}/.pinslip/mcp.json` : '…'}
+                    </span>
+                  </div>
+                  <div className="settings-panel__actions">
+                    <button
+                      className="settings-panel__btn"
+                      disabled={!goPort}
+                      onClick={copyMcpConfig}
+                    >
+                      {mcpCopied ? <CheckIcon /> : <CopyIcon />}
+                      {mcpCopied ? '已复制' : '复制接入信息'}
+                    </button>
+                  </div>
+                </>
+              )}
+              <div className="settings-panel__hint">
+                AI 工具（Kimi / Claude 等）可通过 MCP 搜索、读写、同步便签；服务仅监听本机
+                127.0.0.1，不会暴露到局域网
+              </div>
             </div>
           </div>
         </>
