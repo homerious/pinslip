@@ -1192,7 +1192,12 @@ input.sticky-note__groupname-input::placeholder {
 .settings-panel__section {
   font-size: 11px;
   color: #999;
-  margin-bottom: 8px;
+  margin: 18px 0 8px;
+}
+
+/* 抽屉里第一个小节不加上边距，避免顶部悬空 */
+.settings-panel__section:first-child {
+  margin-top: 0;
 }
 
 .settings-panel__row {
