@@ -21,6 +21,8 @@ import ListChecksIcon from '~icons/ph/list-checks';
 import ImageIcon from '~icons/ph/image';
 import CopyIcon from '~icons/ph/copy';
 import CheckIcon from '~icons/ph/check';
+import WarningIcon from '~icons/ph/warning';
+import ArrowsClockwiseIcon from '~icons/ph/arrows-clockwise';
 import PinIcon from '../components/icons/PinIcon';
 import Editor from '../components/editor/Editor';
 import type { EditorHandle } from '../components/editor/Editor';
@@ -114,6 +116,12 @@ export default function NoteView() {
   /** 文件夹面板的路径筛选（目录 >5 个时出现输入框） */
   const [folderFilter, setFolderFilter] = useState('');
   const [saveState, setSaveState] = useState<SaveState>('loading');
+  /** 外部修改横幅：本地脏期间磁盘被改 → 暂存磁盘内容，等用户选择（后到的覆盖旧的） */
+  const [externalUpdate, setExternalUpdate] = useState<string | null>(null);
+  /** Editor remount 世代号：外部重载时 +1，以磁盘内容为 defaultValue 重建编辑器 */
+  const [editorEpoch, setEditorEpoch] = useState(0);
+  /** 自动重载完成的轻提示文案（2.5s 自动消隐） */
+  const [toast, setToast] = useState<string | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   /** ＋新建落点菜单（便签在子文件夹时才有：同文件夹 / 根目录） */
@@ -146,6 +154,8 @@ export default function NoteView() {
   const existsRef = useRef(false); // 是否已存在于服务端（新便签写了内容才落盘）
   const lastSavedRef = useRef(''); // 上次保存的内容，避免加载后多余回写
   const folderRef = useRef(''); // 笔记所在子文件夹（图片 ../ 前缀深度）
+  const contentRef = useRef(''); // 内容现值：供异步回调（保存回包/外部变更）读取，避开闭包旧值
+  const dirtyRef = useRef(false); // 有未落盘的本地编辑（用户输入置位，保存成功/外部重载复位）
 
   /** 窗口激活时若焦点没落在具体控件上，把焦点交给编辑器（光标置文末，直接可输入）。
    *  编辑器异步初始化，未就绪时短间隔重试几次 */
@@ -224,20 +234,52 @@ export default function NoteView() {
     };
   }, [focusEditorIfIdle]);
 
-  // 外部删除自闭：notes-changed 广播（含 vault watch 的外部变更）后自检文件
-  // 是否还在——404 说明被外部/主界面删除，关窗防止幽灵窗口把文件写回来；
-  // 服务异常等非 404 错误不关，避免 Go 服务重启时误杀所有窗口
+  /** 应用外部（磁盘）内容：同步三个 ref 使自动保存 effect 短路（不回写、无回环），
+   *  setContent 驱动 UI，editorEpoch+1 触发 Editor key-remount 以磁盘内容重建——
+   *  remount 走 defaultValue 初始化，不触发 listener 回声，也不会多写一次盘。
+   *  代价是撤销历史清空（外部更新极少发生，可接受）；不主动 refocus，避免抢滚动 */
+  const applyExternal = useCallback((disk: string, diskTitle: string, withToast: boolean) => {
+    contentRef.current = disk;
+    lastSavedRef.current = disk;
+    dirtyRef.current = false;
+    setContent(disk);
+    setTitle(diskTitle); // 兜底标题顺手刷新（显示标题仍由 deriveTitle 实时推导）
+    setExternalUpdate(null);
+    setEditorEpoch((n) => n + 1);
+    if (withToast) setToast('内容已被同步更新');
+  }, []);
+
+  // toast 轻提示 2.5s 自动消隐
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 2500);
+    return () => clearTimeout(t);
+  }, [toast]);
+
+  // 外部变更感知：notes-changed 广播（含 vault watch 的外部变更）后拉取磁盘内容——
+  // 404：被外部/主界面删除，关窗防止幽灵窗口把文件写回来（非 404 不关，避免服务重启误杀）；
+  // 200：与 lastSavedRef 比较，一致说明是自己保存的回包/无实质变化，无操作；
+  // 不一致时本地未脏 → 直接重载 + toast，本地脏 → 弹「载入最新/保留我的」横幅不抢编辑器
   useEffect(() => {
     const off = window.api.onNotesChanged(() => {
-      if (!existsRef.current) return; // 未落盘的新便签没有文件可被删
-      notesApi.get(noteId).catch((err: unknown) => {
-        if (err instanceof Error && err.message.startsWith('API 404')) {
-          window.close();
-        }
-      });
+      if (!existsRef.current) return; // 未落盘的新便签没有文件可被删/改
+      notesApi
+        .get(noteId)
+        .then((note) => {
+          const disk = note.content;
+          // disk === contentRef：自己保存的广播先于回包到达（磁盘即编辑器现值），同样无操作
+          if (disk === lastSavedRef.current || disk === contentRef.current) return;
+          if (dirtyRef.current) setExternalUpdate(disk);
+          else applyExternal(disk, note.title, true);
+        })
+        .catch((err: unknown) => {
+          if (err instanceof Error && err.message.startsWith('API 404')) {
+            window.close();
+          }
+        });
     });
     return off;
-  }, [noteId]);
+  }, [noteId, applyExternal]);
 
   // 便签组态：挂载时主动拉取初始态（成员关窗组保留，重开回归恢复拼框），
   // 之后跟随主进程推送（成组/退组/角色变化）；成组预告高亮同通道订阅
@@ -265,6 +307,7 @@ export default function NoteView() {
       .then((note) => {
         existsRef.current = true;
         lastSavedRef.current = note.content;
+        contentRef.current = note.content;
         setTitle(note.title);
         setContent(note.content);
         setPinned(note.pin);
@@ -280,6 +323,7 @@ export default function NoteView() {
       })
       .catch(() => {
         setTitle('新便签');
+        contentRef.current = '';
         setContent('');
         // 新建便签：落盘文件夹来自窗口路由 query（主界面文件夹视图/便签＋菜单传入）；
         // 同步 folderRef——粘贴图片的 ../ 前缀深度从第一次粘贴起就是对的
@@ -296,6 +340,9 @@ export default function NoteView() {
 
   /** 显示用标题：实时跟随内容首行（与服务端同算法），兜底已保存标题 */
   const displayTitle = useMemo(() => deriveTitle(content) || title, [content, title]);
+
+  /** 冲突标记实时检测：随 content 派生，编辑删掉标记即消失（涵盖初始载入/外部重载/保存后） */
+  const hasConflict = useMemo(() => /^<<<<<<< /m.test(content), [content]);
 
   // 窗口标题同步便签标题（任务栏/Alt+Tab 可辨识）
   useEffect(() => {
@@ -318,6 +365,10 @@ export default function NoteView() {
         .then((note) => {
           existsRef.current = true;
           lastSavedRef.current = note.content;
+          // 防抖飞行期间用户又输入（contentRef 现值 ≠ 回包内容）则保持脏标志，
+          // 只有编辑器现值与落盘一致才复位；落盘即最新，撤销外部修改横幅
+          if (contentRef.current === note.content) dirtyRef.current = false;
+          setExternalUpdate(null);
           setTitle(note.title);
           setSaveState('saved');
           window.api.notifyNotesChanged(); // 广播：主界面列表近实时刷新
@@ -372,6 +423,8 @@ export default function NoteView() {
   );
 
   const handleChange = useCallback((markdown: string) => {
+    contentRef.current = markdown;
+    dirtyRef.current = true;
     setContent(markdown);
   }, []);
 
@@ -722,10 +775,38 @@ export default function NoteView() {
         </button>
       </div>
 
+      {/* 冲突横幅：内容含 git 冲突标记时常驻，删掉标记即消失 */}
+      {!collapsed && hasConflict && (
+        <div className="sticky-note__banner sticky-note__banner--conflict">
+          <WarningIcon />
+          <span>此便签有同步冲突，请解决后保存</span>
+        </div>
+      )}
+
+      {/* 外部修改横幅：本地脏期间磁盘被改，由用户选择载入最新或保留我的 */}
+      {!collapsed && externalUpdate !== null && (
+        <div className="sticky-note__banner sticky-note__banner--external">
+          <ArrowsClockwiseIcon />
+          <span>文件已被同步修改</span>
+          <div className="sticky-note__banner-actions">
+            <button
+              className="sticky-note__banner-btn"
+              onClick={() => applyExternal(externalUpdate, title, false)}
+            >
+              载入最新
+            </button>
+            <button className="sticky-note__banner-btn" onClick={() => setExternalUpdate(null)}>
+              保留我的
+            </button>
+          </div>
+        </div>
+      )}
+
       {!collapsed && (
         <div className="sticky-note__body" onMouseDown={handleBodyMouseDown}>
           {saveState !== 'loading' && (
             <Editor
+              key={editorEpoch}
               ref={editorRef}
               content={content}
               onChange={handleChange}
@@ -735,6 +816,9 @@ export default function NoteView() {
           )}
         </div>
       )}
+
+      {/* 自动重载完成的轻提示（折叠态不弹） */}
+      {!collapsed && toast && <div className="sticky-note__toast">{toast}</div>}
 
       {/* 透明捕获层：点击任意处收起色板/菜单 */}
       {overlayOpen && (

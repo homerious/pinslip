@@ -498,6 +498,70 @@ input.sticky-note__groupname-input::placeholder {
   padding: 4px 8px 8px;
 }
 
+/* 同步提示横幅：标题栏与正文之间整行铺开（冲突=琥珀，外部修改=蓝） */
+.sticky-note__banner {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.sticky-note__banner svg {
+  flex: none;
+}
+
+.sticky-note__banner--conflict {
+  background: #fff8e1;
+  border-bottom: 1px solid #ffe082;
+  color: #8d6e00;
+}
+
+.sticky-note__banner--external {
+  background: #e3f2fd;
+  border-bottom: 1px solid #bbdefb;
+  color: #1565c0;
+}
+
+.sticky-note__banner-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 6px;
+}
+
+.sticky-note__banner-btn {
+  font-size: 12px;
+  padding: 1px 8px;
+  border-radius: 4px;
+  border: 1px solid currentColor;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0.85;
+}
+
+.sticky-note__banner-btn:hover {
+  opacity: 1;
+  background: rgba(21, 101, 192, 0.08);
+}
+
+/* 自动重载完成的轻提示：顶部居中深色药丸，不拦截点击 */
+.sticky-note__toast {
+  position: absolute;
+  top: 40px; /* 标题栏（32px）之下 */
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(33, 33, 33, 0.85);
+  color: #fff;
+  font-size: 12px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  pointer-events: none;
+  z-index: 23; /* 压正文，低于 groupframe(30) */
+}
+
 /* ===== 便签多色主题（data-color 覆盖变量，黄色即 :root 默认值） =====
    配色思路：标题栏用 Material 200 色，主体同色系调浅约 50%，
    深棕正文在各底色上对比度均 > 7:1；阴影换同族色相避免显脏 */
