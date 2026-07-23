@@ -1366,7 +1366,11 @@ input.sticky-note__groupname-input::placeholder {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  direction: rtl; /* 路径过长时省略头部，保住末尾可读 */
+}
+
+/* 路径/URL 专用：过长时省略头部，保住末尾可读（勿用于普通文本，会把语序倒过来） */
+.settings-panel__value--rtl {
+  direction: rtl;
 }
 
 .settings-panel__hint {

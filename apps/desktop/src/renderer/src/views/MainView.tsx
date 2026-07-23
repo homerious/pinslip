@@ -698,7 +698,7 @@ export default function MainView() {
               <div className="settings-panel__row">
                 <FolderIcon className="settings-panel__row-icon" />
                 <span className="settings-panel__label">存储位置</span>
-                <span className="settings-panel__value" title={vaultPath}>
+                <span className="settings-panel__value settings-panel__value--rtl" title={vaultPath}>
                   {vaultPath}
                 </span>
               </div>
@@ -888,7 +888,7 @@ export default function MainView() {
                   <div className="settings-panel__row">
                     <GitBranchIcon className="settings-panel__row-icon" />
                     <span className="settings-panel__label">{syncStatus.branch || 'main'}</span>
-                    <span className="settings-panel__value" title={syncStatus.url}>
+                    <span className="settings-panel__value settings-panel__value--rtl" title={syncStatus.url}>
                       {syncStatus.url}
                     </span>
                   </div>
@@ -910,7 +910,7 @@ export default function MainView() {
                         待解冲突 {syncStatus.conflictedFiles.length} 个文件
                       </span>
                       <span
-                        className="settings-panel__value"
+                        className="settings-panel__value settings-panel__value--rtl"
                         title={syncStatus.conflictedFiles.join('\n')}
                       >
                         {syncStatus.conflictedFiles[0]}
