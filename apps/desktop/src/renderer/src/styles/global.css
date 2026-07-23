@@ -513,10 +513,21 @@ input.sticky-note__groupname-input::placeholder {
   flex: none;
 }
 
+/* 冲突横幅：跟随便签六色——标签 chip 同款套路（--tag-bg 半透明深色 + --tag-ink 深墨），
+   比便签主体色深一档 + 同色描边，保留「警示条」辨识度但基调融入便签色。
+   flex-wrap 两行布局：图标+文字一行，两个快捷按钮独占第二行（右对齐） */
 .sticky-note__banner--conflict {
-  background: #fff8e1;
-  border-bottom: 1px solid #ffe082;
-  color: #8d6e00;
+  flex-wrap: wrap;
+  row-gap: 4px;
+  background: var(--tag-bg);
+  border-bottom: 1px solid color-mix(in srgb, var(--tag-ink) 35%, transparent);
+  color: var(--tag-ink);
+}
+
+/* 快捷按钮组 flex-basis:100% 强制换到第二行 */
+.sticky-note__banner--conflict .sticky-note__banner-actions {
+  flex-basis: 100%;
+  justify-content: flex-end;
 }
 
 .sticky-note__banner--external {
@@ -547,9 +558,9 @@ input.sticky-note__groupname-input::placeholder {
   background: rgba(21, 101, 192, 0.08);
 }
 
-/* 冲突横幅（琥珀系）上的快捷按钮 hover 用同族琥珀底，不用外部修改横幅的蓝 */
+/* 冲突横幅上的快捷按钮 hover：跟随便签色（--tag-ink 浅底），不用外部修改横幅的蓝 */
 .sticky-note__banner--conflict .sticky-note__banner-btn:hover {
-  background: rgba(141, 110, 0, 0.08);
+  background: color-mix(in srgb, var(--tag-ink) 10%, transparent);
 }
 
 /* ===== 冲突解决视图：等宽原文编辑区 + 底部「保存解决」栏 =====
@@ -571,17 +582,23 @@ input.sticky-note__groupname-input::placeholder {
   font-family: ui-monospace, 'Cascadia Mono', 'SF Mono', Consolas, 'Courier New', monospace;
   font-size: 12.5px;
   line-height: 1.6;
-  white-space: pre;
-  overflow: auto;
+  /* 软换行：长行折到可视宽度内（anywhere 保证 URL/长标记符也能断），只允许纵向滚动 */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
+/* 底部保存栏：padding-bottom 36px 避让 focus 浮出的底部工具栏（28px + 余量），
+   与 Milkdown 模式 ProseMirror 的 padding: 4px 6px 36px 同套路 */
 .sticky-note__conflict-footer {
   flex: none;
   display: flex;
   justify-content: flex-end;
-  padding: 2px 10px 8px;
+  padding: 2px 10px 36px;
 }
 
+/* 保存按钮跟随便签色：与冲突横幅同一组 --tag-* 变量 */
 .sticky-note__conflict-save {
   display: inline-flex;
   align-items: center;
@@ -589,14 +606,14 @@ input.sticky-note__groupname-input::placeholder {
   font-size: 12px;
   padding: 3px 12px;
   border-radius: 4px;
-  border: 1px solid #e0a800;
-  background: #ffca2c;
-  color: #4e342e;
+  border: 1px solid color-mix(in srgb, var(--tag-ink) 45%, transparent);
+  background: var(--tag-bg);
+  color: var(--tag-ink);
   cursor: pointer;
 }
 
 .sticky-note__conflict-save:hover {
-  background: #ffc107;
+  background: color-mix(in srgb, var(--tag-ink) 20%, transparent);
 }
 
 .sticky-note__conflict-save:disabled {
