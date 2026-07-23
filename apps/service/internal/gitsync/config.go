@@ -1,0 +1,66 @@
+// sync 配置持久化：存 Go 服务自己的配置区 <vault>/.pinslip/git-sync.json，
+// 而非设计稿写的 Electron settings.json——服务拥有配置更内聚（服务才是真正的
+// 同步执行者，Electron 只是渲染层），且 .pinslip/ 已被 .gitignore 排除，
+// token 不会随同步泄露。
+package gitsync
+
+import (
+	"encoding/json"
+	"errors"
+	"os"
+	"path/filepath"
+)
+
+// SyncConfig 是 git 同步配置。token 只落盘到 .pinslip/git-sync.json，
+// 绝不进日志、不进 git 跟踪、不出现在 status 响应里。
+type SyncConfig struct {
+	URL      string `json:"url"`
+	Username string `json:"username"`
+	Token    string `json:"token"`
+	Branch   string `json:"branch"` // 默认 main
+	Enabled  bool   `json:"enabled"`
+}
+
+// normalize 补默认值并做最小校验。
+func (c *SyncConfig) normalize() error {
+	if c.Branch == "" {
+		c.Branch = "main"
+	}
+	if c.Enabled && c.URL == "" {
+		return errors.New("启用同步必须提供仓库地址 url")
+	}
+	return nil
+}
+
+func configPath(vaultDir string) string {
+	return filepath.Join(vaultDir, ".pinslip", "git-sync.json")
+}
+
+// loadSyncConfig 读取同步配置；文件不存在返回 nil（未配置），损坏返回错误。
+func loadSyncConfig(vaultDir string) (*SyncConfig, error) {
+	data, err := os.ReadFile(configPath(vaultDir))
+	if errors.Is(err, os.ErrNotExist) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	var cfg SyncConfig
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		return nil, err
+	}
+	return &cfg, cfg.normalize()
+}
+
+// saveSyncConfig 写回同步配置（0600：含 token，仅本用户可读）。
+func saveSyncConfig(vaultDir string, cfg *SyncConfig) error {
+	data, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		return err
+	}
+	p := configPath(vaultDir)
+	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(p, data, 0o600)
+}

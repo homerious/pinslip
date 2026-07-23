@@ -23,9 +23,13 @@ import SortAscendingIcon from '~icons/ph/sort-ascending';
 import SortDescendingIcon from '~icons/ph/sort-descending';
 import ArrowsClockwiseIcon from '~icons/ph/arrows-clockwise';
 import InfoIcon from '~icons/ph/info';
-import type { NoteMeta, SearchHit, UpdateState } from '@shared/types';
+import GitBranchIcon from '~icons/ph/git-branch';
+import WarningIcon from '~icons/ph/warning';
+import type { NoteMeta, SearchHit, SyncStatus, UpdateState } from '@shared/types';
 import { foldersApi, notesApi, settingsApi, trashApi } from '../api/notes';
 import type { TrashStats } from '../api/notes';
+import { syncApi } from '../api/sync';
+import { apiErrorMessage } from '../api/client';
 import { shortenFolder } from '../utils/path';
 import { highlightTerms, windowAroundMatch } from '../components/search-highlight';
 
@@ -43,6 +47,20 @@ function formatSize(bytes: number): string {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
   return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
+}
+
+/** 相对时间：同步状态的「上次同步」用。Go 零值时间（0001 年）= 从未同步 */
+function formatRelativeTime(iso?: string): string {
+  if (!iso) return '从未同步';
+  const t = new Date(iso);
+  if (Number.isNaN(t.getTime()) || t.getFullYear() <= 1) return '从未同步';
+  const diff = Date.now() - t.getTime();
+  if (diff < 45_000) return '刚刚';
+  const min = Math.floor(diff / 60_000);
+  if (min < 60) return `${min} 分钟前`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `${h} 小时前`;
+  return `${Math.floor(h / 24)} 天前`;
 }
 
 type Stage = 'loading' | 'setup' | 'ready';
@@ -98,6 +116,13 @@ export default function MainView() {
   const [trashStats, setTrashStats] = useState<TrashStats | null>(null);
   const [trashRetention, setTrashRetention] = useState(30);
   const [emptyConfirm, setEmptyConfirm] = useState(false);
+  // git 同步：状态快照 + 编辑表单（token 不回显，留空=不修改）+ 交互态
+  const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null);
+  const [syncForm, setSyncForm] = useState({ url: '', username: '', token: '', branch: 'main' });
+  const [syncEditing, setSyncEditing] = useState(false);
+  const [syncDisableConfirm, setSyncDisableConfirm] = useState(false);
+  const [syncBusy, setSyncBusy] = useState(false);
+  const [syncFormError, setSyncFormError] = useState('');
   // 三视图：列表（全部平铺）/ 文件夹（分层导航）/ 标签（按标签分组）
   const [view, setView] = useState<'list' | 'folders' | 'tags'>('list');
   // 文件夹导航：currentFolder 为 notes/ 相对路径（"" 根目录）
@@ -374,6 +399,40 @@ export default function MainView() {
       .catch(() => {});
   }, [settingsOpen]);
 
+  // git 同步状态：抽屉打开时拉一次并重置交互态；打开期间每 30s 轮询，关闭即停
+  useEffect(() => {
+    if (!settingsOpen) return;
+    setSyncEditing(false);
+    setSyncDisableConfirm(false);
+    setSyncFormError('');
+    const load = () =>
+      syncApi
+        .getStatus()
+        .then((st) => {
+          setSyncStatus(st);
+          // 表单回填（token 不回显：永不进状态与表单初值）
+          if (st.configured) {
+            setSyncForm({
+              url: st.url ?? '',
+              username: st.username ?? '',
+              token: '',
+              branch: st.branch || 'main',
+            });
+          }
+        })
+        .catch(() => setSyncStatus(null));
+    void load();
+    const timer = setInterval(() => void load(), 30_000);
+    return () => clearInterval(timer);
+  }, [settingsOpen]);
+
+  // 停用两阶段确认：3 秒内未再点自动复位（同清空回收区套路）
+  useEffect(() => {
+    if (!syncDisableConfirm) return;
+    const timer = setTimeout(() => setSyncDisableConfirm(false), 3000);
+    return () => clearTimeout(timer);
+  }, [syncDisableConfirm]);
+
   // 清空回收区：两阶段确认（第一次点击进入确认态，3 秒内再点执行，超时复位）
   useEffect(() => {
     if (!emptyConfirm) return;
@@ -399,6 +458,56 @@ export default function MainView() {
     setTrashRetention(days);
     settingsApi.update({ trashRetentionDays: days }).catch(() => {});
   }, []);
+
+  // 保存 git 同步配置（含首次接入；接入失败原因进表单错误区）
+  const saveSyncConfig = useCallback(() => {
+    const url = syncForm.url.trim();
+    if (!url || syncBusy) return;
+    setSyncBusy(true);
+    setSyncFormError('');
+    syncApi
+      .saveConfig({
+        url,
+        username: syncForm.username.trim(),
+        token: syncForm.token, // 空串 = 不修改已存 token（Go 侧语义）
+        branch: syncForm.branch.trim() || 'main',
+        enabled: true,
+      })
+      .then((st) => {
+        setSyncStatus(st);
+        setSyncEditing(false);
+        setSyncForm((f) => ({ ...f, token: '' })); // token 不留内存态
+      })
+      .catch((err) => setSyncFormError(apiErrorMessage(err)))
+      .finally(() => setSyncBusy(false));
+  }, [syncForm, syncBusy]);
+
+  // 立即同步一轮（syncNow 不抛错，结果全在返回状态里）
+  const doSyncNow = useCallback(() => {
+    if (syncBusy) return;
+    setSyncBusy(true);
+    syncApi
+      .syncNow()
+      .then(setSyncStatus)
+      .catch(() => {})
+      .finally(() => setSyncBusy(false));
+  }, [syncBusy]);
+
+  // 停用同步：两阶段确认；保留 .git 与已存凭证
+  const disableSync = useCallback(() => {
+    if (!syncDisableConfirm) {
+      setSyncDisableConfirm(true);
+      return;
+    }
+    setSyncDisableConfirm(false);
+    setSyncBusy(true);
+    syncApi
+      .disable()
+      .then(() => syncApi.getStatus())
+      .then(setSyncStatus)
+      .catch(() => {})
+      .finally(() => setSyncBusy(false));
+  }, [syncDisableConfirm]);
 
   // 选择/更换保险库：主进程弹目录选择框，成功后重启服务，刷新本窗口
   const chooseVault = useCallback(() => {
@@ -443,9 +552,15 @@ export default function MainView() {
           </span>
         )}
       </span>
-      {/* 标签独立一行，与时间行分开，清晰可读 */}
-      {(note.tags ?? []).length > 0 && (
+      {/* 标签独立一行，与时间行分开，清晰可读；冲突标识优先于标签（没有标签也要显示） */}
+      {(note.tags ?? []).length > 0 || note.conflicted ? (
         <span className="note-list__badges">
+          {note.conflicted && (
+            <span className="note-list__conflict" title="此便签有 git 冲突标记，请打开内容解决">
+              <WarningIcon />
+              待解冲突
+            </span>
+          )}
           {(note.tags ?? []).slice(0, 2).map((t) => (
             <span key={t} className="note-list__tag">
               <TagFillIcon />
@@ -456,7 +571,7 @@ export default function MainView() {
             <span className="note-list__tag">+{note.tags!.length - 2}</span>
           )}
         </span>
-      )}
+      ) : null}
       {!note.inbox && (
         <button
           className="note-list__open"
@@ -695,6 +810,168 @@ export default function MainView() {
               </div>
               <div className="settings-panel__hint">{updateHint(updateState, isPackaged)}</div>
             </div>
+
+            <div className="settings-panel__section">Git 同步</div>
+            <div className="settings-card">
+              {/* 未配置 / 编辑态：配置表单（token 永不回显，留空=不修改） */}
+              {!syncStatus?.configured || syncEditing ? (
+                <>
+                  <div className="settings-panel__field">
+                    <span className="settings-panel__field-label">仓库地址</span>
+                    <input
+                      className="settings-panel__input"
+                      value={syncForm.url}
+                      placeholder="https://github.com/you/pinslip-vault.git"
+                      spellCheck={false}
+                      onChange={(e) => setSyncForm((f) => ({ ...f, url: e.target.value }))}
+                    />
+                  </div>
+                  <div className="settings-panel__field">
+                    <span className="settings-panel__field-label">用户名</span>
+                    <input
+                      className="settings-panel__input"
+                      value={syncForm.username}
+                      placeholder="git 用户名"
+                      spellCheck={false}
+                      onChange={(e) => setSyncForm((f) => ({ ...f, username: e.target.value }))}
+                    />
+                  </div>
+                  <div className="settings-panel__field">
+                    <span className="settings-panel__field-label">访问令牌</span>
+                    <input
+                      className="settings-panel__input"
+                      type="password"
+                      value={syncForm.token}
+                      placeholder={syncStatus?.configured ? '留空则不修改' : 'personal access token'}
+                      autoComplete="off"
+                      onChange={(e) => setSyncForm((f) => ({ ...f, token: e.target.value }))}
+                    />
+                  </div>
+                  <div className="settings-panel__field">
+                    <span className="settings-panel__field-label">分支</span>
+                    <input
+                      className="settings-panel__input"
+                      value={syncForm.branch}
+                      placeholder="main"
+                      spellCheck={false}
+                      onChange={(e) => setSyncForm((f) => ({ ...f, branch: e.target.value }))}
+                    />
+                  </div>
+                  {syncFormError && <div className="settings-panel__error">{syncFormError}</div>}
+                  <div className="settings-panel__actions">
+                    {syncStatus?.configured && (
+                      <button
+                        className="settings-panel__btn"
+                        onClick={() => {
+                          setSyncEditing(false);
+                          setSyncFormError('');
+                        }}
+                      >
+                        取消
+                      </button>
+                    )}
+                    <button
+                      className="settings-panel__btn"
+                      disabled={syncBusy || !syncForm.url.trim()}
+                      onClick={saveSyncConfig}
+                    >
+                      {syncBusy ? '接入中…' : '保存并启用'}
+                    </button>
+                  </div>
+                  <div className="settings-panel__hint">
+                    支持 GitHub / Gitee 等 HTTPS 仓库；token 只保存在本机 vault 的 .pinslip/
+                    内，不会上传
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="settings-panel__row">
+                    <GitBranchIcon className="settings-panel__row-icon" />
+                    <span className="settings-panel__label">{syncStatus.branch || 'main'}</span>
+                    <span className="settings-panel__value" title={syncStatus.url}>
+                      {syncStatus.url}
+                    </span>
+                  </div>
+                  <div className="settings-panel__row">
+                    <ArrowsClockwiseIcon className="settings-panel__row-icon" />
+                    <span className="settings-panel__label">上次同步</span>
+                    <span className="settings-panel__value">
+                      {syncStatus.enabled
+                        ? `${formatRelativeTime(syncStatus.lastSyncAt)}${
+                            syncStatus.ahead > 0 ? ` · 待推送 ${syncStatus.ahead} 条` : ''
+                          }`
+                        : '已停用'}
+                    </span>
+                  </div>
+                  {syncStatus.conflictedFiles.length > 0 && (
+                    <div className="settings-panel__row">
+                      <WarningIcon className="settings-panel__row-icon settings-panel__row-icon--danger" />
+                      <span className="settings-panel__label settings-panel__label--danger">
+                        待解冲突 {syncStatus.conflictedFiles.length} 个文件
+                      </span>
+                      <span
+                        className="settings-panel__value"
+                        title={syncStatus.conflictedFiles.join('\n')}
+                      >
+                        {syncStatus.conflictedFiles[0]}
+                        {syncStatus.conflictedFiles.length > 1 ? ' 等' : ''}
+                      </span>
+                    </div>
+                  )}
+                  {syncStatus.lastError && (
+                    <div className="settings-panel__error">{syncStatus.lastError}</div>
+                  )}
+                  <div className="settings-panel__actions">
+                    {syncStatus.enabled ? (
+                      <>
+                        <button
+                          className="settings-panel__btn"
+                          disabled={syncBusy}
+                          onClick={doSyncNow}
+                        >
+                          <ArrowsClockwiseIcon /> 立即同步
+                        </button>
+                        <button
+                          className="settings-panel__btn"
+                          disabled={syncBusy}
+                          onClick={() => setSyncEditing(true)}
+                        >
+                          修改配置
+                        </button>
+                        <button
+                          className={`settings-panel__btn${syncDisableConfirm ? ' is-danger' : ''}`}
+                          disabled={syncBusy}
+                          onClick={disableSync}
+                        >
+                          {syncDisableConfirm ? '确认停用？' : '停用'}
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          className="settings-panel__btn"
+                          disabled={syncBusy || !syncForm.url.trim()}
+                          onClick={saveSyncConfig}
+                        >
+                          重新启用
+                        </button>
+                        <button
+                          className="settings-panel__btn"
+                          disabled={syncBusy}
+                          onClick={() => setSyncEditing(true)}
+                        >
+                          修改配置
+                        </button>
+                      </>
+                    )}
+                  </div>
+                  <div className="settings-panel__hint">
+                    便签变更 3 分钟无操作自动提交，每 10 分钟自动推拉；冲突内容会写入标准 git
+                    markers，解完即消失
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </>
       )}
@@ -832,6 +1109,17 @@ export default function MainView() {
                   {highlightTerms(windowAroundMatch(hit.title, hitTerms, 20), hitTerms)}
                 </span>
                 <span className="note-list__snippet">{highlightTerms(hit.snippet, hitTerms)}</span>
+                {hit.conflicted && (
+                  <span className="note-list__badges">
+                    <span
+                      className="note-list__conflict"
+                      title="此便签有 git 冲突标记，请打开内容解决"
+                    >
+                      <WarningIcon />
+                      待解冲突
+                    </span>
+                  </span>
+                )}
               </li>
             ))}
             {hits.length === 0 && <li className="note-list__empty">无匹配结果</li>}

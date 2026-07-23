@@ -41,3 +41,19 @@ export async function postRaw<T>(path: string, body: Blob): Promise<T> {
   }
   return (await res.json()) as T;
 }
+
+/** 把 request() 抛出的错误提炼成可读文案：Go 侧 4xx/5xx 响应体是
+ *  {"error": "原因"} JSON，提取 error 字段；提取不了就回退原文。 */
+export function apiErrorMessage(err: unknown): string {
+  const msg = err instanceof Error ? err.message : String(err);
+  const m = msg.match(/^API \d+: ([\s\S]*)$/);
+  if (m) {
+    try {
+      const j = JSON.parse(m[1]) as { error?: unknown };
+      if (typeof j.error === 'string' && j.error) return j.error;
+    } catch {
+      /* 非 JSON 响应体：用原文 */
+    }
+  }
+  return msg;
+}

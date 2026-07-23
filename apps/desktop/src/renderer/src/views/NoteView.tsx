@@ -50,6 +50,11 @@ function deriveTitle(markdown: string): string {
   for (const raw of markdown.split('\n')) {
     let line = raw.trim();
     if (!line) continue;
+    // git 冲突标记行不参与标题推导（与服务端 deriveTitle 的守卫一致，
+    // 否则冲突便签窗口标题会显示成标记符）
+    if (line.startsWith('<<<<<<<') || line.startsWith('=======') || line.startsWith('>>>>>>>')) {
+      continue;
+    }
     // 块级前缀：循环剥（叠加前缀如 "> ## "）
     while (BLOCK_PREFIX.test(line)) {
       const next = line.replace(BLOCK_PREFIX, '').trim();

@@ -22,19 +22,20 @@ type Note struct {
 
 // Meta 是列表项（不含正文）。
 type Meta struct {
-	ID        string    `json:"id"`
-	Title     string    `json:"title"`
-	Tags      []string  `json:"tags"`
-	Source    string    `json:"source"`
-	Pin       bool      `json:"pin"`
-	Color     string    `json:"color"`
-	Collapsed bool      `json:"collapsed"`
-	Group     string    `json:"group"` // 所属便签组 id（"" = 不属于任何组）
-	Inbox     bool      `json:"inbox"`
-	Folder    string    `json:"folder"`
-	WordCount int       `json:"wordCount"`
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
+	ID         string    `json:"id"`
+	Title      string    `json:"title"`
+	Tags       []string  `json:"tags"`
+	Source     string    `json:"source"`
+	Pin        bool      `json:"pin"`
+	Color      string    `json:"color"`
+	Collapsed  bool      `json:"collapsed"`
+	Group      string    `json:"group"` // 所属便签组 id（"" = 不属于任何组）
+	Inbox      bool      `json:"inbox"`
+	Folder     string    `json:"folder"`
+	WordCount  int       `json:"wordCount"`
+	Conflicted bool      `json:"conflicted"` // 内容含 git 冲突标记行（^<<<<<<< ）
+	CreatedAt  time.Time `json:"createdAt"`
+	UpdatedAt  time.Time `json:"updatedAt"`
 }
 
 // MoveInput 是 POST /api/notes/{id}/move 的请求体。

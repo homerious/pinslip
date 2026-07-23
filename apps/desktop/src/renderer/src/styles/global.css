@@ -1325,6 +1325,55 @@ input.sticky-note__groupname-input::placeholder {
   color: #555;
 }
 
+/* git 同步配置表单：标签列 + 文本输入（输入框风格同 settings-panel__select） */
+.settings-panel__field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+}
+
+.settings-panel__field-label {
+  font-size: 12px;
+  color: #444;
+  flex: none;
+  width: 56px;
+}
+
+.settings-panel__input {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 8px;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  background: #fff;
+  font-size: 12px;
+  color: #555;
+  outline: none;
+}
+
+.settings-panel__input:focus {
+  border-color: #e0b93f;
+}
+
+/* 同步错误/表单校验错误（认证失败、非空仓库拒绝等，红色高亮） */
+.settings-panel__error {
+  font-size: 11px;
+  color: #c62828;
+  margin-top: 6px;
+  word-break: break-all;
+}
+
+/* 待解冲突行的醒目配色 */
+.settings-panel__row-icon--danger {
+  color: #d32f2f;
+}
+
+.settings-panel__label--danger {
+  color: #d32f2f;
+  font-weight: 600;
+}
+
 .main-view__header {
   display: flex;
   align-items: center;
@@ -1662,6 +1711,26 @@ input.sticky-note__groupname-input::placeholder {
 }
 
 .note-list__tag svg {
+  width: 9px;
+  height: 9px;
+}
+
+/* git 冲突标识：红底描边 chip，与同排的便签色 tag 明确区分 */
+.note-list__conflict {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 6px;
+  border-radius: 8px;
+  background: #fdecea;
+  border: 1px solid #f0b8b2;
+  font-size: 10px;
+  line-height: 15px;
+  color: #c62828;
+  font-weight: 600;
+}
+
+.note-list__conflict svg {
   width: 9px;
   height: 9px;
 }

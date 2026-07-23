@@ -283,6 +283,12 @@ func deriveTitle(content string) string {
 		if line == "" {
 			continue
 		}
+		// git 冲突标记行不参与标题推导：否则冲突文件会被重命名成
+		// "<<<<<<< HEAD（本地）" 这类魔幻标记符（格式锚点见 gitsync 包）
+		if strings.HasPrefix(line, "<<<<<<<") || strings.HasPrefix(line, "=======") ||
+			strings.HasPrefix(line, ">>>>>>>") {
+			continue
+		}
 		// 块级前缀：循环剥（叠加前缀如 "> ## "）
 		for titleBlockPrefix.MatchString(line) {
 			next := strings.TrimSpace(titleBlockPrefix.ReplaceAllString(line, ""))
@@ -354,18 +360,26 @@ func toMeta(fm *storage.Frontmatter, body string, inbox bool, folder string) Met
 		title = deriveTitle(body)
 	}
 	return Meta{
-		ID:        note.ID,
-		Title:     title,
-		Tags:      note.Tags,
-		Source:    note.Source,
-		Pin:       note.Pin,
-		Color:     note.Color,
-		Collapsed: note.Collapsed,
-		Group:     note.Group,
-		Inbox:     note.Inbox,
-		Folder:    note.Folder,
-		WordCount: utf8.RuneCountInString(body),
-		CreatedAt: note.CreatedAt,
-		UpdatedAt: note.UpdatedAt,
+		ID:         note.ID,
+		Title:      title,
+		Tags:       note.Tags,
+		Source:     note.Source,
+		Pin:        note.Pin,
+		Color:      note.Color,
+		Collapsed:  note.Collapsed,
+		Group:      note.Group,
+		Inbox:      note.Inbox,
+		Folder:     note.Folder,
+		WordCount:  utf8.RuneCountInString(body),
+		Conflicted: hasConflictMarkers(body),
+		CreatedAt:  note.CreatedAt,
+		UpdatedAt:  note.UpdatedAt,
 	}
+}
+
+// hasConflictMarkers 报告内容是否含 git 冲突标记行（^<<<<<<< ）。
+// 与 gitsync.HasConflictMarkers 同款逻辑（此处复刻以保持包间解耦，
+// 格式锚点是 gitsync 的 conflictMarkerOurs）。
+func hasConflictMarkers(content string) bool {
+	return strings.HasPrefix(content, "<<<<<<< ") || strings.Contains(content, "\n<<<<<<< ")
 }

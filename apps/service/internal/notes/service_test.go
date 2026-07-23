@@ -34,6 +34,60 @@ func newTestService(t *testing.T) (*Service, *storage.Engine) {
 func strPtr(s string) *string { return &s }
 func boolPtr(b bool) *bool    { return &b }
 
+// 含冲突标记的便签：meta 与检索结果都带 conflicted=true，标题不被标记污染。
+func TestConflictedNoteMetaAndSearch(t *testing.T) {
+	svc, _ := newTestService(t)
+
+	content := "<<<<<<< HEAD（本地）\n购物清单\n=======\n远端版本\n>>>>>>> origin/main（远端）\n牛奶\n鸡蛋\n"
+	if _, err := svc.Save("conf01", SaveInput{Content: strPtr(content)}); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+
+	metas, err := svc.List()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(metas) != 1 {
+		t.Fatalf("应有 1 条便签: %d", len(metas))
+	}
+	if !metas[0].Conflicted {
+		t.Error("meta.Conflicted 应为 true")
+	}
+	if metas[0].Title != "购物清单" {
+		t.Errorf("标题应跳过标记行取正文, got %q", metas[0].Title)
+	}
+
+	hits, err := svc.Search("牛奶", 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hits) != 1 || !hits[0].Conflicted {
+		t.Errorf("检索结果应带 conflicted=true: %+v", hits)
+	}
+
+	// 解决冲突后标记消失
+	resolved := "购物清单\n牛奶\n鸡蛋\n"
+	if _, err := svc.Save("conf01", SaveInput{Content: strPtr(resolved)}); err != nil {
+		t.Fatal(err)
+	}
+	metas, _ = svc.List()
+	if metas[0].Conflicted {
+		t.Error("解决冲突后 meta.Conflicted 应为 false")
+	}
+}
+
+// 普通便签不带 conflicted。
+func TestNormalNoteNotConflicted(t *testing.T) {
+	svc, _ := newTestService(t)
+	if _, err := svc.Save("norm01", SaveInput{Content: strPtr("普通便签\n<<<<<< 六个小于号不算\n")}); err != nil {
+		t.Fatal(err)
+	}
+	metas, _ := svc.List()
+	if len(metas) != 1 || metas[0].Conflicted {
+		t.Errorf("普通便签不应标 conflicted: %+v", metas)
+	}
+}
+
 // 新建：未显式给标题时从 Markdown 首行推导，source 默认 sticky，文件落盘。
 func TestSaveCreatesNoteWithDerivedTitle(t *testing.T) {
 	svc, store := newTestService(t)
@@ -401,6 +455,11 @@ func TestDeriveTitle(t *testing.T) {
 		{"整行链接", "[设计文档](https://example.com)", "设计文档"},
 		{"整行图片取alt", "![架构图](../attachments/a.png)", "架构图"},
 		{"图片无alt跳过", "![](../attachments/a.png)\n后续行", "后续行"},
+		// git 冲突标记守卫：标记行不参与标题推导（设计稿「标题推导跳过标记行」）
+		{"冲突标记跳过取正文", "<<<<<<< HEAD（本地）\n本地标题\n=======\n远端标题\n>>>>>>> origin/main（远端）", "本地标题"},
+		{"冲突块后取后续正文", "<<<<<<< HEAD（本地）\n=======\n>>>>>>> origin/main（远端）\n真正标题", "真正标题"},
+		{"仅分隔符行跳过", "=======\n正文", "正文"},
+		{"全是标记行回退未命名", "<<<<<<< HEAD（本地）\n=======\n>>>>>>> origin/main（远端）", "未命名"},
 		{"空内容", "", "未命名"},
 		{"全空行", "\n\n  \n", "未命名"},
 		{

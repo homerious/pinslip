@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"pinslip/service/internal/config"
+	"pinslip/service/internal/gitsync"
 	"pinslip/service/internal/index"
 	"pinslip/service/internal/notes"
 	"pinslip/service/internal/server"
@@ -73,7 +74,16 @@ func main() {
 		defer stopWatch()
 	}
 
-	srv := server.New(server.NewRouter(notes.NewHandler(svc), version))
+	// git 同步引擎：已配置且启用时启动同步循环（启动 pull → 防抖 commit → 定时 push）
+	syncEngine, err := gitsync.NewEngine(cfg.DataDir, logger)
+	if err != nil {
+		// 配置损坏不阻塞服务启动：引擎按未配置状态运行（status API 可见 enabled=false）
+		logger.Error("加载 git 同步配置失败（按未配置继续运行）", "error", err)
+	}
+	syncEngine.Start()
+	defer syncEngine.Stop() // Stop 内含退出前 5s 尽力 push
+
+	srv := server.New(server.NewRouter(notes.NewHandler(svc), gitsync.NewHandler(syncEngine), version))
 	port, err := srv.Start()
 	if err != nil {
 		logger.Fatal("启动 HTTP 服务失败", "error", err)

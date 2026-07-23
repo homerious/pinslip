@@ -38,6 +38,8 @@ export interface NoteMeta {
   /** notes/ 下的相对子目录（正斜杠分隔），"" 为根目录 */
   folder: string;
   wordCount: number;
+  /** 内容含 git 冲突标记行（^<<<<<<< ），列表显示「待解冲突」标识 */
+  conflicted: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -74,6 +76,35 @@ export interface SearchHit {
   id: string;
   title: string;
   snippet: string;
+  /** 内容含 git 冲突标记行（^<<<<<<< ），结果显示「待解冲突」标识 */
+  conflicted: boolean;
+}
+
+/** git 同步状态（GET /api/sync/status 响应；token 永不返回） */
+export interface SyncStatus {
+  enabled: boolean;
+  configured: boolean;
+  url?: string;
+  username?: string;
+  branch?: string;
+  /** RFC3339；Go 零值时间（0001-01-01）= 从未同步 */
+  lastSyncAt?: string;
+  lastError?: string;
+  /** 本地领先远端提交数（待推送） */
+  ahead: number;
+  behind: number;
+  /** 含冲突 markers 的 .md 文件（vault 相对路径） */
+  conflictedFiles: string[];
+}
+
+/** PUT /api/sync/config 请求体；token 空串 = 不修改已存 token */
+export interface SaveSyncConfigInput {
+  url: string;
+  username: string;
+  /** 留空 = 保留已存 token（表单不回显凭证） */
+  token: string;
+  branch: string;
+  enabled: boolean;
 }
 
 /** 主进程提供给渲染进程的运行时信息 */

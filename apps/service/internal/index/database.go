@@ -30,9 +30,10 @@ type Record struct {
 
 // Hit 是一条搜索结果。
 type Hit struct {
-	ID      string `json:"id"`
-	Title   string `json:"title"`
-	Snippet string `json:"snippet"`
+	ID         string `json:"id"`
+	Title      string `json:"title"`
+	Snippet    string `json:"snippet"`
+	Conflicted bool   `json:"conflicted"` // 内容含 git 冲突标记行（^<<<<<<< ）
 }
 
 // Open 打开（必要时创建）索引数据库并建表。
@@ -195,9 +196,16 @@ func scanRaw(rows *sql.Rows, terms []string) ([]Hit, error) {
 			return nil, err
 		}
 		h.Snippet = makeSnippet(raw, terms)
+		h.Conflicted = hasConflictMarkers(raw)
 		hits = append(hits, h)
 	}
 	return hits, rows.Err()
+}
+
+// hasConflictMarkers 报告内容是否含 git 冲突标记行（^<<<<<<< ）。
+// 与 gitsync.HasConflictMarkers 同款逻辑（复刻以保持包间解耦）。
+func hasConflictMarkers(content string) bool {
+	return strings.HasPrefix(content, "<<<<<<< ") || strings.Contains(content, "\n<<<<<<< ")
 }
 
 // makeSnippet 从原文中提取命中片段：以首个命中词为锚点取短窗口（命中词放
