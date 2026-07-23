@@ -879,7 +879,7 @@ export default function MainView() {
                     </button>
                   </div>
                   <div className="settings-panel__hint">
-                    支持 GitHub / Gitee 等 HTTPS 仓库；token 只保存在本机 vault 的 .pinslip/
+                    支持 GitHub / cnb 等 HTTPS 仓库（国内推荐 cnb，访问稳定）；token 只保存在本机 vault 的 .pinslip/
                     内，不会上传
                   </div>
                 </>
