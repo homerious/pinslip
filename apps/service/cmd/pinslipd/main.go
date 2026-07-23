@@ -15,6 +15,7 @@ import (
 	"pinslip/service/internal/config"
 	"pinslip/service/internal/gitsync"
 	"pinslip/service/internal/index"
+	"pinslip/service/internal/mcpserver"
 	"pinslip/service/internal/notes"
 	"pinslip/service/internal/server"
 	"pinslip/service/internal/storage"
@@ -83,10 +84,21 @@ func main() {
 	syncEngine.Start()
 	defer syncEngine.Stop() // Stop 内含退出前 5s 尽力 push
 
-	srv := server.New(server.NewRouter(notes.NewHandler(svc), gitsync.NewHandler(syncEngine), version))
+	srv := server.New(server.NewRouter(
+		notes.NewHandler(svc),
+		gitsync.NewHandler(syncEngine),
+		mcpserver.NewHandler(svc, syncEngine, version),
+		version,
+	))
 	port, err := srv.Start()
 	if err != nil {
 		logger.Fatal("启动 HTTP 服务失败", "error", err)
+	}
+
+	// MCP 接入发现：写 <vault>/.pinslip/mcp.json，agent 读文件即知怎么连；
+	// 优雅退出时删除（残留文件会让 agent 误判服务在线）
+	if err := mcpserver.WriteDiscovery(cfg.DataDir, port, version); err != nil {
+		logger.Error("写入 MCP 发现文件失败（继续运行）", "error", err)
 	}
 
 	// 这行输出是 Electron 主进程发现端口的约定，格式不可改
@@ -102,6 +114,9 @@ func main() {
 	defer cancel()
 	_ = srv.Shutdown(ctx)
 	_ = os.Remove(portFilePath())
+	if err := mcpserver.RemoveDiscovery(cfg.DataDir); err != nil {
+		logger.Error("删除 MCP 发现文件失败", "error", err)
+	}
 	logger.Info("pinslipd 已关闭")
 }
 

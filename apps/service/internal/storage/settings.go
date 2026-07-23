@@ -14,6 +14,14 @@ const DefaultTrashRetentionDays = 30
 type Settings struct {
 	// TrashRetentionDays 回收区保留天数；<= 0 表示不自动清理
 	TrashRetentionDays int `json:"trashRetentionDays"`
+	// McpEnabled MCP 服务（/mcp 端点）开关；nil = 缺省开启
+	// （指针是为了区分「未设置」与「显式关闭」——布尔零值无法表达三态）
+	McpEnabled *bool `json:"mcpEnabled,omitempty"`
+}
+
+// IsMcpEnabled MCP 服务是否开启：缺省 true，仅显式 false 才关闭。
+func (s *Settings) IsMcpEnabled() bool {
+	return s.McpEnabled == nil || *s.McpEnabled
 }
 
 func defaultSettings() *Settings {
