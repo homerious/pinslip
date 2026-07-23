@@ -6,6 +6,8 @@ export const IPC = {
   WindowCreate: 'window:create',
   /** 关闭指定便签窗口，参数 noteId */
   WindowClose: 'window:close',
+  /** 查询调用方窗口的 DevTools 是否打开（速记窗失焦关闭的调试豁免用） */
+  WindowDevToolsOpen: 'window:devtools-open',
   /** 切换便签置顶状态，参数 (noteId, pinned) */
   WindowSetPin: 'window:setPin',
   /** 折叠/展开便签窗口，参数 (noteId, collapsed) */

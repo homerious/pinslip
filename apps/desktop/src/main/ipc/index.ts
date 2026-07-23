@@ -1,4 +1,4 @@
-import { app, dialog, ipcMain, shell } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
 import { existsSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { IPC } from '../../shared/ipc-channels';
@@ -40,6 +40,12 @@ export function registerIpcHandlers({ windowManager, goProcess }: IpcContext): v
 
   ipcMain.handle(IPC.WindowClose, (_event, noteId: string) => {
     windowManager.closeNoteWindow(noteId);
+  });
+
+  // 速记窗失焦豁免判定：渲染层 blur 时查询 DevTools 是否开着（开着则不关窗）
+  ipcMain.handle(IPC.WindowDevToolsOpen, (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    return win ? win.webContents.isDevToolsOpened() : false;
   });
 
   ipcMain.handle(IPC.WindowSetPin, (_event, noteId: string, pinned: boolean) => {

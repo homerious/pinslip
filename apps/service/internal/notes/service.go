@@ -121,14 +121,23 @@ func (s *Service) Save(id string, in SaveInput) (*Note, error) {
 	return toNote(fm, content, inbox, folder), nil
 }
 
-// QuickCapture 速记：写入 inbox。
+// QuickCapture 速记：按 vault 设置的落点模式写入收集箱——
+// 'note'（默认）逐条新建；'daily' 聚合到今日便签（见 quickCaptureDaily）。
 func (s *Service) QuickCapture(content string) (*Note, error) {
+	if s.GetSettings().QuickMode() == storage.QuickModeDaily {
+		return s.quickCaptureDaily(content)
+	}
+	return s.saveQuickToInbox(SaveInput{Content: &content, Source: "quick"})
+}
+
+// saveQuickToInbox 新建速记到 inbox：Save 默认落 notes/，随后挪到 inbox/
+// （engine.Save 会自动清理旧路径）。
+func (s *Service) saveQuickToInbox(in SaveInput) (*Note, error) {
 	id := NewID()
-	note, err := s.Save(id, SaveInput{Content: &content, Source: "quick"})
+	note, err := s.Save(id, in)
 	if err != nil {
 		return nil, err
 	}
-	// Save 默认写到 notes/，速记需要挪到 inbox/（engine.Save 会自动清理旧路径）
 	fm, body, _, _, err := s.store.Load(id)
 	if err != nil {
 		return nil, err
@@ -138,6 +147,43 @@ func (s *Service) QuickCapture(content string) (*Note, error) {
 	}
 	note.Inbox = true
 	return note, nil
+}
+
+// quickCaptureDaily 聚合模式：把内容追加到标题「速记 YYYY-MM-DD」的 inbox 便签
+// （不存在则新建，落点与逐条模式一致），条目格式「### HH:mm」小标题 + 空行 + 内容，
+// 条目间空行分隔。复用同一 upsert 服务层，索引/frontmatter 行为与界面入口一致。
+func (s *Service) quickCaptureDaily(content string) (*Note, error) {
+	now := time.Now()
+	title := "速记 " + now.Format("2006-01-02")
+	entry := "### " + now.Format("15:04") + "\n\n" + content
+
+	// 找今日便签：inbox 内标题精确匹配（用户改标题/挪出收集箱则视为没有，另起新签）
+	id := ""
+	metas, err := s.List()
+	if err != nil {
+		return nil, err
+	}
+	for _, m := range metas {
+		if m.Inbox && m.Title == title {
+			id = m.ID
+			break
+		}
+	}
+	if id == "" {
+		// 标题显式给定：否则首行是「### HH:mm」，deriveTitle 会把便签命名成时间
+		return s.saveQuickToInbox(SaveInput{Content: &entry, Title: title, Source: "quick"})
+	}
+
+	// 追加：读出 → 拼接 → 同一 upsert（标题显式回写，防被重新推导）
+	note, err := s.Get(id)
+	if err != nil {
+		return nil, err
+	}
+	merged := entry
+	if strings.TrimRight(note.Content, "\n") != "" {
+		merged = strings.TrimRight(note.Content, "\n") + "\n\n" + entry
+	}
+	return s.Save(id, SaveInput{Content: &merged, Title: title})
 }
 
 // Delete 删除笔记：移入回收区（可找回）并清出索引。

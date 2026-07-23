@@ -242,17 +242,25 @@ func (h *Handler) getSettings(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, h.svc.GetSettings())
 }
 
-// saveSettings 写回 vault 设置：PUT /api/settings {trashRetentionDays, mcpEnabled?}。
-// mcpEnabled 未提供（null/缺省）时保留磁盘现值——旧版客户端只知 trashRetentionDays，
-// 整体替换会把用户手改的开关抹回缺省（与 sync token「空串=不修改」同种语义）。
+// saveSettings 写回 vault 设置：PUT /api/settings。
+// 可选字段未提供（null/缺省/空串）时保留磁盘现值——各客户端控件只知自己那个字段
+// （回收区天数/MCP 开关/速记设置），整体替换会把其他字段抹回缺省
+// （与 sync token「空串=不修改」同种语义）。
 func (h *Handler) saveSettings(w http.ResponseWriter, r *http.Request) {
 	var in storage.Settings
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
+	cur := h.svc.GetSettings()
 	if in.McpEnabled == nil {
-		in.McpEnabled = h.svc.GetSettings().McpEnabled
+		in.McpEnabled = cur.McpEnabled
+	}
+	if in.QuickCaptureMode == "" {
+		in.QuickCaptureMode = cur.QuickCaptureMode
+	}
+	if in.QuickCaptureClipboard == nil {
+		in.QuickCaptureClipboard = cur.QuickCaptureClipboard
 	}
 	if err := h.svc.SaveSettings(&in); err != nil {
 		writeError(w, http.StatusInternalServerError, err)

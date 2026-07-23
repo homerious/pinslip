@@ -8,6 +8,7 @@ const api: ElectronAPI = {
   getRuntimeInfo: () => ipcRenderer.invoke(IPC.RuntimeInfo),
   createNote: (noteId, folder) => ipcRenderer.invoke(IPC.WindowCreate, noteId, folder),
   closeNote: (noteId) => ipcRenderer.invoke(IPC.WindowClose, noteId),
+  isDevToolsOpen: () => ipcRenderer.invoke(IPC.WindowDevToolsOpen),
   setNotePin: (noteId, pinned) => ipcRenderer.invoke(IPC.WindowSetPin, noteId, pinned),
   setNoteCollapsed: (noteId, collapsed) =>
     ipcRenderer.invoke(IPC.NoteSetCollapsed, noteId, collapsed),

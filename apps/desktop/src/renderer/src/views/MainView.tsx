@@ -30,6 +30,7 @@ import LinkIcon from '~icons/ph/link';
 import FileCodeIcon from '~icons/ph/file-code';
 import CopyIcon from '~icons/ph/copy';
 import CheckIcon from '~icons/ph/check';
+import ClipboardIcon from '~icons/ph/clipboard';
 import type { NoteMeta, SearchHit, SyncStatus, UpdateState } from '@shared/types';
 import { foldersApi, notesApi, settingsApi, trashApi } from '../api/notes';
 import type { TrashStats } from '../api/notes';
@@ -136,6 +137,9 @@ export default function MainView() {
   const [goPort, setGoPort] = useState(0);
   const [mcpEnabled, setMcpEnabled] = useState(true);
   const [mcpCopied, setMcpCopied] = useState(false);
+  // 速记：落点模式（note 逐条 / daily 聚合到当日便签）+ 剪贴板带入开关（缺省开）
+  const [quickMode, setQuickMode] = useState<'note' | 'daily'>('note');
+  const [quickClipboard, setQuickClipboard] = useState(true);
   /** 配置表单 dirty 标记：编辑中不被 30s 轮询回填覆盖；保存/取消/重开抽屉时复位 */
   const syncFormDirtyRef = useRef(false);
   // 三视图：列表（全部平铺）/ 文件夹（分层导航）/ 标签（按标签分组）
@@ -414,6 +418,8 @@ export default function MainView() {
       .then((s) => {
         setTrashRetention(s.trashRetentionDays);
         setMcpEnabled(s.mcpEnabled ?? true); // 字段缺失 = 缺省开启
+        setQuickMode(s.quickCaptureMode === 'daily' ? 'daily' : 'note');
+        setQuickClipboard(s.quickCaptureClipboard ?? true); // 字段缺失 = 缺省开启
       })
       .catch(() => {});
   }, [settingsOpen]);
@@ -494,6 +500,36 @@ export default function MainView() {
       .update({ trashRetentionDays: trashRetention, mcpEnabled: next })
       .catch(() => setMcpEnabled(!next));
   }, [mcpEnabled, trashRetention]);
+
+  // 速记设置：落点模式 / 剪贴板带入。PUT 四字段全带（Go 侧整体写入，
+  // trashRetentionDays 缺了会被抹成 0；其余字段虽有 nil 合并兜底，统一全带最稳）
+  const changeQuickMode = useCallback(
+    (mode: 'note' | 'daily') => {
+      setQuickMode(mode);
+      settingsApi
+        .update({
+          trashRetentionDays: trashRetention,
+          mcpEnabled,
+          quickCaptureMode: mode,
+          quickCaptureClipboard: quickClipboard,
+        })
+        .catch(() => setQuickMode(quickMode));
+    },
+    [trashRetention, mcpEnabled, quickClipboard, quickMode],
+  );
+
+  const toggleQuickClipboard = useCallback(() => {
+    const next = !quickClipboard;
+    setQuickClipboard(next);
+    settingsApi
+      .update({
+        trashRetentionDays: trashRetention,
+        mcpEnabled,
+        quickCaptureMode: quickMode,
+        quickCaptureClipboard: next,
+      })
+      .catch(() => setQuickClipboard(!next));
+  }, [trashRetention, mcpEnabled, quickMode, quickClipboard]);
 
   // 复制 MCP 接入配置（通用 mcpServers 形态，Claude Code / Kimi 等可直接粘贴）；
   // 成功后按钮短暂显示「已复制 ✓」（2s 恢复，与便签复制按钮同套路）
@@ -779,6 +815,39 @@ export default function MainView() {
               {!isPackaged && (
                 <div className="settings-panel__hint">开发模式下不可改，安装版中生效</div>
               )}
+            </div>
+
+            <div className="settings-panel__section">速记</div>
+            <div className="settings-card settings-card--spaced">
+              <div className="settings-panel__row">
+                <PencilSimpleIcon className="settings-panel__row-icon" />
+                <span className="settings-panel__label">落点</span>
+                <select
+                  className="settings-panel__select"
+                  value={quickMode}
+                  onChange={(e) => changeQuickMode(e.target.value as 'note' | 'daily')}
+                >
+                  <option value="note">逐条新建</option>
+                  <option value="daily">聚合到今日</option>
+                </select>
+              </div>
+              <div className="settings-panel__row">
+                <ClipboardIcon className="settings-panel__row-icon" />
+                <span className="settings-panel__label">剪贴板带入</span>
+                <button
+                  className="settings-toggle"
+                  role="switch"
+                  aria-checked={quickClipboard}
+                  data-on={quickClipboard}
+                  title="呼出速记窗时自动带入剪贴板文本"
+                  onClick={toggleQuickClipboard}
+                >
+                  <span className="settings-toggle__thumb" />
+                </button>
+              </div>
+              <div className="settings-panel__hint">
+                Ctrl+Shift+N 呼出速记窗；聚合模式把当天速记追加到「速记 YYYY-MM-DD」便签
+              </div>
             </div>
 
             <div className="settings-panel__section">数据与存储</div>

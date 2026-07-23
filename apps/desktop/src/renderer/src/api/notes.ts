@@ -78,6 +78,10 @@ export interface VaultSettings {
   trashRetentionDays: number; // 回收区保留天数；<= 0 = 不自动清理
   /** MCP 服务开关；缺省（字段缺失）= 开启。PUT 未带此键时 Go 侧保留现值 */
   mcpEnabled?: boolean;
+  /** 速记落点：'note' 逐条新建（缺省）| 'daily' 聚合到「速记 YYYY-MM-DD」。PUT 未带此键时 Go 侧保留现值 */
+  quickCaptureMode?: 'note' | 'daily';
+  /** 速记窗打开时是否带入剪贴板文本；缺省 = true。PUT 未带此键时 Go 侧保留现值 */
+  quickCaptureClipboard?: boolean;
 }
 
 /** vault 设置 API */

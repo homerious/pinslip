@@ -141,6 +141,8 @@ export interface ElectronAPI {
   /** 打开/新建便签窗口；folder 仅新建时有效：首次保存落盘到该文件夹（notes/ 相对路径） */
   createNote(noteId?: string, folder?: string): Promise<void>;
   closeNote(noteId: string): Promise<void>;
+  /** 查询当前窗口 DevTools 是否打开（速记窗失焦自动关闭的豁免判定） */
+  isDevToolsOpen(): Promise<boolean>;
   setNotePin(noteId: string, pinned: boolean): Promise<void>;
   /** 折叠/展开便签窗口（窗口高度压到标题条/恢复记忆尺寸） */
   setNoteCollapsed(noteId: string, collapsed: boolean): Promise<void>;
