@@ -8,6 +8,7 @@
     "dev": "node scripts/dev.js",
     "build": "pnpm --filter @pinslip/desktop build",
     "pack:ext": "pnpm --filter @pinslip/extension run pack",
+    "pack:ext:firefox": "pnpm --filter @pinslip/extension run pack:firefox",
     "build:service": "node scripts/build-service.js",
     "build:all": "pnpm build:service && pnpm build",
     "dist": "pnpm build:service && pnpm --filter @pinslip/desktop dist",

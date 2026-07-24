@@ -5,7 +5,9 @@
   "description": "PinSlip 浏览器插件（Chrome/Edge，MV3）：选区/链接/剪藏/截图保存到本地 vault",
   "scripts": {
     "build": "node build.mjs",
+    "build:firefox": "node build.mjs --target firefox",
     "pack": "node pack.mjs",
+    "pack:firefox": "node pack.mjs --target firefox",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

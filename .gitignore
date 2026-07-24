@@ -5,6 +5,7 @@ node_modules/
 # 构建产物
 out/
 dist/
+apps/extension/dist-firefox/
 release/
 
 # Go 编译产物（pinslipd 可执行文件由 scripts/build-service.js 产出）

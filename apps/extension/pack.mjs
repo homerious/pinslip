@@ -9,26 +9,41 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 
+// --target chrome（默认）/ firefox：决定 manifest 来源、dist 目录与产物文件名
+const target = process.argv.includes('--target')
+  ? process.argv[process.argv.indexOf('--target') + 1]
+  : 'chrome';
+if (!['chrome', 'firefox'].includes(target)) {
+  console.error(`未知 target: ${target}（可选 chrome / firefox）`);
+  process.exit(1);
+}
+const distName = target === 'firefox' ? 'dist-firefox' : 'dist';
+const manifestName = target === 'firefox' ? 'manifest.firefox.json' : 'manifest.json';
+
 // ---------- 版本对齐校验（manifest 必须与 package.json 一致，商店按 manifest 判定版本） ----------
 const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
 const srcManifest = JSON.parse(
-  fs.readFileSync(path.join(root, 'public', 'manifest.json'), 'utf8'),
+  fs.readFileSync(path.join(root, 'public', manifestName), 'utf8'),
 );
 if (srcManifest.version !== pkg.version) {
   console.error(
-    `版本不一致：package.json=${pkg.version}，manifest.json=${srcManifest.version}。请先对齐再打包。`,
+    `版本不一致：package.json=${pkg.version}，${manifestName}=${srcManifest.version}。请先对齐再打包。`,
   );
   process.exit(1);
 }
 
 // ---------- 1) 先跑现有构建 ----------
-const r = spawnSync(process.execPath, [path.join(root, 'build.mjs')], { stdio: 'inherit' });
+const r = spawnSync(process.execPath, [path.join(root, 'build.mjs'), '--target', target], {
+  stdio: 'inherit',
+});
 if (r.status !== 0) process.exit(r.status ?? 1);
 
-const dist = path.join(root, 'dist');
+const dist = path.join(root, distName);
 const manifest = JSON.parse(fs.readFileSync(path.join(dist, 'manifest.json'), 'utf8'));
 if (manifest.version !== pkg.version) {
-  console.error(`dist/manifest.json 版本 ${manifest.version} 与 package.json ${pkg.version} 不一致`);
+  console.error(
+    `${distName}/manifest.json 版本 ${manifest.version} 与 package.json ${pkg.version} 不一致`,
+  );
   process.exit(1);
 }
 
@@ -45,7 +60,7 @@ function walk(dir, base, out) {
 const files = [];
 walk(dist, '', files);
 if (!files.some((f) => f.rel === 'manifest.json')) {
-  console.error('dist/ 缺 manifest.json，构建产物不完整');
+  console.error(`${distName}/ 缺 manifest.json，构建产物不完整`);
   process.exit(1);
 }
 
@@ -127,7 +142,11 @@ eocd.writeUInt32LE(offset, 16);
 
 const releaseDir = path.join(root, 'release');
 fs.mkdirSync(releaseDir, { recursive: true });
-const out = path.join(releaseDir, `pinslip-extension-${pkg.version}.zip`);
+const zipName =
+  target === 'firefox'
+    ? `pinslip-extension-firefox-${pkg.version}.zip`
+    : `pinslip-extension-${pkg.version}.zip`;
+const out = path.join(releaseDir, zipName);
 fs.writeFileSync(out, Buffer.concat([...chunks, centralBuf, eocd]));
 
 const kb = (fs.statSync(out).size / 1024).toFixed(1);
