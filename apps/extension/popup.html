@@ -9,35 +9,39 @@
         margin: 0;
         padding: 12px;
         font: 13px/1.5 -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
-        color: #1f2328;
+        color: #4e342e; /* 便签墨色（--note-titlebar-fg） */
+        background: #fff9c4; /* 便签底色（--note-bg） */
       }
       .row { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
       .dot { width: 8px; height: 8px; border-radius: 50%; background: #9aa0a6; flex: none; }
       .dot.on { background: #2da44e; }
-      #status { color: #57606a; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      #status { color: #795548; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       textarea {
         width: 100%;
         box-sizing: border-box;
         height: 72px;
         resize: none;
         padding: 6px 8px;
-        border: 1px solid #d0d7de;
+        border: 1px solid #e6d98a;
         border-radius: 6px;
+        background: #fffdf0;
+        color: inherit;
         font: inherit;
         outline: none;
       }
-      textarea:focus { border-color: #6e56cf; box-shadow: 0 0 0 2px rgba(110, 86, 207, 0.2); }
+      textarea:focus { border-color: #e5c544; box-shadow: 0 0 0 2px rgba(229, 197, 68, 0.3); }
       .foot { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 8px; }
       #saved { color: #2da44e; font-size: 12px; visibility: hidden; }
       button {
         padding: 4px 14px;
-        border: none;
+        border: 1px solid #e0c95f;
         border-radius: 6px;
-        background: #6e56cf;
-        color: #fff;
+        background: #ffe97a; /* 标题栏琥珀（--note-titlebar-bg） */
+        color: #4e342e;
         font: inherit;
         cursor: pointer;
       }
+      button:hover:not(:disabled) { background: #ffe153; }
       button:disabled { opacity: 0.6; cursor: default; }
     </style>
   </head>
