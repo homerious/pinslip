@@ -3,7 +3,11 @@
   "version": "0.5.2",
   "private": true,
   "description": "PinSlip — 桌面钉住便签 + 本地知识管理",
-  "author": "PinSlip",
+  "author": {
+    "name": "homerious",
+    "email": "homerious@users.noreply.github.com"
+  },
+  "homepage": "https://github.com/homerious/pinslip",
   "main": "./out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
