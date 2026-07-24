@@ -853,6 +853,14 @@ input.sticky-note__groupname-input::placeholder {
   z-index: 21; /* 压底部工具栏（20），低于右下角手柄（22） */
 }
 
+.sticky-note__edge--l {
+  top: 34px; /* 避开标题栏按钮 */
+  left: 0;
+  bottom: 20px; /* 与右下角手柄对称留白 */
+  width: 5px;
+  cursor: ew-resize;
+}
+
 .sticky-note__edge--r {
   top: 34px; /* 避开标题栏按钮 */
   right: 0;

@@ -18,7 +18,7 @@ export class WindowManager {
   /** 应用退出中：before-quit 置位，主窗口的 close 不再拦截为隐藏 */
   quitting = false;
   /** 便签拖拽缩放的起始尺寸（begin 时记录，resize 按累计位移计算） */
-  private resizeStartSize = new Map<string, [number, number]>();
+  private resizeStartBounds = new Map<string, Electron.Rectangle>();
   /** 切换保险库中：此期间的关窗不退组（系统行为，不是用户意图） */
   private vaultSwitching = false;
   /** 便签组管理：成组/退组/restack/组态推送（启动时 load 拉注册表） */
@@ -245,28 +245,40 @@ export class WindowManager {
     return [...this.noteWindows.keys()];
   }
 
-  /** 记录便签缩放起始尺寸。 */
+  /** 记录便签缩放起始几何（左缘缩放要锚定右缘，需记住起始 x+width）。 */
   beginNoteResize(noteId: string): void {
     const win = this.noteWindows.get(noteId);
     if (win && !win.isDestroyed()) {
-      this.resizeStartSize.set(noteId, win.getSize() as [number, number]);
+      this.resizeStartBounds.set(noteId, win.getBounds());
     }
   }
 
-  /** 按累计位移缩放便签窗口（setSize 自动受 minWidth/minHeight 约束）。 */
-  resizeNote(noteId: string, dx: number, dy: number): void {
-    const start = this.resizeStartSize.get(noteId);
+  /** 按累计位移缩放便签窗口（setSize 自动受 minWidth/minHeight 约束）。
+   *  edge='left'：左缘拖拽，右缘锚定不动——宽度随 dx 反向变化、x 同步平移，
+   *  宽度触及 minWidth 时 x 一并钳住，右缘零漂移 */
+  resizeNote(noteId: string, dx: number, dy: number, edge?: 'left'): void {
+    const start = this.resizeStartBounds.get(noteId);
     const win = this.noteWindows.get(noteId);
-    if (start && win && !win.isDestroyed()) {
-      win.setSize(Math.round(start[0] + dx), Math.round(start[1] + dy));
+    if (!start || !win || win.isDestroyed()) return;
+    if (edge === 'left') {
+      const minW = win.getMinimumSize()[0];
+      const width = Math.max(start.width - dx, minW);
+      win.setBounds({
+        x: start.x + start.width - width,
+        y: start.y,
+        width,
+        height: start.height,
+      });
+      return;
     }
+    win.setSize(Math.round(start.width + dx), Math.round(start.height + dy));
   }
 
   /** 缩放结束（渲染层 pointerup）：清理起始尺寸 + 组内几何收敛。
    *  自制缩放手柄是渲染层 pointer 拖拽 + IPC setSize，不走 OS 模态循环
    *  （WM_EXITSIZEMOVE 不触发），宽度统一/高度联动/归位只能挂这个通知上 */
   endNoteResize(noteId: string): void {
-    this.resizeStartSize.delete(noteId);
+    this.resizeStartBounds.delete(noteId);
     // 缩放只改尺寸不动位置：绝无拖出（调矮会张开 >40px 空档误伤拖出判定），
     // 只做宽度统一/高度联动/归位
     this.groupManager.handleMemberReleased(noteId, { resized: true });

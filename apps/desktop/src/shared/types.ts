@@ -156,8 +156,8 @@ export interface ElectronAPI {
   showMainWindow(): Promise<void>;
   /** 便签角落拖拽缩放：开始时记录尺寸 */
   noteResizeBegin(noteId: string): Promise<void>;
-  /** 便签角落拖拽缩放：按累计位移调整 */
-  noteResize(noteId: string, dx: number, dy: number): Promise<void>;
+  /** 便签角落拖拽缩放：按累计位移调整；edge='left' 时左缘拖拽、右缘锚定 */
+  noteResize(noteId: string, dx: number, dy: number, edge?: 'left'): Promise<void>;
   /** 便签拖拽缩放结束（pointerup）：触发组内几何收敛（宽度统一/高度联动/归位） */
   noteResizeEnd(noteId: string): Promise<void>;
   /** 选择保险库目录；取消返回 null，成功返回新路径与服务端口 */

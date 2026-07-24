@@ -611,9 +611,9 @@ export default function NoteView() {
   }, []);
 
   // 卡片边缘/角落缩放：拖动按累计位移经 IPC 调整窗口尺寸（rAF 节流）
-  // axis: 'x' 右边缘 / 'y' 底边缘 / 'both' 右下角
+  // axis: 'x' 右边缘 / 'y' 底边缘 / 'both' 右下角；edge='left' 左边缘（右缘锚定）
   const startResize = useCallback(
-    (e: React.PointerEvent, axis: 'x' | 'y' | 'both') => {
+    (e: React.PointerEvent, axis: 'x' | 'y' | 'both', edge?: 'left') => {
       e.preventDefault();
       e.stopPropagation();
       const startX = e.screenX;
@@ -624,7 +624,7 @@ export default function NoteView() {
         const dx = axis === 'y' ? 0 : ev.screenX - startX;
         const dy = axis === 'x' ? 0 : ev.screenY - startY;
         cancelAnimationFrame(raf);
-        raf = requestAnimationFrame(() => void window.api.noteResize(noteId, dx, dy));
+        raf = requestAnimationFrame(() => void window.api.noteResize(noteId, dx, dy, edge));
       };
       const onUp = () => {
         cancelAnimationFrame(raf);
@@ -1116,10 +1116,15 @@ export default function NoteView() {
         onChange={pickImage}
       />
 
-      {/* 卡片边缘缩放热区：右缘 ↔ / 底缘 ↕ / 右下角 ↘（透明不可见，光标提示）。
+      {/* 卡片边缘缩放热区：左缘 ↔ / 右缘 ↔ / 底缘 ↕ / 右下角 ↘（透明不可见，光标提示）。
+          左缘与右缘对称贴卡片边缘——原生 OS 缩放边在透明阴影区上，手感不一致。
           折叠态不渲染（主进程同步禁了 resizable） */}
       {!collapsed && (
         <>
+          <div
+            className="sticky-note__edge sticky-note__edge--l"
+            onPointerDown={(e) => startResize(e, 'x', 'left')}
+          />
           <div
             className="sticky-note__edge sticky-note__edge--r"
             onPointerDown={(e) => startResize(e, 'x')}

@@ -95,8 +95,8 @@ export function registerIpcHandlers({ windowManager, goProcess }: IpcContext): v
     windowManager.beginNoteResize(noteId);
   });
 
-  ipcMain.handle(IPC.NoteResize, (_event, noteId: string, dx: number, dy: number) => {
-    windowManager.resizeNote(noteId, dx, dy);
+  ipcMain.handle(IPC.NoteResize, (_event, noteId: string, dx: number, dy: number, edge?: 'left') => {
+    windowManager.resizeNote(noteId, dx, dy, edge);
   });
 
   // 自制缩放手柄不走 OS 模态循环（无 WM_EXITSIZEMOVE），组内几何收敛挂在这里
