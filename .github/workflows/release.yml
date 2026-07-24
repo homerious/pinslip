@@ -1,7 +1,7 @@
 # PinSlip 出包流水线
 #
 # 触发方式：
-#   1. 打 tag 推送（如 git tag v0.5.2 && git push origin v0.5.2）→ 三端出包 + 自动建 GitHub Release（草稿）
+#   1. 打 tag 推送（如 git tag v1.0.0 && git push origin v1.0.0）→ 三端出包 + 自动建 GitHub Release（草稿）
 #   2. Actions 页手动 Run workflow → 只出包传 artifacts，不建 Release（用于验链路）
 #
 # 产物：
