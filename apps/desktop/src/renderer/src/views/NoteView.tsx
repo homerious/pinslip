@@ -488,10 +488,15 @@ export default function NoteView() {
       .catch(() => {});
   }, []);
 
-  /** 复制全部正文到剪贴板；成功后图标短暂变 ✓ 反馈 */
+  /** 复制全部正文到剪贴板；成功后图标短暂变 ✓ 反馈。
+   *  过滤 Milkdown 写入的空行标记 <br />：独立成行 → 空行；行内 → 换行，
+   *  避免粘贴到别处时出现字面 br 标签 */
   const copyAll = useCallback(() => {
+    const cleaned = content
+      .replace(/^[ \t]*<br\s*\/?>[ \t]*$/gim, '')
+      .replace(/<br\s*\/?>/gi, '\n');
     void navigator.clipboard
-      .writeText(content)
+      .writeText(cleaned)
       .then(() => {
         setCopied(true);
         setTimeout(() => setCopied(false), 1200);
