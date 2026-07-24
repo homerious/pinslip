@@ -461,6 +461,15 @@ input.sticky-note__groupname-input::placeholder {
   transform: translateY(0);
 }
 
+/* 长提示（如组手柄操作说明）：允许多行折行，居中完整显示不溢出窗口 */
+[data-tip-wrap]::after {
+  white-space: normal;
+  width: max-content;
+  max-width: calc(100vw - 48px);
+  line-height: 1.4;
+  text-align: center;
+}
+
 /* 透明度只挂在图标上：若挂在按钮上，tooltip（::after 子元素）会跟随变淡 */
 .sticky-note__pin svg {
   opacity: 0.5; /* 未置顶：淡但可辨（0.35 在浅标题栏上几乎隐身） */

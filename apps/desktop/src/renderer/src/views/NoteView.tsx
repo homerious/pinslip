@@ -728,7 +728,7 @@ export default function NoteView() {
                 ? t('note.groupHandleTipNamed', { name: groupState.name })
                 : t('note.groupHandleTip')
             }
-            data-tip-align="left"
+            data-tip-wrap
             aria-label={t('note.groupDragAria')}
             onPointerDown={(e) => {
               setGroupMenuOpen(false); // 拖动起手即收菜单（左键拖动与右键菜单互斥）
