@@ -1,0 +1,20 @@
+{
+  "name": "@pinslip/extension",
+  "version": "0.1.0",
+  "private": true,
+  "description": "PinSlip 浏览器插件（Chrome/Edge，MV3）：选区/链接/剪藏/截图保存到本地 vault",
+  "scripts": {
+    "build": "node build.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@mozilla/readability": "^0.5.0",
+    "turndown": "^7.2.0"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.280",
+    "@types/turndown": "^5.0.5",
+    "typescript": "~5.6.3",
+    "vite": "^5.4.11"
+  }
+}

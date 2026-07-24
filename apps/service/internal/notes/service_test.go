@@ -111,6 +111,36 @@ func TestSaveCreatesNoteWithDerivedTitle(t *testing.T) {
 	}
 }
 
+// 外部入口（浏览器插件剪藏）新建便签可直接落收集箱；已存在便签忽略 inbox 字段。
+func TestSaveNewNoteToInbox(t *testing.T) {
+	svc, store := newTestService(t)
+
+	tru := true
+	note, err := svc.Save("idinbox1", SaveInput{
+		Content: strPtr("# 剪藏标题\n\n正文"),
+		Title:   "剪藏标题",
+		Source:  "web-clip",
+		Inbox:   &tru,
+	})
+	if err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	if !note.Inbox {
+		t.Fatal("新建指定 inbox=true 应落收集箱")
+	}
+	if _, inbox, err := store.Locate("idinbox1"); err != nil || !inbox {
+		t.Fatalf("文件应在 inbox/: %v inbox=%v", err, inbox)
+	}
+
+	// 已存在便签再传 inbox=false 不挪位置（位置由界面操作决定）
+	if _, err := svc.Save("idinbox1", SaveInput{Pin: boolPtr(true)}); err != nil {
+		t.Fatalf("Save(update): %v", err)
+	}
+	if _, inbox, err := store.Locate("idinbox1"); err != nil || !inbox {
+		t.Fatalf("已存在便签位置不应被 inbox 字段改动: %v inbox=%v", err, inbox)
+	}
+}
+
 // 部分更新：只改 pin 不动正文（复现「取消固定不丢内容」的契约）。
 func TestPartialUpdatePinKeepsContent(t *testing.T) {
 	svc, _ := newTestService(t)

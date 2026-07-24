@@ -3,6 +3,7 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"net/http"
 )
@@ -19,19 +20,28 @@ func New(handler http.Handler) *Server {
 	}
 }
 
-// Start 开始监听（127.0.0.1:0），返回实际端口。
+// DefaultPort 是浏览器插件约定的知名端口（插件读不了本地发现文件，
+// 只能按固定地址探测）。被占用时 Start 回退随机端口。
+const DefaultPort = 17639
+
+// Start 开始监听：优先绑 127.0.0.1:DefaultPort；被占用则回退 127.0.0.1:0
+// （随机端口）并返回 fallback=true，由调用方打日志。
 // 只绑回环地址：本地服务绝不能暴露到局域网。
-func (s *Server) Start() (int, error) {
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
+func (s *Server) Start() (port int, fallback bool, err error) {
+	ln, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", DefaultPort))
 	if err != nil {
-		return 0, err
+		ln, err = net.Listen("tcp", "127.0.0.1:0")
+		if err != nil {
+			return 0, false, err
+		}
+		fallback = true
 	}
 	s.listener = ln
 	go func() {
 		// Serve 只在 Shutdown 时返回错误，忽略
 		_ = s.httpServer.Serve(ln)
 	}()
-	return ln.Addr().(*net.TCPAddr).Port, nil
+	return ln.Addr().(*net.TCPAddr).Port, fallback, nil
 }
 
 // Shutdown 优雅关闭。

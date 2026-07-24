@@ -21,6 +21,16 @@ func NewRouter(notesHandler *notes.Handler, syncHandler *gitsync.Handler, mcpHan
 		})
 	})
 
+	// 身份握手：浏览器插件按固定端口探测后先调它确认对面是 PinSlip
+	// （该端口可能被别的软件占用），并取版本号展示。
+	mux.HandleFunc("GET /api/health", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		_ = json.NewEncoder(w).Encode(map[string]string{
+			"app":     "pinslip",
+			"version": version,
+		})
+	})
+
 	notesHandler.Register(mux)
 	syncHandler.Register(mux)
 	mux.Handle("/mcp", mcpHandler)

@@ -61,6 +61,7 @@ type SaveInput struct {
 	Collapsed *bool    `json:"collapsed,omitempty"` // nil = 保留原折叠状态
 	Group     *string  `json:"group,omitempty"`     // nil = 保留原便签组（"" = 移出组）
 	Folder    *string  `json:"folder,omitempty"`    // 仅新建时生效：落盘目录；已存在便签忽略（移动走 move API）
+	Inbox     *bool    `json:"inbox,omitempty"`     // 仅新建时生效：true = 落收集箱（浏览器插件剪藏等外部入口）
 }
 
 // RenameFolderInput 是 POST /api/folders/rename 的请求体。

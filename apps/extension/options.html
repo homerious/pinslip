@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>PinSlip</title>
+    <style>
+      body {
+        max-width: 460px;
+        margin: 32px auto;
+        padding: 0 16px;
+        font: 13px/1.6 -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+        color: #1f2328;
+      }
+      h1 { font-size: 16px; margin: 0 0 16px; display: flex; align-items: center; gap: 8px; }
+      h1 img { width: 20px; height: 20px; }
+      .card { border: 1px solid #d0d7de; border-radius: 8px; padding: 14px 16px; margin-bottom: 14px; }
+      .row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+      .row:last-child { margin-bottom: 0; }
+      .dot { width: 8px; height: 8px; border-radius: 50%; background: #9aa0a6; flex: none; }
+      .dot.on { background: #2da44e; }
+      .dot.bad { background: #cf222e; }
+      label { color: #57606a; }
+      input {
+        width: 90px;
+        padding: 3px 8px;
+        border: 1px solid #d0d7de;
+        border-radius: 6px;
+        font: inherit;
+      }
+      button {
+        padding: 4px 14px;
+        border: 1px solid #d0d7de;
+        border-radius: 6px;
+        background: #f6f8fa;
+        font: inherit;
+        cursor: pointer;
+      }
+      button:hover { background: #eef1f4; }
+      .hint { color: #57606a; font-size: 12px; }
+      .guide { color: #cf222e; font-size: 12px; display: none; }
+      .guide.show { display: block; }
+    </style>
+  </head>
+  <body>
+    <h1><img src="/icons/icon48.png" alt="" /><span id="title"></span></h1>
+    <div class="card">
+      <div class="row"><span id="dot" class="dot"></span><span id="status">…</span></div>
+      <div class="row">
+        <label id="portLabel" for="port"></label>
+        <input id="port" type="number" min="1" max="65535" />
+        <button id="retest"></button>
+      </div>
+      <div id="guide" class="guide"></div>
+    </div>
+    <p class="hint" id="portHint"></p>
+    <script type="module" src="/src/options.ts"></script>
+  </body>
+</html>

@@ -1,5 +1,6 @@
 packages:
   - "apps/desktop"
+  - "apps/extension"
 allowBuilds:
   electron: true
   esbuild: true

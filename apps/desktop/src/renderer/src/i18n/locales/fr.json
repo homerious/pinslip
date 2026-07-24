@@ -204,7 +204,8 @@
     "configFile": "Fichier de découverte",
     "copied": "Copié",
     "copy": "Copier les infos d'accès",
-    "hint": "Les outils IA (Kimi / Claude, etc.) peuvent rechercher, lire, écrire et synchroniser les notes via MCP ; le service n'écoute que sur 127.0.0.1 et n'est pas exposé au réseau local"
+    "hint": "Les outils IA (Kimi / Claude, etc.) peuvent rechercher, lire, écrire et synchroniser les notes via MCP ; le service n'écoute que sur 127.0.0.1 et n'est pas exposé au réseau local ; l'extension de navigateur s'y connecte également",
+    "httpBase": "Adresse HTTP"
   },
   "time": {
     "never": "Jamais synchronisé",

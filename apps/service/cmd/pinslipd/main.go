@@ -1,6 +1,6 @@
 // pinslipd 是 PinSlip 的本地服务：文件引擎 + SQLite 索引 + HTTP API。
-// 由 Electron 主进程拉起，监听 127.0.0.1 随机端口，
-// 启动后向 stdout 打印一行 PINSLIP_PORT=<port> 供主进程解析。
+// 由 Electron 主进程拉起，优先监听 127.0.0.1:17639（浏览器插件约定的知名端口，
+// 被占用时回退随机端口），启动后向 stdout 打印一行 PINSLIP_PORT=<port> 供主进程解析。
 package main
 
 import (
@@ -90,9 +90,13 @@ func main() {
 		mcpserver.NewHandler(svc, syncEngine, version),
 		version,
 	))
-	port, err := srv.Start()
+	port, fallback, err := srv.Start()
 	if err != nil {
 		logger.Fatal("启动 HTTP 服务失败", "error", err)
+	}
+	if fallback {
+		logger.Info("知名端口被占用，回退随机端口（浏览器插件需在选项页改端口）",
+			"preferred", server.DefaultPort, "port", port)
 	}
 
 	// MCP 接入发现：写 <vault>/.pinslip/mcp.json，agent 读文件即知怎么连；

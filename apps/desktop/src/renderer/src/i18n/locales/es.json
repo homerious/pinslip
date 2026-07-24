@@ -204,7 +204,8 @@
     "configFile": "Archivo de detección",
     "copied": "Copiado",
     "copy": "Copiar información de acceso",
-    "hint": "Las herramientas de IA (Kimi / Claude, etc.) pueden buscar, leer, escribir y sincronizar notas vía MCP; el servicio solo escucha en 127.0.0.1 y no se expone a la red local"
+    "hint": "Las herramientas de IA (Kimi / Claude, etc.) pueden buscar, leer, escribir y sincronizar notas vía MCP; el servicio solo escucha en 127.0.0.1 y no se expone a la red local; la extensión del navegador también se conecta por esta dirección",
+    "httpBase": "Dirección HTTP"
   },
   "time": {
     "never": "Nunca sincronizado",

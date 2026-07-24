@@ -101,13 +101,19 @@ func (s *Service) Save(id string, in SaveInput) (*Note, error) {
 	fm.UpdatedAt = now.Format(time.RFC3339)
 
 	// 新建且指定了落盘文件夹：SaveToFolder（目录自动创建）；
-	// 已存在便签即使传了 folder 也由 store 保留原位置
+	// 已存在便签即使传了 folder 也由 store 保留原位置。
+	// 新建且指定 inbox=true：落收集箱（folder 优先于 inbox）。
+	targetInbox := inbox
+	if isNew && in.Inbox != nil {
+		targetInbox = *in.Inbox
+	}
 	if isNew && in.Folder != nil && *in.Folder != "" {
 		if err := s.store.SaveToFolder(fm, content, *in.Folder); err != nil {
 			return nil, err
 		}
 		folder = *in.Folder
-	} else if err := s.store.Save(fm, content, inbox); err != nil {
+		targetInbox = false
+	} else if err := s.store.Save(fm, content, targetInbox); err != nil {
 		return nil, err
 	}
 	if err := s.idx.Upsert(index.Record{
@@ -118,7 +124,7 @@ func (s *Service) Save(id string, in SaveInput) (*Note, error) {
 	}); err != nil {
 		return nil, err
 	}
-	return toNote(fm, content, inbox, folder), nil
+	return toNote(fm, content, targetInbox, folder), nil
 }
 
 // QuickCapture 速记：按 vault 设置的落点模式写入收集箱——

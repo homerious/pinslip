@@ -204,7 +204,8 @@
     "configFile": "Discovery file",
     "copied": "Copied",
     "copy": "Copy connection info",
-    "hint": "AI tools (Kimi / Claude, etc.) can search, read, write, and sync notes via MCP; the service only listens on 127.0.0.1 and is never exposed to the LAN"
+    "hint": "AI tools (Kimi / Claude, etc.) can search, read, write, and sync notes via MCP; the service only listens on 127.0.0.1 and is never exposed to the LAN; the browser extension also connects through this address",
+    "httpBase": "HTTP address"
   },
   "time": {
     "never": "Never synced",

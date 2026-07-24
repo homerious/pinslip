@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>PinSlip</title>
+    <style>
+      body {
+        width: 260px;
+        margin: 0;
+        padding: 12px;
+        font: 13px/1.5 -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+        color: #1f2328;
+      }
+      .row { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+      .dot { width: 8px; height: 8px; border-radius: 50%; background: #9aa0a6; flex: none; }
+      .dot.on { background: #2da44e; }
+      #status { color: #57606a; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      textarea {
+        width: 100%;
+        box-sizing: border-box;
+        height: 72px;
+        resize: none;
+        padding: 6px 8px;
+        border: 1px solid #d0d7de;
+        border-radius: 6px;
+        font: inherit;
+        outline: none;
+      }
+      textarea:focus { border-color: #6e56cf; box-shadow: 0 0 0 2px rgba(110, 86, 207, 0.2); }
+      .foot { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+      #saved { color: #2da44e; font-size: 12px; visibility: hidden; }
+      button {
+        padding: 4px 14px;
+        border: none;
+        border-radius: 6px;
+        background: #6e56cf;
+        color: #fff;
+        font: inherit;
+        cursor: pointer;
+      }
+      button:disabled { opacity: 0.6; cursor: default; }
+    </style>
+  </head>
+  <body>
+    <div class="row"><span id="dot" class="dot"></span><span id="status">…</span></div>
+    <textarea id="input"></textarea>
+    <div class="foot">
+      <span id="saved"></span>
+      <button id="save"></button>
+    </div>
+    <script type="module" src="/src/popup.ts"></script>
+  </body>
+</html>

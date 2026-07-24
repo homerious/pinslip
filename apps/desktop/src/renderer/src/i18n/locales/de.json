@@ -204,7 +204,8 @@
     "configFile": "Discovery-Datei",
     "copied": "Kopiert",
     "copy": "Verbindungsdaten kopieren",
-    "hint": "KI-Tools (Kimi / Claude usw.) können Notizen per MCP suchen, lesen, schreiben und synchronisieren; der Dienst lauscht nur auf 127.0.0.1 und ist nicht im LAN sichtbar"
+    "hint": "KI-Tools (Kimi / Claude usw.) können Notizen per MCP suchen, lesen, schreiben und synchronisieren; der Dienst lauscht nur auf 127.0.0.1 und ist nicht im LAN sichtbar; die Browser-Erweiterung verbindet sich ebenfalls über diese Adresse",
+    "httpBase": "HTTP-Adresse"
   },
   "time": {
     "never": "Nie synchronisiert",

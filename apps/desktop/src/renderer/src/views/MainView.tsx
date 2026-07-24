@@ -30,6 +30,7 @@ import GitBranchIcon from '~icons/ph/git-branch';
 import WarningIcon from '~icons/ph/warning';
 import RobotIcon from '~icons/ph/robot';
 import LinkIcon from '~icons/ph/link';
+import GlobeIcon from '~icons/ph/globe';
 import FileCodeIcon from '~icons/ph/file-code';
 import CopyIcon from '~icons/ph/copy';
 import CheckIcon from '~icons/ph/check';
@@ -1245,6 +1246,16 @@ export default function MainView() {
                       title={goPort ? `http://127.0.0.1:${goPort}/mcp` : ''}
                     >
                       {goPort ? `http://127.0.0.1:${goPort}/mcp` : '…'}
+                    </span>
+                  </div>
+                  <div className="settings-panel__row">
+                    <GlobeIcon className="settings-panel__row-icon" />
+                    <span className="settings-panel__label">{t('mcp.httpBase')}</span>
+                    <span
+                      className="settings-panel__value settings-panel__value--rtl"
+                      title={goPort ? `http://127.0.0.1:${goPort}` : ''}
+                    >
+                      {goPort ? `http://127.0.0.1:${goPort}` : '…'}
                     </span>
                   </div>
                   <div className="settings-panel__row">
