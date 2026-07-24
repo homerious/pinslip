@@ -1,4 +1,4 @@
-# electron-builder 配置：产出 Windows NSIS 安装包 / macOS DMG
+# electron-builder 配置：产出 Windows NSIS 安装包 / macOS DMG / Linux AppImage+deb
 # Go 二进制通过 extraResources 随包携带（先跑 pnpm build:service）
 
 appId: app.pinslip
@@ -48,6 +48,28 @@ mac:
         - x64
   icon: resources/icon.png               # 1024px，mac runner 上 electron-builder 自动转 icns
   category: public.app-category.productivity
+
+# Linux：AppImage（免安装，electron-updater 支持其自动更新）+ deb（Debian/Ubuntu 系），
+# 仅 x64（arm64 暂不做）；pinslipd 由 build-service.js 在 Linux runner 上原生编译
+# （纯 Go modernc 驱动，CGO_ENABLED=0，无额外系统依赖）
+linux:
+  target:
+    - target: AppImage
+      arch:
+        - x64
+    - target: deb
+      arch:
+        - x64
+  icon: resources/icon.png               # 1024px，deb 安装时自动派生各尺寸图标
+  category: Utility
+  artifactName: ${productName}-${version}-${arch}.${ext}
+
+# deb 元信息；depends 用 electron-builder 默认依赖列表（已覆盖 libgtk-3-0/libnss3 等运行库）
+deb:
+  synopsis: 贴在桌面上的 Markdown 便利贴
+  description: >-
+    随手钉一张，写了就走。所有便签都是纯 Markdown 文件，
+    存在你自己选的文件夹里，和 Obsidian 完全互通。
 
 nsis:
   oneClick: false                        # 安装向导式，用户可选安装路径

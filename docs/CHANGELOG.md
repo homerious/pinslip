@@ -40,6 +40,12 @@ git 同步、MCP 接入、速记打磨、七语言国际化，以及自动更新
 - 发布链路：electron-builder 配置 publish=github，CI 产物随包携带 latest.yml / latest-mac.yml / blockmap（自动更新元信息）
 - mac 出包改单腿双架构：pinslipd 交叉编译后经 lipo 合成 universal 二进制，一次产出 arm64 + x64 双 dmg 并共享同一份 latest-mac.yml（避免双腿互相覆盖更新元信息）
 
+### Linux 版
+
+- 新增 Linux 出包：AppImage（免安装，支持应用内自动更新）+ deb（Debian/Ubuntu 系安装包），x64 架构
+- 开机自启按 XDG Autostart 规范写入 `~/.config/autostart/pinslip.desktop`，设置里的开关行为与 Windows/mac 一致
+- 已知限制：Wayland 会话下全局快捷键对原生窗口不响应（X11 会话正常）；GNOME 桌面需安装 AppIndicator 扩展才能显示托盘图标
+
 ### 浏览器插件（网页直通 pinslip）
 
 - Chrome / Firefox 双端扩展（`pnpm pack:ext` / `pack:ext:firefox` 打包）
