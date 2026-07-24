@@ -11,6 +11,10 @@ import (
 	"pinslip/service/internal/storage"
 )
 
+// CodeNoteNotFound 是笔记不存在（404）的稳定错误码：
+// message 保持中文原文（MCP/日志消费），code 供 renderer 映射 i18n 文案。
+const CodeNoteNotFound = "NOTE_NOT_FOUND"
+
 // Handler 是笔记 API 的 HTTP 层：只负责参数解析与 JSON 编解码。
 type Handler struct {
 	svc *Service
@@ -55,7 +59,7 @@ func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) get(w http.ResponseWriter, r *http.Request) {
 	note, err := h.svc.Get(r.PathValue("id"))
 	if errors.Is(err, storage.ErrNotFound) {
-		writeError(w, http.StatusNotFound, err)
+		writeErrorCode(w, http.StatusNotFound, CodeNoteNotFound, err)
 		return
 	}
 	if err != nil {
@@ -96,7 +100,7 @@ func (h *Handler) move(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := h.svc.Move(r.PathValue("id"), in.Folder); err != nil {
 		if errors.Is(err, storage.ErrNotFound) {
-			writeError(w, http.StatusNotFound, err)
+			writeErrorCode(w, http.StatusNotFound, CodeNoteNotFound, err)
 			return
 		}
 		writeError(w, http.StatusBadRequest, err)
@@ -301,5 +305,15 @@ func writeError(w http.ResponseWriter, status int, err error) {
 	if status >= 500 {
 		log.Printf("[ERROR] %v", err)
 	}
-	writeJSON(w, status, map[string]string{"error": err.Error()})
+	writeErrorCode(w, status, "", err)
+}
+
+// writeErrorCode 同 writeError，附稳定 code（renderer 按 code 映射 i18n 文案，
+// 空串省略 code 字段；message 原文保留做兜底展示）。
+func writeErrorCode(w http.ResponseWriter, status int, code string, err error) {
+	body := map[string]string{"error": err.Error()}
+	if code != "" {
+		body["code"] = code
+	}
+	writeJSON(w, status, body)
 }

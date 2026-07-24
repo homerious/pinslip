@@ -90,6 +90,8 @@ export interface SyncStatus {
   /** RFC3339；Go 零值时间（0001-01-01）= 从未同步 */
   lastSyncAt?: string;
   lastError?: string;
+  /** 与 lastError 配套的稳定错误码（映射 serverError.* i18n 文案，无码回退原文） */
+  lastErrorCode?: string;
   /** 本地领先远端提交数（待推送） */
   ahead: number;
   behind: number;

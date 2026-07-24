@@ -38,7 +38,7 @@ import type { NoteMeta, SearchHit, SyncStatus, UpdateState } from '@shared/types
 import { foldersApi, notesApi, settingsApi, trashApi } from '../api/notes';
 import type { TrashStats } from '../api/notes';
 import { syncApi } from '../api/sync';
-import { apiErrorMessage } from '../api/client';
+import { apiErrorCode, apiErrorMessage } from '../api/client';
 import { shortenFolder } from '../utils/path';
 import { highlightTerms, windowAroundMatch } from '../components/search-highlight';
 import {
@@ -46,6 +46,7 @@ import {
   getLanguagePreference,
   LANGUAGE_NATIVE_NAMES,
   SUPPORTED_LANGUAGES,
+  translateServerError,
 } from '../i18n';
 import type { LanguagePreference } from '../i18n';
 
@@ -576,9 +577,9 @@ export default function MainView() {
         syncFormDirtyRef.current = false;
         setSyncForm((f) => ({ ...f, token: '' })); // token 不留内存态
       })
-      .catch((err) => setSyncFormError(apiErrorMessage(err)))
+      .catch((err) => setSyncFormError(translateServerError(t, apiErrorCode(err), apiErrorMessage(err))))
       .finally(() => setSyncBusy(false));
-  }, [syncForm, syncBusy]);
+  }, [syncForm, syncBusy, t]);
 
   // 立即同步一轮（syncNow 不抛错，结果全在返回状态里）
   const doSyncNow = useCallback(() => {
@@ -1161,7 +1162,9 @@ export default function MainView() {
                     </div>
                   )}
                   {syncStatus.lastError && (
-                    <div className="settings-panel__error">{syncStatus.lastError}</div>
+                    <div className="settings-panel__error">
+                      {translateServerError(t, syncStatus.lastErrorCode, syncStatus.lastError)}
+                    </div>
                   )}
                   <div className="settings-panel__actions">
                     {syncStatus.enabled ? (

@@ -238,5 +238,19 @@
     "quick": "Nota rápida (Ctrl+Shift+N)",
     "openMain": "Abrir ventana principal",
     "quit": "Salir de PinSlip"
+  },
+  "serverError": {
+    "SYNC_URL_REQUIRED": "Se requiere la URL del repositorio para activar la sincronización",
+    "SYNC_LOCAL_NOT_PINSLIP_REPO": "Esta carpeta ya es un repositorio git pero no un repositorio de sincronización de PinSlip. Gestiona .git manualmente antes de configurar la sincronización",
+    "SYNC_REMOTE_NOT_PINSLIP_REPO": "El repositorio remoto no es un repositorio de sincronización de PinSlip. Usa un repositorio vacío para evitar historiales enredados",
+    "SYNC_REMOTE_ACCESS": "No se puede acceder al repositorio remoto. Comprueba la URL, el usuario y el token",
+    "SYNC_BRANCH_NOT_FOUND": "La rama no existe en el remoto. Comprueba el nombre de la rama o usa un repositorio vacío",
+    "SYNC_UNRELATED_HISTORIES": "Los historiales local y remoto no tienen un ancestro común y no se pueden fusionar. Usa un repositorio vacío",
+    "SYNC_DIRTY_WORKTREE": "Los cambios locales sin confirmar serían sobrescritos por el remoto. Confirma o mueve el archivo primero",
+    "SYNC_CONNECT_FAILED": "Error al conectar la sincronización",
+    "SYNC_COMMIT_FAILED": "Error al confirmar los cambios locales",
+    "SYNC_PULL_FAILED": "Error al descargar del remoto",
+    "SYNC_PUSH_FAILED": "Error al subir al remoto",
+    "NOTE_NOT_FOUND": "La nota no existe o ha sido eliminada"
   }
 }

@@ -76,5 +76,10 @@ func syncWriteError(w http.ResponseWriter, status int, err error) {
 	if status >= 500 {
 		log.Printf("[ERROR] %v", err)
 	}
-	syncWriteJSON(w, status, map[string]string{"error": err.Error()})
+	// code 是 renderer 国际化的稳定契约；无 code 时省略（renderer 回退展示原文）
+	body := map[string]string{"error": err.Error()}
+	if c := codeOf(err); c != "" {
+		body["code"] = c
+	}
+	syncWriteJSON(w, status, body)
 }

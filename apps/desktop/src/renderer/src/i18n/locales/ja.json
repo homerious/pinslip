@@ -238,5 +238,19 @@
     "quick": "クイックメモ（Ctrl+Shift+N）",
     "openMain": "メイン画面を開く",
     "quit": "PinSlip を終了"
+  },
+  "serverError": {
+    "SYNC_URL_REQUIRED": "同期を有効にするにはリポジトリ URL が必要です",
+    "SYNC_LOCAL_NOT_PINSLIP_REPO": "このフォルダーはすでに git リポジトリですが PinSlip 同期リポジトリではありません。.git を手動で処理してから同期を設定してください",
+    "SYNC_REMOTE_NOT_PINSLIP_REPO": "リモートリポジトリは PinSlip の同期リポジトリではありません。履歴の衝突を避けるため空のリポジトリを使用してください",
+    "SYNC_REMOTE_ACCESS": "リモートリポジトリにアクセスできません。URL・ユーザー名・トークンを確認してください",
+    "SYNC_BRANCH_NOT_FOUND": "リモートにそのブランチがありません。ブランチ名を確認するか、空のリポジトリを使用してください",
+    "SYNC_UNRELATED_HISTORIES": "ローカルとリモートに共通の祖先がなくマージできません。空のリポジトリを使用してください",
+    "SYNC_DIRTY_WORKTREE": "コミットされていないローカルの変更がリモートで上書きされます。先にコミットするかファイルを移動してください",
+    "SYNC_CONNECT_FAILED": "同期の接続に失敗しました",
+    "SYNC_COMMIT_FAILED": "ローカルコミットに失敗しました",
+    "SYNC_PULL_FAILED": "リモートからのプルに失敗しました",
+    "SYNC_PUSH_FAILED": "リモートへのプッシュに失敗しました",
+    "NOTE_NOT_FOUND": "メモが存在しないか、削除されました"
   }
 }

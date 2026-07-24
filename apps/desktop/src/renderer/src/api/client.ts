@@ -57,3 +57,19 @@ export function apiErrorMessage(err: unknown): string {
   }
   return msg;
 }
+
+/** 同 apiErrorMessage 的解析路径，提取 Go 侧响应体的稳定 code 字段
+ *  （renderer 按 code 映射 i18n 文案）；无 code 返回 null。 */
+export function apiErrorCode(err: unknown): string | null {
+  const msg = err instanceof Error ? err.message : String(err);
+  const m = msg.match(/^API \d+: ([\s\S]*)$/);
+  if (m) {
+    try {
+      const j = JSON.parse(m[1]) as { code?: unknown };
+      if (typeof j.code === 'string' && j.code) return j.code;
+    } catch {
+      /* 非 JSON 响应体：无 code */
+    }
+  }
+  return null;
+}

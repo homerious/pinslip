@@ -89,7 +89,7 @@ func (r *Repo) openExisting() (*Repo, error) {
 	// 标记文件在工作区或任一提交里存在即可认定是 pinslip 仓库
 	if _, err := os.Stat(filepath.Join(r.dir, markerFile)); err != nil {
 		if !r.markerInHistory(gr) {
-			return nil, errors.New("vault 已是一个 git 仓库但不是 PinSlip 同步仓库（缺少 .pinslip-repo 标记），请手动处理 .git 后再配置同步")
+			return nil, withCode(CodeSyncLocalNotPinslipRepo, errors.New("vault 已是一个 git 仓库但不是 PinSlip 同步仓库（缺少 .pinslip-repo 标记），请手动处理 .git 后再配置同步"))
 		}
 	}
 	r.r = gr
@@ -144,7 +144,7 @@ func (r *Repo) ensureRemote() error {
 func (r *Repo) firstConnect() (*Repo, error) {
 	refs, err := listRemoteRefs(r.cfg.URL, r.auth())
 	if err != nil {
-		return nil, fmt.Errorf("无法访问远端仓库（检查地址/用户名/token）: %w", err)
+		return nil, withCode(CodeSyncRemoteAccess, fmt.Errorf("无法访问远端仓库（检查地址/用户名/token）: %w", err))
 	}
 
 	gr, err := git.PlainInitWithOptions(r.dir, &git.PlainInitOptions{
@@ -178,14 +178,14 @@ func (r *Repo) firstConnect() (*Repo, error) {
 	}
 	remoteRef, err := r.r.Reference(plumbing.NewRemoteReferenceName("origin", r.cfg.Branch), true)
 	if err != nil {
-		return nil, fmt.Errorf("远端没有分支 %q，请确认分支名或改用空仓库", r.cfg.Branch)
+		return nil, withCode(CodeSyncBranchNotFound, fmt.Errorf("远端没有分支 %q，请确认分支名或改用空仓库", r.cfg.Branch))
 	}
 	rc, err := r.r.CommitObject(remoteRef.Hash())
 	if err != nil {
 		return nil, err
 	}
 	if _, err := rc.File(markerFile); err != nil {
-		return nil, errors.New("远端仓库不是 PinSlip 的同步仓库（缺少 .pinslip-repo 标记），为避免历史纠缠请使用空仓库")
+		return nil, withCode(CodeSyncRemoteNotPinslipRepo, errors.New("远端仓库不是 PinSlip 的同步仓库（缺少 .pinslip-repo 标记），为避免历史纠缠请使用空仓库"))
 	}
 	// 接入：本地分支指向远端并检出。
 	// 注意（v1 简化）：本地同名路径文件会被远端版本覆盖（checkDirty=false 不拦截），
@@ -289,7 +289,7 @@ func (r *Repo) ensureNoDirtyOverlap(changes object.Changes) error {
 			path = ch.From.Name
 		}
 		if fs, ok := st[path]; ok && (fs.Staging != git.Unmodified || fs.Worktree != git.Unmodified) {
-			return fmt.Errorf("本地有未提交/未跟踪的变更会被远端覆盖: %s（请先提交或移开该文件）", path)
+			return withCode(CodeSyncDirtyWorktree, fmt.Errorf("本地有未提交/未跟踪的变更会被远端覆盖: %s（请先提交或移开该文件）", path))
 		}
 	}
 	return nil
@@ -450,7 +450,7 @@ func (r *Repo) Pull() (*PullOutcome, error) {
 		return nil, err
 	}
 	if !st.IsClean() {
-		return nil, errors.New("工作区有未提交变更，无法合并（请先提交）")
+		return nil, withCode(CodeSyncDirtyWorktree, errors.New("工作区有未提交变更，无法合并（请先提交）"))
 	}
 	return r.mergeTheirs(local, remote)
 }

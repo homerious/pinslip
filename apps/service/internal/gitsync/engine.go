@@ -60,6 +60,7 @@ type Engine struct {
 	repo            *Repo
 	lastSyncAt      time.Time
 	lastError       string
+	lastErrorCode   string // 与 lastError 配套的稳定 code（renderer 国际化映射用）
 	running         bool
 	conflictedFiles []string
 
@@ -259,6 +260,7 @@ func (e *Engine) syncCycle() error {
 		e.mu.Lock()
 		if err != nil {
 			e.lastError = err.Error()
+			e.lastErrorCode = codeOr(err, CodeSyncConnectFailed)
 			e.mu.Unlock()
 			e.logger.Error("git 同步接入失败", "error", err)
 			return err
@@ -270,19 +272,20 @@ func (e *Engine) syncCycle() error {
 
 	_, n, err := repo.CommitAll()
 	if err != nil {
-		return e.failCycle("提交本地变更失败", err)
+		return e.failCycle(CodeSyncCommitFailed, "提交本地变更失败", err)
 	}
 	outcome, err := repo.Pull()
 	if err != nil {
-		return e.failCycle("拉取远端失败", err)
+		return e.failCycle(CodeSyncPullFailed, "拉取远端失败", err)
 	}
 	if err := repo.Push(); err != nil {
-		return e.failCycle("推送失败", err)
+		return e.failCycle(CodeSyncPushFailed, "推送失败", err)
 	}
 
 	e.mu.Lock()
 	e.lastSyncAt = time.Now()
 	e.lastError = ""
+	e.lastErrorCode = ""
 	e.conflictedFiles = scanConflictedFiles(e.vaultDir)
 	e.mu.Unlock()
 
@@ -295,9 +298,11 @@ func (e *Engine) syncCycle() error {
 }
 
 // failCycle 记录失败并返回错误（token 绝不进日志：只记操作名与 go-git 错误）。
-func (e *Engine) failCycle(op string, err error) error {
+// code 是操作兜底码；错误链上带更具体的 code（如 SYNC_UNRELATED_HISTORIES）时优先。
+func (e *Engine) failCycle(code, op string, err error) error {
 	e.mu.Lock()
 	e.lastError = op + ": " + err.Error()
+	e.lastErrorCode = codeOr(err, code)
 	e.mu.Unlock()
 	e.logger.Error("git 同步失败", "op", op, "error", err)
 	return err
@@ -363,6 +368,7 @@ func (e *Engine) Reconfigure(in SyncConfig) error {
 	done, stopWatch := e.stopLoopLocked()
 	e.cfg = &in
 	e.lastError = ""
+	e.lastErrorCode = ""
 	e.mu.Unlock()
 	e.waitLoopStopped(done, stopWatch)
 
@@ -378,6 +384,7 @@ func (e *Engine) Reconfigure(in SyncConfig) error {
 	defer e.mu.Unlock()
 	if err != nil {
 		e.lastError = err.Error()
+		e.lastErrorCode = codeOr(err, CodeSyncConnectFailed)
 		return err
 	}
 	e.repo = repo
@@ -407,16 +414,18 @@ func (e *Engine) Disable() error {
 
 // Status 是当前同步状态快照（API 响应模型；绝不包含 token）。
 type Status struct {
-	Enabled         bool      `json:"enabled"`
-	Configured      bool      `json:"configured"`
-	URL             string    `json:"url,omitempty"`
-	Username        string    `json:"username,omitempty"`
-	Branch          string    `json:"branch,omitempty"`
-	LastSyncAt      time.Time `json:"lastSyncAt,omitempty"`
-	LastError       string    `json:"lastError,omitempty"`
-	Ahead           int       `json:"ahead"`
-	Behind          int       `json:"behind"`
-	ConflictedFiles []string  `json:"conflictedFiles"`
+	Enabled    bool      `json:"enabled"`
+	Configured bool      `json:"configured"`
+	URL        string    `json:"url,omitempty"`
+	Username   string    `json:"username,omitempty"`
+	Branch     string    `json:"branch,omitempty"`
+	LastSyncAt time.Time `json:"lastSyncAt,omitempty"`
+	LastError  string    `json:"lastError,omitempty"`
+	// LastErrorCode 与 LastError 配套的稳定 code（renderer 按 code 映射 i18n，原文兜底）
+	LastErrorCode   string   `json:"lastErrorCode,omitempty"`
+	Ahead           int      `json:"ahead"`
+	Behind          int      `json:"behind"`
+	ConflictedFiles []string `json:"conflictedFiles"`
 	// PushIntervalMin 当前生效的自动推拉间隔（分钟）
 	PushIntervalMin int `json:"pushIntervalMin"`
 }
@@ -430,6 +439,7 @@ func (e *Engine) GetStatus() Status {
 		Configured:      e.cfg != nil,
 		LastSyncAt:      e.lastSyncAt,
 		LastError:       e.lastError,
+		LastErrorCode:   e.lastErrorCode,
 		ConflictedFiles: e.conflictedFiles,
 		PushIntervalMin: defaultPushIntervalMin,
 	}

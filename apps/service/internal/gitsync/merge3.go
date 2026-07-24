@@ -31,7 +31,7 @@ func (r *Repo) mergeTheirs(local, remote *object.Commit) (*PullOutcome, error) {
 		return nil, fmt.Errorf("查找共同祖先失败: %w", err)
 	}
 	if len(bases) == 0 {
-		return nil, fmt.Errorf("本地与远端没有共同祖先（unrelated histories），v1 不支持合并，请改用空仓库")
+		return nil, withCode(CodeSyncUnrelatedHistories, fmt.Errorf("本地与远端没有共同祖先（unrelated histories），v1 不支持合并，请改用空仓库"))
 	}
 	base := bases[0]
 

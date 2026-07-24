@@ -238,5 +238,19 @@
     "quick": "速记（Ctrl+Shift+N）",
     "openMain": "打开主窗口",
     "quit": "退出 PinSlip"
+  },
+  "serverError": {
+    "SYNC_URL_REQUIRED": "启用同步必须提供仓库地址",
+    "SYNC_LOCAL_NOT_PINSLIP_REPO": "当前文件夹已是一个 git 仓库，但不是 PinSlip 同步仓库，请手动处理 .git 后再配置同步",
+    "SYNC_REMOTE_NOT_PINSLIP_REPO": "远端仓库不是 PinSlip 的同步仓库，为避免历史纠缠请使用空仓库",
+    "SYNC_REMOTE_ACCESS": "无法访问远端仓库，请检查地址、用户名和 token",
+    "SYNC_BRANCH_NOT_FOUND": "远端没有该分支，请确认分支名或改用空仓库",
+    "SYNC_UNRELATED_HISTORIES": "本地与远端没有共同祖先，无法合并，请改用空仓库",
+    "SYNC_DIRTY_WORKTREE": "本地有未提交的变更会被远端覆盖，请先提交或移开该文件",
+    "SYNC_CONNECT_FAILED": "同步接入失败",
+    "SYNC_COMMIT_FAILED": "本地提交失败",
+    "SYNC_PULL_FAILED": "从远端拉取失败",
+    "SYNC_PUSH_FAILED": "推送到远端失败",
+    "NOTE_NOT_FOUND": "便签不存在或已被删除"
   }
 }

@@ -238,5 +238,19 @@
     "quick": "Schnellnotiz (Strg+Umschalt+N)",
     "openMain": "Hauptfenster öffnen",
     "quit": "PinSlip beenden"
+  },
+  "serverError": {
+    "SYNC_URL_REQUIRED": "Zum Aktivieren der Synchronisierung ist eine Repository-URL erforderlich",
+    "SYNC_LOCAL_NOT_PINSLIP_REPO": "Dieser Ordner ist bereits ein Git-Repository, aber kein PinSlip-Sync-Repository. Bitte .git manuell behandeln, bevor die Synchronisierung konfiguriert wird",
+    "SYNC_REMOTE_NOT_PINSLIP_REPO": "Das Remote-Repository ist kein PinSlip-Sync-Repository. Bitte ein leeres Repository verwenden, um verwickelte Historien zu vermeiden",
+    "SYNC_REMOTE_ACCESS": "Kein Zugriff auf das Remote-Repository. Bitte URL, Benutzername und Token prüfen",
+    "SYNC_BRANCH_NOT_FOUND": "Der Branch existiert nicht im Remote. Bitte Branch-Namen prüfen oder ein leeres Repository verwenden",
+    "SYNC_UNRELATED_HISTORIES": "Lokale und entfernte Historie haben keinen gemeinsamen Vorfahren und können nicht gemergt werden. Bitte ein leeres Repository verwenden",
+    "SYNC_DIRTY_WORKTREE": "Nicht committete lokale Änderungen würden vom Remote überschrieben. Bitte zuerst committen oder die Datei verschieben",
+    "SYNC_CONNECT_FAILED": "Verbindung für die Synchronisierung fehlgeschlagen",
+    "SYNC_COMMIT_FAILED": "Lokaler Commit fehlgeschlagen",
+    "SYNC_PULL_FAILED": "Abrufen vom Remote fehlgeschlagen",
+    "SYNC_PUSH_FAILED": "Pushen zum Remote fehlgeschlagen",
+    "NOTE_NOT_FOUND": "Die Notiz existiert nicht oder wurde gelöscht"
   }
 }

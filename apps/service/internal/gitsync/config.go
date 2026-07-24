@@ -47,7 +47,7 @@ func (c *SyncConfig) normalize() error {
 		c.PushIntervalMin = defaultPushIntervalMin
 	}
 	if c.Enabled && c.URL == "" {
-		return errors.New("启用同步必须提供仓库地址 url")
+		return withCode(CodeSyncURLRequired, errors.New("启用同步必须提供仓库地址 url"))
 	}
 	return nil
 }

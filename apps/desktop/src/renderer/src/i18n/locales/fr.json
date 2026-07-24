@@ -238,5 +238,19 @@
     "quick": "Note rapide (Ctrl+Maj+N)",
     "openMain": "Ouvrir la fenêtre principale",
     "quit": "Quitter PinSlip"
+  },
+  "serverError": {
+    "SYNC_URL_REQUIRED": "L'URL du dépôt est requise pour activer la synchronisation",
+    "SYNC_LOCAL_NOT_PINSLIP_REPO": "Ce dossier est déjà un dépôt git mais pas un dépôt de synchronisation PinSlip. Veuillez traiter .git manuellement avant de configurer la synchronisation",
+    "SYNC_REMOTE_NOT_PINSLIP_REPO": "Le dépôt distant n'est pas un dépôt de synchronisation PinSlip. Veuillez utiliser un dépôt vide pour éviter des historiques enchevêtrés",
+    "SYNC_REMOTE_ACCESS": "Impossible d'accéder au dépôt distant. Vérifiez l'URL, le nom d'utilisateur et le token",
+    "SYNC_BRANCH_NOT_FOUND": "La branche n'existe pas sur le distant. Vérifiez le nom de la branche ou utilisez un dépôt vide",
+    "SYNC_UNRELATED_HISTORIES": "Les historiques local et distant n'ont pas d'ancêtre commun et ne peuvent pas être fusionnés. Veuillez utiliser un dépôt vide",
+    "SYNC_DIRTY_WORKTREE": "Des modifications locales non validées seraient écrasées par le distant. Veuillez d'abord valider ou déplacer le fichier",
+    "SYNC_CONNECT_FAILED": "Échec de la connexion de synchronisation",
+    "SYNC_COMMIT_FAILED": "Échec du commit local",
+    "SYNC_PULL_FAILED": "Échec de la récupération depuis le distant",
+    "SYNC_PUSH_FAILED": "Échec de l'envoi vers le distant",
+    "NOTE_NOT_FOUND": "La note n'existe pas ou a été supprimée"
   }
 }

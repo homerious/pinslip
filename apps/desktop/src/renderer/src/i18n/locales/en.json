@@ -238,5 +238,19 @@
     "quick": "Quick note (Ctrl+Shift+N)",
     "openMain": "Open main window",
     "quit": "Quit PinSlip"
+  },
+  "serverError": {
+    "SYNC_URL_REQUIRED": "A repository URL is required to enable sync",
+    "SYNC_LOCAL_NOT_PINSLIP_REPO": "This folder is already a git repository but not a PinSlip sync repository. Please handle .git manually before configuring sync",
+    "SYNC_REMOTE_NOT_PINSLIP_REPO": "The remote repository is not a PinSlip sync repository. Please use an empty repository to avoid tangled histories",
+    "SYNC_REMOTE_ACCESS": "Cannot access the remote repository. Check the URL, username, and token",
+    "SYNC_BRANCH_NOT_FOUND": "The branch does not exist on the remote. Check the branch name or use an empty repository",
+    "SYNC_UNRELATED_HISTORIES": "Local and remote histories share no common ancestor and cannot be merged. Please use an empty repository",
+    "SYNC_DIRTY_WORKTREE": "Local uncommitted changes would be overwritten by the remote. Please commit or move the file first",
+    "SYNC_CONNECT_FAILED": "Failed to connect sync",
+    "SYNC_COMMIT_FAILED": "Local commit failed",
+    "SYNC_PULL_FAILED": "Failed to pull from remote",
+    "SYNC_PUSH_FAILED": "Failed to push to remote",
+    "NOTE_NOT_FOUND": "The note does not exist or has been deleted"
   }
 }

@@ -186,6 +186,9 @@ func TestConnectForeignRemoteRejected(t *testing.T) {
 	if !strings.Contains(err.Error(), "空仓库") {
 		t.Errorf("错误应引导使用空仓库: %v", err)
 	}
+	if got := codeOf(err); got != CodeSyncRemoteNotPinslipRepo {
+		t.Errorf("codeOf = %q, want %q", got, CodeSyncRemoteNotPinslipRepo)
+	}
 }
 
 // 双 vault 互同步（模拟双设备）：A 改 B 见、B 改 A 见。
@@ -515,6 +518,8 @@ func TestOfflineRecoveryCatchUp(t *testing.T) {
 	}
 	if st := eng.GetStatus(); st.LastError == "" {
 		t.Fatal("lastError 应记录接入失败")
+	} else if st.LastErrorCode != CodeSyncRemoteAccess {
+		t.Fatalf("LastErrorCode = %q, want %q", st.LastErrorCode, CodeSyncRemoteAccess)
 	}
 
 	// 启动循环（等价服务重启捡起已存配置）：首轮失败进入 backoff

@@ -83,4 +83,18 @@ export function getLanguagePreference(): LanguagePreference {
   return preference;
 }
 
+/** Go 服务端用户可见错误的展示文案：有稳定 code 且语言包存在
+ *  serverError.<CODE> 译文时返回译文，否则回退 Go 原文（中文）。 */
+export function translateServerError(
+  t: (key: string) => string,
+  code: string | null | undefined,
+  message: string,
+): string {
+  if (code) {
+    const key = `serverError.${code}`;
+    if (i18n.exists(key)) return t(key);
+  }
+  return message;
+}
+
 export default i18n;

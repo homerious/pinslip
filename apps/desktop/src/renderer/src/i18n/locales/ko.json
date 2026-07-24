@@ -238,5 +238,19 @@
     "quick": "빠른 메모(Ctrl+Shift+N)",
     "openMain": "메인 창 열기",
     "quit": "PinSlip 종료"
+  },
+  "serverError": {
+    "SYNC_URL_REQUIRED": "동기화를 사용하려면 저장소 주소가 필요합니다",
+    "SYNC_LOCAL_NOT_PINSLIP_REPO": "이 폴더는 이미 git 저장소이지만 PinSlip 동기화 저장소가 아닙니다. .git을 수동으로 처리한 후 동기화를 설정하세요",
+    "SYNC_REMOTE_NOT_PINSLIP_REPO": "원격 저장소가 PinSlip 동기화 저장소가 아닙니다. 히스토리 충돌을 피하려면 빈 저장소를 사용하세요",
+    "SYNC_REMOTE_ACCESS": "원격 저장소에 접근할 수 없습니다. 주소, 사용자 이름, 토큰을 확인하세요",
+    "SYNC_BRANCH_NOT_FOUND": "원격에 해당 브랜치가 없습니다. 브랜치 이름을 확인하거나 빈 저장소를 사용하세요",
+    "SYNC_UNRELATED_HISTORIES": "로컬과 원격에 공통 조상이 없어 병합할 수 없습니다. 빈 저장소를 사용하세요",
+    "SYNC_DIRTY_WORKTREE": "커밋되지 않은 로컬 변경 사항이 원격으로 덮어쓰여집니다. 먼저 커밋하거나 파일을 옮기세요",
+    "SYNC_CONNECT_FAILED": "동기화 연결에 실패했습니다",
+    "SYNC_COMMIT_FAILED": "로컬 커밋에 실패했습니다",
+    "SYNC_PULL_FAILED": "원격에서 가져오기에 실패했습니다",
+    "SYNC_PUSH_FAILED": "원격으로 푸시에 실패했습니다",
+    "NOTE_NOT_FOUND": "메모가 없거나 삭제되었습니다"
   }
 }
