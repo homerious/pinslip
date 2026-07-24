@@ -158,6 +158,11 @@ const MilkdownEditor = forwardRef<EditorHandle, EditorProps>(function MilkdownEd
         // 粘贴图片：上传 vault attachments/ 后插入 image 节点（markdown 存相对路径，前缀深度随文件夹）
         ctx.update(editorViewOptionsCtx, (options) => ({
           ...options,
+          // 关掉拼写检查：代码/命令里的英文词会被拼写检查画满红波浪线
+          attributes: {
+            ...(typeof options.attributes === 'object' ? options.attributes : {}),
+            spellcheck: 'false',
+          },
           handlePaste: handleImagePaste(folder),
         }));
         ctx.get(listenerCtx).markdownUpdated((_ctx, markdown, _prev) => {

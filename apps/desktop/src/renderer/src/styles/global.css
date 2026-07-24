@@ -1181,19 +1181,31 @@ input.sticky-note__groupname-input::placeholder {
   color: rgba(0, 0, 0, 0.6);
 }
 
+/* 代码字体栈：统一走系统等宽字体（Cascadia/Consolas 系在 Windows 上观感最好） */
+.pinslip-editor .ProseMirror code,
+.pinslip-editor .ProseMirror pre {
+  font-family: ui-monospace, 'Cascadia Mono', 'Cascadia Code', 'SF Mono', Consolas, 'Courier New', monospace;
+}
+
 .pinslip-editor .ProseMirror code {
-  background: rgba(0, 0, 0, 0.07);
-  border-radius: 3px;
-  padding: 0 3px;
+  background: rgba(0, 0, 0, 0.09);
+  border-radius: 4px;
+  padding: 1px 4px;
   font-size: 12px;
 }
 
 .pinslip-editor .ProseMirror pre {
-  background: rgba(0, 0, 0, 0.06);
+  background: rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(0, 0, 0, 0.06);
   border-radius: 6px;
   padding: 8px 10px;
-  margin: 4px 0;
-  overflow-x: auto;
+  margin: 6px 0;
+  font-size: 12px;
+  line-height: 1.6;
+  /* 便签窗口窄，长命令直接软换行，不出横向滚动条 */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  overflow-x: hidden;
 }
 
 .pinslip-editor .ProseMirror pre code {
