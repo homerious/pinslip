@@ -424,6 +424,7 @@ func toMeta(fm *storage.Frontmatter, body string, inbox bool, folder string) Met
 		Folder:     note.Folder,
 		WordCount:  utf8.RuneCountInString(body),
 		Conflicted: hasConflictMarkers(body),
+		Excerpt:    MakeExcerpt(body),
 		CreatedAt:  note.CreatedAt,
 		UpdatedAt:  note.UpdatedAt,
 	}

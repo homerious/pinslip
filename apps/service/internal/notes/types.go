@@ -33,7 +33,8 @@ type Meta struct {
 	Inbox      bool      `json:"inbox"`
 	Folder     string    `json:"folder"`
 	WordCount  int       `json:"wordCount"`
-	Conflicted bool      `json:"conflicted"` // 内容含 git 冲突标记行（^<<<<<<< ）
+	Conflicted bool      `json:"conflicted"`        // 内容含 git 冲突标记行（^<<<<<<< ）
+	Excerpt    string    `json:"excerpt,omitempty"` // 正文纯文本摘要（MakeExcerpt 生成，列表预览用）
 	CreatedAt  time.Time `json:"createdAt"`
 	UpdatedAt  time.Time `json:"updatedAt"`
 }

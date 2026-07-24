@@ -28,6 +28,13 @@ func stopServer(t *testing.T, s *Server) {
 
 // 知名端口空闲时优先绑定（浏览器插件按固定地址探测）。
 func TestStartPrefersDefaultPort(t *testing.T) {
+	// 环境已占用（如开发机上正跑着 pinslipd）时跳过：优先绑定语义无法验证
+	probe, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", DefaultPort))
+	if err != nil {
+		t.Skipf("知名端口已被环境占用，跳过优先绑定用例: %v", err)
+	}
+	probe.Close()
+
 	s := newTestServer()
 	port, fallback, err := s.Start()
 	if err != nil {

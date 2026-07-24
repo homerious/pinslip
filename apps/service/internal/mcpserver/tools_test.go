@@ -305,3 +305,181 @@ func TestWithEnabledGate(t *testing.T) {
 		t.Errorf("开启时应透传, got %d", rec.Code)
 	}
 }
+
+// 时间过滤：闭区间边界、timeField 区分、日期简写、非法值中文错误。
+func TestListNotesTimeFilter(t *testing.T) {
+	h, svc := newTestHandler(t)
+	mk := func(id, content string) {
+		if _, err := svc.Save(id, notes.SaveInput{Content: &content}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	createdAt := func(id string) string {
+		n, err := svc.Get(id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return n.CreatedAt.Format(time.RFC3339)
+	}
+	updatedAt := func(id string) string {
+		n, err := svc.Get(id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return n.UpdatedAt.Format(time.RFC3339)
+	}
+	total := func(args map[string]any) float64 {
+		return structuredMap(t, call(t, h.listNotes, args))["total"].(float64)
+	}
+
+	mk("tf1", "周报 一")
+	time.Sleep(1100 * time.Millisecond) // 时间戳秒级精度，拉开间距
+	mk("tf2", "周报 二")
+	time.Sleep(1100 * time.Millisecond)
+	// tf1 再更新：updatedAt(tf1) > createdAt(tf2) > createdAt(tf1)
+	mk("tf1", "周报 一（改）")
+
+	// 闭区间边界：since = tf1.updatedAt（三条时间线里最晚）恰命中 tf1 自身，端点含边界
+	if got := total(map[string]any{"since": updatedAt("tf1")}); got != 1 {
+		t.Errorf("since 边界应含端点（1 条）, got %v", got)
+	}
+	// until = tf1.createdAt（created 视角）：只剩 tf1（tf2 创建更晚；tf1 的 updated 已晚于该点，
+	// 默认 updated 视角下两条都会被排除——这正是 timeField 的语义差别）
+	if got := total(map[string]any{"until": createdAt("tf1"), "timeField": "created"}); got != 1 {
+		t.Errorf("until 边界应只剩 tf1, got %v", got)
+	}
+	if got := total(map[string]any{"until": createdAt("tf1")}); got != 0 {
+		t.Errorf("updated 视角下同值 until 应 0 条, got %v", got)
+	}
+	// timeField 区分：since = tf2.createdAt
+	// updated 视角：两条都新于该点；created 视角：tf1 创建更早被排除
+	if got := total(map[string]any{"since": createdAt("tf2")}); got != 2 {
+		t.Errorf("timeField=updated 应 2 条, got %v", got)
+	}
+	if got := total(map[string]any{"since": createdAt("tf2"), "timeField": "created"}); got != 1 {
+		t.Errorf("timeField=created 应 1 条, got %v", got)
+	}
+	// 日期简写：今天创建的两条都应命中（until 按当天结束计）
+	today := time.Now().Format("2006-01-02")
+	if got := total(map[string]any{"since": today, "until": today}); got != 2 {
+		t.Errorf("日期简写闭区间应 2 条, got %v", got)
+	}
+	// 非法值：中文错误并指出参数名
+	res := call(t, h.listNotes, map[string]any{"since": "2026/07/23"})
+	if txt := errText(t, res); !strings.Contains(txt, "since") || !strings.Contains(txt, "无法识别") {
+		t.Errorf("非法 since 应给中文错误: %v", txt)
+	}
+	res = call(t, h.listNotes, map[string]any{"timeField": "bogus"})
+	if txt := errText(t, res); !strings.Contains(txt, "timeField") {
+		t.Errorf("非法 timeField 应报错: %v", txt)
+	}
+	// 搜索路径同样生效（created 视角）
+	m := structuredMap(t, call(t, h.searchNotes, map[string]any{
+		"query": "周报", "until": createdAt("tf1"), "timeField": "created",
+	}))
+	if m["total"].(float64) != 1 {
+		t.Errorf("search_notes 时间过滤应 1 条: %v", m)
+	}
+}
+
+// list_notes 条目带 excerpt 摘要与完整时间字段。
+func TestListNotesExcerpt(t *testing.T) {
+	h, svc := newTestHandler(t)
+	content := "# 项目周报\n\n**进度**良好，详见 [看板](https://example.com)\n\n![架构图](../attachments/a.png)"
+	if _, err := svc.Save("ex1", notes.SaveInput{Content: &content}); err != nil {
+		t.Fatal(err)
+	}
+	m := structuredMap(t, call(t, h.listNotes, nil))
+	item := m["items"].([]any)[0].(map[string]any)
+	if item["excerpt"] != "项目周报 进度良好，详见 看板 架构图" {
+		t.Errorf("excerpt 不符: %q", item["excerpt"])
+	}
+	for _, k := range []string{"id", "title", "folder", "tags", "createdAt", "updatedAt"} {
+		if _, ok := item[k]; !ok {
+			t.Errorf("条目缺字段 %s: %v", k, item)
+		}
+	}
+}
+
+// update_note 传 folder：便签移动且附件相对路径按新深度重写（与编辑器移动一致）。
+func TestUpdateNoteFolder(t *testing.T) {
+	h, svc := newTestHandler(t)
+	content := "配图便签\n\n![](../attachments/att-x.png)"
+	if _, err := svc.Save("mv1", notes.SaveInput{Content: &content}); err != nil {
+		t.Fatal(err)
+	}
+	note := structuredMap(t, call(t, h.updateNote, map[string]any{
+		"id": "mv1", "content": content, "folder": "工作/项目",
+	}))
+	if note["folder"] != "工作/项目" {
+		t.Fatalf("folder 应为 工作/项目: %v", note["folder"])
+	}
+	// 根目录（深 1）→ 工作/项目（深 3）：../ 前缀应变两个
+	got, err := svc.Get("mv1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(got.Content, "](../../../attachments/att-x.png)") {
+		t.Errorf("附件路径未按新深度重写: %q", got.Content)
+	}
+	// 不传 folder：位置不变
+	note = structuredMap(t, call(t, h.updateNote, map[string]any{
+		"id": "mv1", "content": content,
+	}))
+	if note["folder"] != "工作/项目" {
+		t.Errorf("不传 folder 应保持原位置: %v", note["folder"])
+	}
+}
+
+// patch_note：唯一替换（标题不动）/ 未找到 / 多处匹配。
+func TestPatchNote(t *testing.T) {
+	h, svc := newTestHandler(t)
+	if _, err := svc.Save("pt1", notes.SaveInput{Content: strPtr2("会议记录\n\nTODO: 写周报\n周报模板：空")}); err != nil {
+		t.Fatal(err)
+	}
+
+	// 唯一替换：内容改掉、标题保持推导值不漂移
+	note := structuredMap(t, call(t, h.patchNote, map[string]any{
+		"id": "pt1", "oldString": "TODO: 写周报", "newString": "DONE: 周报已发",
+	}))
+	if !strings.Contains(note["content"].(string), "DONE: 周报已发") {
+		t.Errorf("替换未生效: %q", note["content"])
+	}
+	if note["title"] != "会议记录" {
+		t.Errorf("patch 不应改动标题: %v", note["title"])
+	}
+
+	// 未找到：中文错误并指引 read_note
+	res := call(t, h.patchNote, map[string]any{
+		"id": "pt1", "oldString": "不存在的片段", "newString": "x",
+	})
+	if txt := errText(t, res); !strings.Contains(txt, "未找到") || !strings.Contains(txt, "read_note") {
+		t.Errorf("未找到应报错并指引 read_note: %v", txt)
+	}
+
+	// 多处匹配：报错要求更长上下文
+	res = call(t, h.patchNote, map[string]any{
+		"id": "pt1", "oldString": "周报", "newString": "月报",
+	})
+	if txt := errText(t, res); !strings.Contains(txt, "唯一") {
+		t.Errorf("多处匹配应要求更长上下文: %v", txt)
+	}
+
+	// 空 newString = 删除该片段
+	note = structuredMap(t, call(t, h.patchNote, map[string]any{
+		"id": "pt1", "oldString": "DONE: 周报已发", "newString": "",
+	}))
+	if strings.Contains(note["content"].(string), "DONE") {
+		t.Errorf("空 newString 应删除片段: %q", note["content"])
+	}
+
+	// 不存在的 id：中文错误
+	res = call(t, h.patchNote, map[string]any{
+		"id": "no-such", "oldString": "a", "newString": "b",
+	})
+	if !strings.Contains(errText(t, res), "便签不存在") {
+		t.Errorf("不存在的 id 应报错: %v", res.Content)
+	}
+}
+
+func strPtr2(s string) *string { return &s }

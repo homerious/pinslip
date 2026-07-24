@@ -79,7 +79,7 @@ func TestMCPEndpointSmoke(t *testing.T) {
 	}
 	want := []string{
 		"search_notes", "list_notes", "read_note", "create_note", "update_note",
-		"append_note", "delete_note", "list_tags", "list_folders",
+		"patch_note", "append_note", "delete_note", "list_tags", "list_folders",
 		"sync_now", "sync_status",
 	}
 	got := map[string]bool{}

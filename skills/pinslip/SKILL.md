@@ -70,21 +70,26 @@ URL 填 `http://127.0.0.1:<port>/mcp`，无需鉴权头。
 > 端口每次启动随机，务必先从 mcp.json 读取，不要写死。
 > 应用设置里「复制接入信息」按钮可直接复制上面这段配置。
 
-## 3. 工具一览（11 个）
+## 3. 工具一览（12 个）
 
-数据面（9）：
+数据面（10）：
 
 | 工具 | 用途 | 关键参数 |
 | --- | --- | --- |
-| `search_notes` | 全文搜索（FTS5，中文子串匹配），返回命中片段 | `query`（必填）、`folder`、`tag`、`limit`（默认 20） |
-| `list_notes` | 列出便签元数据（不含正文），过滤+排序+分页 | `folder`、`tag`、`inbox`、`sort`（updated/created）、`order`、`limit`（默认 50）、`offset` |
+| `search_notes` | 全文搜索（FTS5，中文子串匹配），返回命中片段 | `query`（必填）、`folder`、`tag`、`since`/`until`/`timeField`、`limit`（默认 20） |
+| `list_notes` | 列出便签元数据（含 excerpt 摘要，不含正文），过滤+排序+分页 | `folder`、`tag`、`inbox`、`since`/`until`/`timeField`、`sort`（updated/created）、`order`、`limit`（默认 50）、`offset` |
 | `read_note` | 读取单条便签完整内容 | `id`（必填） |
 | `create_note` | 新建便签 | `content`（必填）、`title`（缺省自动推导）、`tags`、`folder` |
-| `update_note` | **全量替换**正文，可顺带改标题/标签 | `id`、`content`（均必填）、`title`、`tags` |
+| `update_note` | **全量替换**正文，可顺带改标题/标签/移动文件夹 | `id`、`content`（均必填）、`title`、`tags`、`folder` |
+| `patch_note` | **局部替换**：把唯一出现的 oldString 换成 newString | `id`、`oldString`、`newString`（均必填） |
 | `append_note` | 把内容追加到便签末尾 | `id`、`content`（均必填） |
 | `delete_note` | 删除便签——**只进回收区**，可找回 | `id`（必填） |
 | `list_tags` | 全部标签及使用次数 | 无 |
 | `list_folders` | notes/ 下全部子文件夹 | 无 |
+
+时间过滤参数（`search_notes` / `list_notes` 通用）：
+`since` / `until` 接受日期（`2026-07-23`，本地时区）或 RFC3339 时间戳，**闭区间**
+（只给日期时 until 按当天结束计）；`timeField` 选 `updated`（默认）或 `created`。
 
 同步面（2）：
 
@@ -103,8 +108,19 @@ URL 填 `http://127.0.0.1:<port>/mcp`，无需鉴权头。
 **归档整理**：
 
 1. `search_notes` 按关键词找候选 → `read_note` 看全文
-2. 用 `update_note` 补标签（tags 整体替换，先读出现有标签再增删）
+2. 用 `update_note` 补标签（tags 整体替换，先读出现有标签再增删）；
+   移动归属直接传 `folder`（附件相对路径会自动按新深度重写）
 3. 新建便签时直接指定 `folder` 归位；`list_folders` 看现有目录结构
+
+**按时间查找**：「上周记的/最近改过的」这类需求用时间参数，不要全量拉列表自己算：
+
+1. `list_notes`（`since: "2026-07-20"`, `until: "2026-07-26"`）按更新时间圈范围；
+   找「哪天记的」用 `timeField: "created"`
+2. 每条结果带 `excerpt` 摘要，先扫摘要定位，命中再 `read_note` 取全文
+
+**小改动**：改一两句话、修错别字、更新某个字段值，用 `patch_note`
+（`oldString` 必须唯一匹配，找不到/多处匹配会报错，此时 `read_note` 拿到原文再试）；
+整篇重写才用 `update_note`。
 
 **引用写作**：用户要写东西时，先 `search_notes` 找相关便签素材，
 `read_note` 取出原文片段引用，写完的长文可 `create_note` 存回 PinSlip。
@@ -118,7 +134,8 @@ URL 填 `http://127.0.0.1:<port>/mcp`，无需鉴权头。
 - **删除只进回收区**：`delete_note` 不做物理删除，用户可在应用内找回。
   不要尝试任何绕过回收区的删除方式。
 - **大改前先 `read_note`**：`update_note` 是**全量替换**不是局部修改，
-  不先读出原文拼接会把用户内容冲掉。小补充优先用 `append_note`。
+  不先读出原文拼接会把用户内容冲掉。小改动优先 `patch_note`（唯一匹配才执行，
+  标题不会被重新推导），小补充优先用 `append_note`。
 - **写入纯 Markdown**：便签正文就是 `.md` 文件原文，标题/列表/任务框/图片
   都是标准 Markdown；不要写入 HTML 或私有语法。
 - **便签窗口实时联动**：开着的便签被 AI 改动后，应用的外部变更感知会
