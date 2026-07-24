@@ -75,7 +75,11 @@
     "groupHandleTip": "드래그로 그룹 이동 · 더블 클릭으로 이름 지정 · 우클릭 메뉴",
     "groupHandleTipNamed": "그룹 '{{name}}' · 드래그로 이동 · 더블 클릭으로 이름 변경 · 우클릭 메뉴",
     "groupNamePlaceholder": "그룹 이름",
-    "dissolveGroup": "그룹 해체"
+    "dissolveGroup": "그룹 해체",
+    "zoomOut": "축소(현재 {{pct}}%)",
+    "zoomIn": "확대(현재 {{pct}}%)",
+    "zoomOutLimit": "최소 배율입니다(50%)",
+    "zoomInLimit": "최대 배율입니다(200%)"
   },
   "list": {
     "allNotes": "모든 메모 ({{count}})",

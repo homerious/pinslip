@@ -549,3 +549,58 @@ func TestDeleteFolderTrashClearsIndex(t *testing.T) {
 		t.Errorf("trash 后应搜不到: %v", hits)
 	}
 }
+
+// 内容缩放：zoom 写入/读取/恢复默认删字段；nil 保留原值。
+func TestSaveZoomRoundTrip(t *testing.T) {
+	svc, store := newTestService(t)
+
+	if _, err := svc.Save("zoom01", SaveInput{Content: strPtr("正文")}); err != nil {
+		t.Fatal(err)
+	}
+	// 设置 130%
+	z := 1.3
+	note, err := svc.Save("zoom01", SaveInput{Zoom: &z})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if note.Zoom != 1.3 {
+		t.Fatalf("Zoom = %v, want 1.3", note.Zoom)
+	}
+	fm, _, _, _, err := store.Load("zoom01")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fm.Zoom != 1.3 {
+		t.Fatalf("frontmatter zoom = %v, want 1.3", fm.Zoom)
+	}
+	// 不传 zoom：保留
+	if _, err := svc.Save("zoom01", SaveInput{Content: strPtr("正文改")}); err != nil {
+		t.Fatal(err)
+	}
+	fm, _, _, _, _ = store.Load("zoom01")
+	if fm.Zoom != 1.3 {
+		t.Fatalf("不传 zoom 应保留, got %v", fm.Zoom)
+	}
+	// 传 1：恢复默认并删除字段
+	one := 1.0
+	note, err = svc.Save("zoom01", SaveInput{Zoom: &one})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if note.Zoom != 0 {
+		t.Fatalf("恢复默认后 Zoom = %v, want 0（omitempty 不输出）", note.Zoom)
+	}
+	fm, _, _, _, _ = store.Load("zoom01")
+	if fm.Zoom != 0 {
+		t.Fatalf("frontmatter zoom 应删除, got %v", fm.Zoom)
+	}
+	// 文件里确实没有 zoom 行
+	p, _, err := store.Locate("zoom01")
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, _ := os.ReadFile(p)
+	if strings.Contains(string(data), "zoom:") {
+		t.Fatalf("默认缩放下 frontmatter 不应有 zoom 字段:\n%s", data)
+	}
+}

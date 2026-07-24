@@ -75,7 +75,11 @@
     "groupHandleTip": "ドラッグでグループ移動 · ダブルクリックで命名 · 右クリックメニュー",
     "groupHandleTipNamed": "グループ「{{name}}」· ドラッグで移動 · ダブルクリックで改名 · 右クリックメニュー",
     "groupNamePlaceholder": "グループ名",
-    "dissolveGroup": "グループを解散"
+    "dissolveGroup": "グループを解散",
+    "zoomOut": "縮小（現在 {{pct}}%）",
+    "zoomIn": "拡大（現在 {{pct}}%）",
+    "zoomOutLimit": "最小倍率です（50%）",
+    "zoomInLimit": "最大倍率です（200%）"
   },
   "list": {
     "allNotes": "すべてのノート（{{count}}）",

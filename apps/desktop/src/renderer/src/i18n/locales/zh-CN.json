@@ -75,7 +75,11 @@
     "groupHandleTip": "拖动整组 · 双击命名 · 右键菜单",
     "groupHandleTipNamed": "组「{{name}}」· 拖动整组 · 双击改名 · 右键菜单",
     "groupNamePlaceholder": "组名",
-    "dissolveGroup": "解散此组"
+    "dissolveGroup": "解散此组",
+    "zoomOut": "缩小（当前 {{pct}}%）",
+    "zoomIn": "放大（当前 {{pct}}%）",
+    "zoomOutLimit": "已是最小缩放（50%）",
+    "zoomInLimit": "已是最大缩放（200%）"
   },
   "list": {
     "allNotes": "全部便签（{{count}}）",

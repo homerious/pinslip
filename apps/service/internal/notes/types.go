@@ -12,8 +12,9 @@ type Note struct {
 	Source    string    `json:"source"`
 	Pin       bool     `json:"pin"`
 	Color     string   `json:"color"`
-	Collapsed bool     `json:"collapsed"` // 折叠成标题条
-	Group     string   `json:"group"`     // 所属便签组 id（"" = 不属于任何组）
+	Collapsed bool     `json:"collapsed"`        // 折叠成标题条
+	Zoom      float64  `json:"zoom,omitempty"` // 内容缩放倍率（1.3 = 130%；缺省 = 100%）
+	Group     string   `json:"group"`            // 所属便签组 id（"" = 不属于任何组）
 	Inbox     bool     `json:"inbox"`
 	Folder    string   `json:"folder"` // notes/ 下的相对子目录，"" 为根目录
 	CreatedAt time.Time `json:"createdAt"`
@@ -63,6 +64,7 @@ type SaveInput struct {
 	Group     *string  `json:"group,omitempty"`     // nil = 保留原便签组（"" = 移出组）
 	Folder    *string  `json:"folder,omitempty"`    // 仅新建时生效：落盘目录；已存在便签忽略（移动走 move API）
 	Inbox     *bool    `json:"inbox,omitempty"`     // 仅新建时生效：true = 落收集箱（浏览器插件剪藏等外部入口）
+	Zoom      *float64 `json:"zoom,omitempty"`      // 内容缩放倍率；nil = 保留，1（或 <=0）= 恢复默认并删除字段
 }
 
 // RenameFolderInput 是 POST /api/folders/rename 的请求体。

@@ -95,6 +95,14 @@ func (s *Service) Save(id string, in SaveInput) (*Note, error) {
 	if in.Color != "" {
 		fm.Color = in.Color
 	}
+	// Zoom 语义：nil = 保留；<=0 或 ==1 = 恢复默认（删除字段，保持 frontmatter 干净）；
+	// 其余值直接落（步进/范围约束在客户端按钮上，服务端不重复校验）
+	if in.Zoom != nil {
+		fm.Zoom = *in.Zoom
+		if fm.Zoom <= 0 || fm.Zoom == 1 {
+			fm.Zoom = 0
+		}
+	}
 	if fm.Source == "" {
 		fm.Source = "sticky"
 	}
@@ -397,6 +405,7 @@ func toNote(fm *storage.Frontmatter, body string, inbox bool, folder string) *No
 		Pin:       fm.Pin,
 		Color:     fm.Color,
 		Collapsed: fm.Collapsed,
+		Zoom:      fm.Zoom,
 		Group:     fm.Group,
 		Inbox:     inbox,
 		Folder:    folder,

@@ -75,7 +75,11 @@
     "groupHandleTip": "Ziehen bewegt die Gruppe · Doppelklick zum Benennen · Rechtsklick-Menü",
     "groupHandleTipNamed": "Gruppe „{{name}}“ · Ziehen bewegt · Doppelklick zum Umbenennen · Rechtsklick-Menü",
     "groupNamePlaceholder": "Gruppenname",
-    "dissolveGroup": "Gruppe auflösen"
+    "dissolveGroup": "Gruppe auflösen",
+    "zoomOut": "Verkleinern (aktuell {{pct}} %)",
+    "zoomIn": "Vergrößern (aktuell {{pct}} %)",
+    "zoomOutLimit": "Minimale Vergrößerung erreicht (50 %)",
+    "zoomInLimit": "Maximale Vergrößerung erreicht (200 %)"
   },
   "list": {
     "allNotes": "Alle Notizen ({{count}})",

@@ -75,7 +75,11 @@
     "groupHandleTip": "Arrastra para mover el grupo · doble clic para nombrar · menú con clic derecho",
     "groupHandleTipNamed": "Grupo «{{name}}» · arrastra para mover · doble clic para renombrar · menú con clic derecho",
     "groupNamePlaceholder": "Nombre del grupo",
-    "dissolveGroup": "Disolver grupo"
+    "dissolveGroup": "Disolver grupo",
+    "zoomOut": "Reducir (ahora {{pct}}%)",
+    "zoomIn": "Ampliar (ahora {{pct}}%)",
+    "zoomOutLimit": "Ya está en el zoom mínimo (50%)",
+    "zoomInLimit": "Ya está en el zoom máximo (200%)"
   },
   "list": {
     "allNotes": "Todas las notas ({{count}})",

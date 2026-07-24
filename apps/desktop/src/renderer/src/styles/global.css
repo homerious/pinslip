@@ -361,6 +361,16 @@ input.sticky-note__groupname-input::placeholder {
   background: rgba(0, 0, 0, 0.08);
 }
 
+/* 禁用（如内容缩放已到 50%/200% 边界）：置灰且不响应 hover */
+.sticky-note__btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.sticky-note__btn:disabled:hover {
+  background: transparent;
+}
+
 /* 标签按钮：图标 + 数量徽标，宽度自适应（基础 btn 固定 22px 放不下） */
 .sticky-note__tagbtn {
   width: auto;
@@ -918,6 +928,15 @@ input.sticky-note__groupname-input::placeholder {
 
 .sticky-note__menu-item:hover {
   background: rgba(0, 0, 0, 0.06);
+}
+
+.sticky-note__menu-item:disabled {
+  color: #aaa;
+  cursor: default;
+}
+
+.sticky-note__menu-item:disabled:hover {
+  background: transparent;
 }
 
 .sticky-note__menu-item.is-danger {

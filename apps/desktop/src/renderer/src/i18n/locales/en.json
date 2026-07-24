@@ -75,7 +75,11 @@
     "groupHandleTip": "Drag to move group · double-click to name · right-click menu",
     "groupHandleTipNamed": "Group \"{{name}}\" · drag to move · double-click to rename · right-click menu",
     "groupNamePlaceholder": "Group name",
-    "dissolveGroup": "Dissolve group"
+    "dissolveGroup": "Dissolve group",
+    "zoomOut": "Zoom out (now {{pct}}%)",
+    "zoomIn": "Zoom in (now {{pct}}%)",
+    "zoomOutLimit": "Already at minimum zoom (50%)",
+    "zoomInLimit": "Already at maximum zoom (200%)"
   },
   "list": {
     "allNotes": "All notes ({{count}})",

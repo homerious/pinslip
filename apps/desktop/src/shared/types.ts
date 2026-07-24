@@ -14,6 +14,8 @@ export interface Note {
   color: NoteColor;
   /** 折叠成标题条（只显示标题栏） */
   collapsed: boolean;
+  /** 内容缩放倍率（1.3 = 130%；缺省 = 100%） */
+  zoom?: number;
   /** 所属便签组 id（"" = 不属于任何组） */
   group: string;
   inbox: boolean;
@@ -53,6 +55,8 @@ export interface SaveNoteInput {
   source?: string;
   color?: NoteColor;
   collapsed?: boolean;
+  /** 内容缩放倍率；不传 = 保留，1 = 恢复默认（服务端删除字段） */
+  zoom?: number;
   /** 便签组（与 collapsed 同语义）：不传 = 保留原组，"" = 移出组 */
   group?: string;
   /** 仅新建时生效：落盘文件夹（notes/ 相对路径）；已存在便签忽略 */

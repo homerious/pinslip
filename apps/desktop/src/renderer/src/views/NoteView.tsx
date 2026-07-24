@@ -20,6 +20,8 @@ import TextBolderIcon from '~icons/ph/text-bolder';
 import TextStrikethroughIcon from '~icons/ph/text-strikethrough';
 import ListChecksIcon from '~icons/ph/list-checks';
 import ImageIcon from '~icons/ph/image';
+import MagnifyingGlassMinusIcon from '~icons/ph/magnifying-glass-minus';
+import MagnifyingGlassPlusIcon from '~icons/ph/magnifying-glass-plus';
 import CopyIcon from '~icons/ph/copy';
 import CheckIcon from '~icons/ph/check';
 import ArrowsClockwiseIcon from '~icons/ph/arrows-clockwise';
@@ -84,6 +86,13 @@ function deriveTitle(markdown: string): string {
   return '';
 }
 
+/** 内容缩放：整数百分比存储/计算（50–200，步进 10，默认 100），
+ *  避免 0.7+0.1 这类浮点误差；持久化到 frontmatter 时 /100 转倍率 */
+const ZOOM_MIN = 50;
+const ZOOM_MAX = 200;
+const ZOOM_STEP = 10;
+const ZOOM_DEFAULT = 100;
+
 /** 六色定义：dot = 标题栏色；ink = 同色加深版（颜色按钮图标着色，
  *  直接用标题栏本色会在同色标题栏上隐身，故用 600 档深色）。
  *  显示名在语言包 color.<key>，渲染时 t() 取 */
@@ -111,6 +120,8 @@ export default function NoteView() {
   /** 折叠/展开的 CSS 高度过渡只在切换瞬间挂（180ms），平时拖拽改尺寸不挂 transition 防滞后 */
   const [collapseAnim, setCollapseAnim] = useState(false);
   const [color, setColor] = useState<NoteColor>('yellow');
+  /** 内容缩放（整数百分比）；只作用于标题文字与编辑器正文，标题栏/工具栏按钮不缩 */
+  const [zoomPct, setZoomPct] = useState(ZOOM_DEFAULT);
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
   const [tagPanelOpen, setTagPanelOpen] = useState(false);
@@ -265,7 +276,7 @@ export default function NoteView() {
     (text: string) => {
       setSaveState('saving');
       notesApi
-        .save(noteId, { content: text, source: 'sticky', pin: pinned, color, tags, collapsed, folder: folderRef.current })
+        .save(noteId, { content: text, source: 'sticky', pin: pinned, color, tags, collapsed, folder: folderRef.current, zoom: zoomPct === ZOOM_DEFAULT ? 1 : zoomPct / 100 })
         .then((note) => {
           existsRef.current = true;
           lastSavedRef.current = note.content;
@@ -287,7 +298,7 @@ export default function NoteView() {
         })
         .catch(() => setSaveState('error'));
     },
-    [noteId, pinned, color, tags, collapsed, t],
+    [noteId, pinned, color, tags, collapsed, zoomPct, t],
   );
 
   // toast 轻提示 2.5s 自动消隐
@@ -359,6 +370,10 @@ export default function NoteView() {
         void window.api.setNoteCollapsed(noteId, note.collapsed ?? false);
         setColor(note.color || 'yellow');
         setTags(note.tags ?? []);
+        // 内容缩放：frontmatter zoom 倍率 → 整数百分比（范围外收敛；缺省 = 100%）
+        if (note.zoom && note.zoom > 0) {
+          setZoomPct(Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(note.zoom * 100))));
+        }
         folderRef.current = note.folder ?? '';
         setFolder(note.folder ?? '');
       })
@@ -407,7 +422,7 @@ export default function NoteView() {
       // folder 随保存带上：仅新建便签首次落盘生效（已存在便签服务端忽略，移动走 move）；
       // collapsed 一并带上（全量快照式 upsert，与 pin/color 同模式），折叠的新便签首次落盘不丢状态
       notesApi
-        .save(noteId, { content, source: 'sticky', pin: pinned, color, tags, collapsed, folder: folderRef.current })
+        .save(noteId, { content, source: 'sticky', pin: pinned, color, tags, collapsed, folder: folderRef.current, zoom: zoomPct === ZOOM_DEFAULT ? 1 : zoomPct / 100 })
         .then((note) => {
           existsRef.current = true;
           lastSavedRef.current = note.content;
@@ -422,7 +437,7 @@ export default function NoteView() {
         .catch(() => setSaveState('error'));
     }, 1000);
     return () => clearTimeout(timer);
-  }, [content, noteId, pinned, color, tags, collapsed]);
+  }, [content, noteId, pinned, color, tags, collapsed, zoomPct]);
 
   // 标签增删：立即更新本地；已存在的笔记立即持久化，新便签随首次内容保存落盘
   const saveTags = useCallback(
@@ -552,6 +567,24 @@ export default function NoteView() {
     [noteId],
   );
 
+  // 内容缩放步进：整数百分比 ±10（范围 50–200）；已存在的笔记立即持久化
+  // （100% 时传 1，服务端删除 zoom 字段保持 frontmatter 干净），新便签随首次内容保存落盘
+  const stepZoom = useCallback(
+    (delta: number) => {
+      setZoomPct((prev) => {
+        const next = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, prev + delta));
+        if (next === prev) return prev;
+        if (existsRef.current) {
+          notesApi
+            .save(noteId, { zoom: next === ZOOM_DEFAULT ? 1 : next / 100 })
+            .catch(() => {});
+        }
+        return next;
+      });
+    },
+    [noteId],
+  );
+
   // 删除：菜单内二次确认；空白新便签未落盘，直接关窗
   const handleDelete = useCallback(() => {
     if (!confirmDelete) {
@@ -643,31 +676,54 @@ export default function NoteView() {
   };
 
   /** 编辑辅助区按钮：数组顺序即优先级（高 → 低），宽度不够时从尾部藏起，保底留加粗。
+   *  A−/A＋ 缩放按钮排最末（该区最低优先级，最先被收）；收进 ⋯ 菜单的项见菜单渲染处。
    *  mousedown preventDefault：不抢编辑器 DOM 焦点，命令作用于当前选区后可继续输入 */
+  const zoomOutTip =
+    zoomPct <= ZOOM_MIN ? t('note.zoomOutLimit') : t('note.zoomOut', { pct: zoomPct });
+  const zoomInTip =
+    zoomPct >= ZOOM_MAX ? t('note.zoomInLimit') : t('note.zoomIn', { pct: zoomPct });
   const editButtons = [
     {
       key: 'bold',
       tip: t('note.tipBold'),
       icon: <TextBolderIcon />,
       act: () => editorRef.current?.toggleMark('strong'),
+      disabled: false,
     },
     {
       key: 'strike',
       tip: t('note.tipStrike'),
       icon: <TextStrikethroughIcon />,
       act: () => editorRef.current?.toggleMark('strikethrough'),
+      disabled: false,
     },
     {
       key: 'task',
       tip: t('note.tipTask'),
       icon: <ListChecksIcon />,
       act: () => editorRef.current?.toggleTaskList(),
+      disabled: false,
     },
     {
       key: 'image',
       tip: t('note.tipImage'),
       icon: <ImageIcon />,
       act: () => imageInputRef.current?.click(),
+      disabled: false,
+    },
+    {
+      key: 'zoomOut',
+      tip: zoomOutTip,
+      icon: <MagnifyingGlassMinusIcon />,
+      act: () => stepZoom(-ZOOM_STEP),
+      disabled: zoomPct <= ZOOM_MIN,
+    },
+    {
+      key: 'zoomIn',
+      tip: zoomInTip,
+      icon: <MagnifyingGlassPlusIcon />,
+      act: () => stepZoom(ZOOM_STEP),
+      disabled: zoomPct >= ZOOM_MAX,
     },
   ] as const;
   const visibleEditButtons = editButtons.slice(0, editButtons.length - hiddenEdit);
@@ -768,7 +824,11 @@ export default function NoteView() {
         >
           <PinIcon />
         </button>
-        <span className="sticky-note__title">{displayTitle}</span>
+        {/* 标题文字单独缩放（CSS zoom，Chromium 下排版自动重排）；
+            标题栏按钮留在缩放元素外 */}
+        <span className="sticky-note__title" style={{ zoom: zoomPct / 100 }}>
+          {displayTitle}
+        </span>
         {/* 折叠态只留核心按钮：新建/颜色收起（底部栏已卸载，新建落点菜单无从依附） */}
         {!collapsed && (
           <button
@@ -859,7 +919,11 @@ export default function NoteView() {
             onSave={saveResolution}
           />
         ) : (
-          <div className="sticky-note__body" onMouseDown={handleBodyMouseDown}>
+          <div
+            className="sticky-note__body"
+            style={{ zoom: zoomPct / 100 }}
+            onMouseDown={handleBodyMouseDown}
+          >
             {saveState !== 'loading' && (
               <Editor
                 key={editorEpoch}
@@ -954,6 +1018,7 @@ export default function NoteView() {
               data-tip-place="top"
               data-tip-align="left"
               aria-label={b.tip}
+              disabled={b.disabled}
               onMouseDown={(e) => e.preventDefault()}
               onClick={b.act}
             >
@@ -1182,9 +1247,30 @@ export default function NoteView() {
         </div>
       )}
 
-      {/* ⋯ 菜单 */}
+      {/* ⋯ 菜单（被优先级收起的缩放按钮在这里找回：编辑区尾部两项，
+          hiddenEdit≥2 藏 A−，≥1 藏 A＋） */}
       {menuOpen && (
         <div className="sticky-note__menu">
+          {hiddenEdit >= 2 && (
+            <button
+              className="sticky-note__menu-item"
+              disabled={zoomPct <= ZOOM_MIN}
+              onClick={() => stepZoom(-ZOOM_STEP)}
+            >
+              <MagnifyingGlassMinusIcon />
+              {zoomOutTip}
+            </button>
+          )}
+          {hiddenEdit >= 1 && (
+            <button
+              className="sticky-note__menu-item"
+              disabled={zoomPct >= ZOOM_MAX}
+              onClick={() => stepZoom(ZOOM_STEP)}
+            >
+              <MagnifyingGlassPlusIcon />
+              {zoomInTip}
+            </button>
+          )}
           <button
             className="sticky-note__menu-item"
             onClick={() => {
