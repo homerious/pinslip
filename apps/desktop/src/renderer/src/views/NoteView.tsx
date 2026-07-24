@@ -712,18 +712,18 @@ export default function NoteView() {
       disabled: false,
     },
     {
-      key: 'zoomOut',
-      tip: zoomOutTip,
-      icon: <MagnifyingGlassMinusIcon />,
-      act: () => stepZoom(-ZOOM_STEP),
-      disabled: zoomPct <= ZOOM_MIN,
-    },
-    {
       key: 'zoomIn',
       tip: zoomInTip,
       icon: <MagnifyingGlassPlusIcon />,
       act: () => stepZoom(ZOOM_STEP),
       disabled: zoomPct >= ZOOM_MAX,
+    },
+    {
+      key: 'zoomOut',
+      tip: zoomOutTip,
+      icon: <MagnifyingGlassMinusIcon />,
+      act: () => stepZoom(-ZOOM_STEP),
+      disabled: zoomPct <= ZOOM_MIN,
     },
   ] as const;
   const visibleEditButtons = editButtons.slice(0, editButtons.length - hiddenEdit);
@@ -1248,20 +1248,10 @@ export default function NoteView() {
       )}
 
       {/* ⋯ 菜单（被优先级收起的缩放按钮在这里找回：编辑区尾部两项，
-          hiddenEdit≥2 藏 A−，≥1 藏 A＋） */}
+          hiddenEdit≥1 藏 A−，≥2 连 A＋ 一起藏） */}
       {menuOpen && (
         <div className="sticky-note__menu">
           {hiddenEdit >= 2 && (
-            <button
-              className="sticky-note__menu-item"
-              disabled={zoomPct <= ZOOM_MIN}
-              onClick={() => stepZoom(-ZOOM_STEP)}
-            >
-              <MagnifyingGlassMinusIcon />
-              {zoomOutTip}
-            </button>
-          )}
-          {hiddenEdit >= 1 && (
             <button
               className="sticky-note__menu-item"
               disabled={zoomPct >= ZOOM_MAX}
@@ -1269,6 +1259,16 @@ export default function NoteView() {
             >
               <MagnifyingGlassPlusIcon />
               {zoomInTip}
+            </button>
+          )}
+          {hiddenEdit >= 1 && (
+            <button
+              className="sticky-note__menu-item"
+              disabled={zoomPct <= ZOOM_MIN}
+              onClick={() => stepZoom(-ZOOM_STEP)}
+            >
+              <MagnifyingGlassMinusIcon />
+              {zoomOutTip}
             </button>
           )}
           <button
