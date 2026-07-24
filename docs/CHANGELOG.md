@@ -40,6 +40,18 @@ git 同步、MCP 接入、速记打磨、七语言国际化，以及自动更新
 - 发布链路：electron-builder 配置 publish=github，CI 产物随包携带 latest.yml / latest-mac.yml / blockmap（自动更新元信息）
 - mac 出包改单腿双架构：pinslipd 交叉编译后经 lipo 合成 universal 二进制，一次产出 arm64 + x64 双 dmg 并共享同一份 latest-mac.yml（避免双腿互相覆盖更新元信息）
 
+### 浏览器插件（网页直通 pinslip）
+
+- Chrome / Firefox 双端扩展（`pnpm pack:ext` / `pack:ext:firefox` 打包）
+- popup 速记：便签黄主题小窗，当前页标题/网址一键带入，剪贴板文本自动填入
+- 网页正文剪藏：Readability 提取正文转 Markdown 存为便签；支持页面截图
+- 经 `.pinslip/mcp.json` 自动发现本地服务端口，无需手填地址
+
+### 便签编辑体验
+
+- 内容缩放：工具栏 A−/A＋ 按钮，50%~200% 步进 10%，只缩标题与正文；比例按便签持久化（frontmatter `zoom`，默认不写字段）
+- 代码块重新设计：奶白提亮底 + 等宽字体栈（Cascadia/SF Mono/Consolas），长命令软换行不横滚；编辑器关闭拼写检查（命令行不再满屏红波浪线）
+
 ### 修正
 
 - 空态提示排版修正（主列表/文件夹空态居中）
