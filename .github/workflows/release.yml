@@ -118,8 +118,8 @@ jobs:
       # 同步更新镜像到腾讯云 COS（国内兜底更新源，见 docs/ops-update-mirror.md）：
       # latest*.yml 每次覆盖更新，是镜像端「最新版本」的唯一事实源；
       # 桶名/Endpoint 是公开信息（客户端 MIRROR_URL 同款），密钥走 Secrets
-      # 并发提速：GitHub runner（美国）→ COS（广州）是跨境上传，默认 4 并发太慢；
-      # multi-thread-cutoff 降到 40M 让安装包也吃多线程分块，chunk 16M×16 并发
+      # 显式单线程基线：transfers/checkers=1、关闭多线程分块、S3 分块并发=1。
+      # 跨境上传先求稳跑通；要提速再调并发（GitHub runner 美国 → COS 广州）
       - name: 同步更新镜像到腾讯云 COS
         if: env.SYNC_COS == 'true'
         run: |
@@ -127,9 +127,8 @@ jobs:
           rclone copy dist/ cos:pinslip-1256167691/ \
             --include "latest*.yml" --include "*.exe" --include "*.dmg" --include "*.blockmap" \
             --include "*.AppImage" --include "*.deb" \
-            --transfers=8 --checkers=8 \
-            --multi-thread-cutoff=40M --multi-thread-streams=8 \
-            --s3-upload-concurrency=16 --s3-chunk-size=16M \
+            --transfers=1 --checkers=1 --multi-thread-streams=0 \
+            --s3-upload-concurrency=1 \
             --checksum -v
         env:
           RCLONE_CONFIG_COS_TYPE: s3
