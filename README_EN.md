@@ -9,7 +9,7 @@ it crosses your mind, pin it to a screen edge, and it quietly keeps you company.
 Every note is a plain Markdown file living in a folder you choose — **fully
 interoperable with Obsidian**. Your words always belong to you.
 
-Current version: **v1.0.0** ([Changelog](docs/CHANGELOG.md))
+Current version: **v1.0.1** ([Changelog](docs/CHANGELOG.md))
 
 [![Release](https://github.com/homerious/pinslip/actions/workflows/release.yml/badge.svg)](https://github.com/homerious/pinslip/actions/workflows/release.yml)
 [![GitHub release](https://img.shields.io/github/v/release/homerious/pinslip)](https://github.com/homerious/pinslip/releases)

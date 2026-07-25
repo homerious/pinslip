@@ -2,7 +2,9 @@
 
 本项目版本记录 notable 变更。格式借鉴 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 
-## [未发布]
+## [1.0.1] - 2026-07-25
+
+修复补丁：macOS 菜单栏托盘图标问题 + Firefox 扩展上架合规。
 
 ### 修复
 
