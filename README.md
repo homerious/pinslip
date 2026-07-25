@@ -2,7 +2,7 @@
 
 **简体中文** | [English](README_EN.md)
 
-> **Capture now. Organize later. 先记下来，别的以后再说。**
+> **Capture now. Organize later. 随手一记，自有归处。**
 
 PinSlip 是一张钉在电脑桌面上的小便利贴。想到什么，随手记下来，贴在屏幕边上，
 它就一直安安静静陪着你。所有笔记都是普普通通的 Markdown 文件，
