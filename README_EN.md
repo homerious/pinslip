@@ -2,7 +2,7 @@
 
 [简体中文](README.md) | **English**
 
-> A little note-taking companion we hope you'll reach for every day.
+> **Capture now. Organize later.**
 
 PinSlip is a tiny sticky note pinned to your desktop. Jot something down whenever
 it crosses your mind, pin it to a screen edge, and it quietly keeps you company.
