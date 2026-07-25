@@ -14,11 +14,24 @@ let windowManagerRef: WindowManager | null = null;
 
 function loadTrayIcon(): Electron.NativeImage {
   const iconPath = join(app.getAppPath(), 'resources', 'icon.png');
+  let img: Electron.NativeImage | null = null;
   if (existsSync(iconPath)) {
-    const img = nativeImage.createFromPath(iconPath);
-    if (!img.isEmpty()) return img;
+    const loaded = nativeImage.createFromPath(iconPath);
+    if (!loaded.isEmpty()) img = loaded;
   }
-  return nativeImage.createFromDataURL(FALLBACK_ICON);
+  if (!img) img = nativeImage.createFromDataURL(FALLBACK_ICON);
+  // macOS 菜单栏托盘不会像 Windows 那样自动缩放：
+  // 直接给 1024px 原图会把整个菜单栏撑爆（巨型横带）。
+  // 菜单栏图标固定 18pt，附带 @2x 适配 Retina。
+  if (process.platform === 'darwin') {
+    const small = img.resize({ width: 18, height: 18, quality: 'best' });
+    small.addRepresentation({
+      scaleFactor: 2,
+      buffer: img.resize({ width: 36, height: 36, quality: 'best' }).toPNG(),
+    });
+    return small;
+  }
+  return img;
 }
 
 /** 按当前语言重建托盘菜单（语言切换时由 IPC handler 触发） */

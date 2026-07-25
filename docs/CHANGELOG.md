@@ -2,6 +2,13 @@
 
 本项目版本记录 notable 变更。格式借鉴 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 
+## [未发布]
+
+### 修复
+
+- **macOS 菜单栏被托盘图标撑爆**：托盘直接使用 1024px 应用图标，Windows 会自动缩放但 macOS 不会，导致菜单栏渲染成一条巨型横带、菜单被挤压。现 macOS 托盘改用 18pt（附 @2x Retina）缩放图
+- Firefox 扩展 manifest 补充 `data_collection_permissions` 声明（AMO 新增强制要求，如实申报 websiteContent / browsingActivity）
+
 ## [1.0.0] - 2026-07-24
 
 首个 1.0 正式版：git 同步、MCP 接入、浏览器插件、速记打磨、七语言国际化、Linux 版，以及自动更新与发布链路完善。
