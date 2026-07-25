@@ -470,6 +470,15 @@ export default function NoteView() {
   const moveToFolder = useCallback(
     (target: string) => {
       if (target === folder) return;
+      // 新便签尚未落盘（空内容不保存）：接口无文件可移会静默失败。
+      // 改为本地暂存归属——首次内容保存随 folder 字段落盘（与标签同模式，
+      // 同 initialFolder 从文件夹视图新建的落地路径）
+      if (!existsRef.current) {
+        folderRef.current = target;
+        setFolder(target);
+        setFolderPanelOpen(false);
+        return;
+      }
       notesApi
         .move(noteId, target)
         .then(() => {
