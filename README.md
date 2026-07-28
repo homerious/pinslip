@@ -1,135 +1,149 @@
 # PinSlip
 
-**简体中文** | [English](README_EN.md)
+**English** | [简体中文](README_CN.md)
 
-> **Capture now. Organize later. 随手一记，自有归处。**
+> **Capture now. Organize later.**
 
-PinSlip 是一张钉在电脑桌面上的小便利贴。想到什么，随手记下来，贴在屏幕边上，
-它就一直安安静静陪着你。所有笔记都是普普通通的 Markdown 文件，
-存在你自己选的文件夹里——**和 Obsidian 完全互通**，你的文字永远是你的。
+PinSlip is a tiny sticky note pinned to your desktop. Jot something down whenever
+it crosses your mind, pin it to a screen edge, and it quietly keeps you company.
+Every note is a plain Markdown file living in a folder you choose — **fully
+interoperable with Obsidian**. Your words always belong to you.
 
-当前版本：**v1.0.1**（[更新日志](docs/CHANGELOG.md)）
+Current version: **v1.0.1** ([Changelog](docs/CHANGELOG.md))
 
 [![Release](https://github.com/homerious/pinslip/actions/workflows/release.yml/badge.svg)](https://github.com/homerious/pinslip/actions/workflows/release.yml)
 [![GitHub release](https://img.shields.io/github/v/release/homerious/pinslip)](https://github.com/homerious/pinslip/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/homerious/pinslip/blob/main/LICENSE)
 
-## 认识一下 PinSlip
+## Meet PinSlip
 
-**日常随手用的桌面小便签**
-不用打开笨重的大软件，也不用想「该存到哪里」。想写什么，就钉一张在屏幕上，
-写完它就会自动保存起来。便签有六色可换，不用的时候可以折成一条小标题，
-清清爽爽，要写要看再展开。
+**An everyday sticky note for your desktop**
+No heavy app to launch, no "where should I save this" to think about. Pin a note
+on screen, write, and it saves itself. Six colors to pick from; when you're done,
+fold it into a slim title bar and unfold it whenever you need it again.
 
-**想排版好看一点？试试 Markdown**
-平常随手记记文字完全没问题。偶尔想写得整齐一点——一份待办清单、几段带小标题的笔记——
-试试按 Markdown 语法输入，马上就能看到不一样的排版效果。任务框可以直接打勾，
-截图按 Ctrl+V 就贴进来了，完全不用操心图片存哪。
+**Want nicer formatting? Try Markdown**
+Plain scribbles are perfectly fine. But when you feel like tidying up — a to-do
+list, a few headed sections — type in Markdown and watch the layout come alive.
+Task boxes tick with a click, and screenshots drop straight in with Ctrl+V;
+you never have to think about where images are stored.
 
-**随手放，也能整整齐齐**
-便签多了也不用你动手收拾。暂时不想看了，就折叠收起来；置顶的便签可以整齐地
-贴在屏幕角落；钉住的几张便签靠近时，会轻轻吸在一起对齐；还能组成一列「小分队」——
-整个队伍可以一起移动、一起改宽度，折叠一张，下面的伙伴会自动补上来。
+**Toss them anywhere, still tidy**
+A crowd of notes never means a mess. Fold the ones you don't need for now;
+pinned notes dock neatly against screen corners; nearby notes gently snap into
+alignment like magnets; and they can form a little "squad" — move the whole
+column together, resize it together, and when you fold one, the notes below
+slide up to fill the gap.
 
-**你写下的每个字，都在你手里**
-所有笔记都存放在本地你自己的文件夹里，不经过任何云端。就算哪天不用 PinSlip 了，
-每一张便签也都还在——它就是一个普通的 Markdown 文件，兼容 Obsidian，
-也可以用 VS Code 等任何支持 Markdown 的软件打开，然后接着写。
+**Your words belong to you**
+All notes live in your own local folder — no cloud in the way. Even if you stop
+using PinSlip one day, every note stays right where it is: an ordinary Markdown
+file, readable by Obsidian, VS Code, or any Markdown-friendly editor, ready for
+you to keep writing.
 
-**随手记的，也能随时找到**
-当时随手一记的东西，过后想找？直接搜就好。标签和文件夹可以帮心思缜密的你归好类。
-支持内容的全文搜索，只记得内容也不怕。如果手滑删掉了，
-回收区里还会给你留着，随时可以捞回来。
+**Jotted in a flash, found in a flash**
+Wrote something down days ago? Just search. Tags and folders help the organized
+among you; full-text search has your back when you only remember the content.
+Deleted something by accident? The recycle zone keeps it safe until you fish
+it back out.
 
-**多台电脑？便签可以跟着你走**
-在设置里填一个你自己的 git 仓库（GitHub、GitLab、CNB 都可以），
-便签就会按时同步过去。换台电脑，拉下来接着写。万一两边改重了，
-在便签里就能对比两份内容，挑一份留着。
+**More than one computer? Your notes can follow you**
+Point PinSlip at your own git repository (GitHub, GitLab, or CNB) in settings,
+and your notes sync there on a schedule. New machine? Pull and keep writing.
+If both sides edited the same note, you can compare the two versions right
+inside the sticky note and keep the one you like.
 
-**AI 助手也能帮你记**
-PinSlip 内置了 MCP 服务，你的 AI 助手可以帮你搜笔记、读笔记、记笔记。
-服务只听本机、默认关着，要不要开，你说了算。
+**Your AI assistant can take notes too**
+PinSlip ships with a built-in MCP server, so your AI assistant can search, read,
+and write notes for you. It listens on localhost only and is off by default —
+whether to turn it on is entirely up to you.
 
-**网页上看到好内容，一键收进来**
-Chrome 和 Firefox 插件已经就位：选中的文字、图片，或者整页文章，
-点一下就能存成便签，还能截一块屏幕区域。目前从源码目录侧载安装，
-商店上架在路上。
+**See something good on the web? Clip it in one click**
+The Chrome and Firefox extensions are ready: selected text, images, or whole
+articles (thanks to Readability) become sticky notes with a click, and region
+screenshots work too. For now they are side-loaded from the source directory;
+store listings are on the way.
 
-## 下载
+## Download
 
-去 [Releases](https://github.com/homerious/pinslip/releases/latest) 挑一个适合你系统的：
+Grab the right build from [Releases](https://github.com/homerious/pinslip/releases/latest):
 
-| 系统 | 文件 |
+| Platform | File |
 |---|---|
 | Windows | `PinSlip-Setup-x.x.x.exe` |
-| macOS（Apple 芯片） | `PinSlip-x.x.x-arm64.dmg` |
-| macOS（Intel） | `PinSlip-x.x.x.dmg` |
+| macOS (Apple Silicon) | `PinSlip-x.x.x-arm64.dmg` |
+| macOS (Intel) | `PinSlip-x.x.x.dmg` |
 | Linux | `PinSlip-x.x.x.AppImage` / `pinslip_x.x.x_amd64.deb` |
 
-装好之后有新版本会自动提示更新；连不上 GitHub 也不用担心，更新会走国内镜像。
-macOS 安装包暂未签名，首次打开如遇「已损坏」提示，右键 → 打开即可。
+Once installed, new versions are offered automatically through in-app updates.
+macOS builds are not signed yet — if macOS says the app is "damaged", right-click
+→ Open, or run `xattr -cr /Applications/PinSlip.app` after installing.
 
-界面已支持 简体中文 / English / 日本語 / 한국어 / Deutsch / Français / Español，
-在设置里随时切换。
+The interface speaks 简体中文 / English / 日本語 / 한국어 / Deutsch / Français /
+Español — switch anytime in settings.
 
-## 快速开始
+## Quick Start
 
-环境要求：
+Requirements:
 
-- Node.js >= 18（推荐 20+）
-- pnpm >= 8（没装的话所有 `pnpm` 命令可用 `npx pnpm` 代替）
-- Go >= 1.22（需在 PATH 中，或设置环境变量 `PINSLIP_GO` 指向 go 可执行文件）
+- Node.js >= 18 (20+ recommended)
+- pnpm >= 8 (or substitute `npx pnpm` for every `pnpm` command)
+- Go >= 1.22 (on PATH, or point the `PINSLIP_GO` env var at the go binary)
 
 ```bash
-# 安装依赖
+# Install dependencies
 pnpm install
 
-# 开发模式：启动 Electron（主进程自动拉起 Go 服务）
+# Dev mode: launch Electron (the main process spawns the Go service)
 pnpm dev
 
-# 单独编译 Go 服务（同时拷贝二进制到 apps/desktop/resources/service/）
+# Build the Go service (also copies the binary to apps/desktop/resources/service/)
 pnpm build:service
 
-# 构建桌面端产物
+# Build the desktop bundles
 pnpm build
 
-# 打出安装包（先 build:service；--win / --mac / --linux）
+# Package installers (run build:service first; --win / --mac / --linux)
 pnpm dist
 
-# 类型检查
+# Type check
 pnpm typecheck
 ```
 
-## 目录结构
+## Project Layout
 
 ```
 pinslip/
 ├── apps/
-│   ├── desktop/          # Electron + React 桌面端（pnpm workspace 成员）
-│   ├── service/          # Go 本地服务（go.mod 独立，内置 MCP server）
-│   └── extension/        # 浏览器插件（Chrome / Firefox）
-├── docs/                 # 文档（用户手册 / CHANGELOG / API 契约）
-├── skills/               # 给 AI agent 的 pinslip skill（教它调用 MCP）
-├── scripts/              # 编排脚本（dev / build-service）
-└── Makefile              # 跨语言编排入口
+│   ├── desktop/          # Electron + React desktop app (pnpm workspace member)
+│   ├── service/          # Go local service (standalone go.mod, MCP server built in)
+│   └── extension/        # Browser extension (Chrome / Firefox)
+├── docs/                 # Docs (user guide / CHANGELOG / API contract)
+├── skills/               # The pinslip skill that teaches AI agents to use MCP
+├── scripts/              # Orchestration scripts (dev / build-service)
+└── Makefile              # Cross-language orchestration entry
 ```
 
-## 架构要点
+## Architecture Notes
 
-- **窗口的事走 IPC**：渲染进程通过 `window.api.*`（preload 白名单）调用窗口管理
-- **笔记数据走 HTTP**：渲染进程直接 fetch Go 服务（`127.0.0.1:随机端口`），
-  端口由主进程拉起 Go 时解析 stdout 获得，经 IPC `runtime:info` 下发
-- **md 文件是唯一事实来源**：SQLite FTS5 只是索引，启动全量重建 + fsnotify 双保险
-- **同步是可选加成**：git 同步（go-git + 三方合并）和 MCP server 都内置在
-  Go 服务里，默认关闭，设置里打开
-- Go 服务只绑定回环地址，数据默认存 `%USERPROFILE%\Documents\PinSlip\`
-  （可用 `PINSLIP_DATA_DIR` 覆盖）
+- **Windowing goes through IPC**: renderers call window management via
+  `window.api.*` (a preload whitelist)
+- **Note data goes over HTTP**: renderers fetch the Go service directly
+  (`127.0.0.1:<random port>`); the port is parsed from the service's stdout by
+  the main process and handed down via the `runtime:info` IPC channel
+- **Markdown files are the single source of truth**: SQLite FTS5 is only an
+  index, rebuilt in full at startup with fsnotify watching as a safety net
+- **Sync is an optional extra**: git sync (go-git + three-way merge) and the
+  MCP server both live inside the Go service, off by default, enabled in settings
+- The Go service binds to loopback only; data defaults to
+  `%USERPROFILE%\Documents\PinSlip\` (override with `PINSLIP_DATA_DIR`)
 
-## 文档
+## Docs
 
-- [用户手册](docs/user-guide.md) — 功能说明（第一次用 → 日常用 → 整理 → 进阶）
-- [CHANGELOG](docs/CHANGELOG.md) — 版本变更记录
-- [API 契约](docs/api.md) — 本地服务 HTTP 接口
+- [User Guide](docs/user-guide.md) — feature tour (first use → daily use →
+  organizing → advanced)
+- [CHANGELOG](docs/CHANGELOG.md) — release history
+- [API Contract](docs/api.md) — local service HTTP endpoints
 
 ## License
 
