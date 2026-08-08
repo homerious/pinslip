@@ -1,5 +1,5 @@
 # PinSlip
-> Website: [https://pinslip.app/](https://pinslip.app/)
+>[https://pinslip.app/](https://pinslip.app/)
 
 **English** | [简体中文](README_CN.md)
 
