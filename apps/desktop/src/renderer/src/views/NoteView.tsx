@@ -119,7 +119,11 @@ export default function NoteView() {
   const [collapsed, setCollapsed] = useState(false); // 折叠成标题条（只显示标题栏）
   /** 折叠/展开的 CSS 高度过渡只在切换瞬间挂（180ms），平时拖拽改尺寸不挂 transition 防滞后 */
   const [collapseAnim, setCollapseAnim] = useState(false);
-  const [color, setColor] = useState<NoteColor>('yellow');
+  const [color, setColor] = useState<NoteColor>(
+    () =>
+      COLORS.find(({ key }) => key === localStorage.getItem('pinslip-last-note-color'))?.key ??
+      'yellow',
+  );
   /** 内容缩放（整数百分比）；只作用于标题文字与编辑器正文，标题栏/工具栏按钮不缩 */
   const [zoomPct, setZoomPct] = useState(ZOOM_DEFAULT);
   const [tags, setTags] = useState<string[]>([]);
@@ -568,6 +572,7 @@ export default function NoteView() {
   const changeColor = useCallback(
     (next: NoteColor) => {
       setColor(next);
+      localStorage.setItem('pinslip-last-note-color', next);
       setPaletteOpen(false);
       if (existsRef.current) {
         notesApi.save(noteId, { color: next }).catch(() => {});
