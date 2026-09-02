@@ -62,6 +62,8 @@ linux:
         - x64
   icon: resources/icon.png               # 1024px，deb 安装时自动派生各尺寸图标
   category: Utility
+  desktop:
+    StartupWMClass: '@pinslip/desktop'
   artifactName: ${productName}-${version}-${arch}.${ext}
 
 # deb 元信息；depends 用 electron-builder 默认依赖列表（已覆盖 libgtk-3-0/libnss3 等运行库）

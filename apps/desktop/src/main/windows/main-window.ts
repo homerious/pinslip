@@ -1,4 +1,5 @@
-import { BrowserWindow, screen } from 'electron';
+import { BrowserWindow, nativeImage, screen } from 'electron';
+import path from 'node:path';
 import { loadView, viewWebPreferences } from './view-helper';
 
 /** 主窗口默认宽度/高度：窄条便签列表，停靠桌面右下角 */
@@ -12,6 +13,7 @@ const MAIN_HEIGHT = 600;
 export function createMainWindow(): BrowserWindow {
   const { workArea } = screen.getPrimaryDisplay();
   const win = new BrowserWindow({
+    icon: nativeImage.createFromPath(path.join(__dirname, '../../../resources/icon.png')),
     width: MAIN_WIDTH,
     height: MAIN_HEIGHT,
     x: workArea.x + workArea.width - MAIN_WIDTH - 12, // 离屏幕工作区边缘留 12px

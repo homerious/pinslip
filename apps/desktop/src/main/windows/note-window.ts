@@ -1,4 +1,5 @@
-import { BrowserWindow } from 'electron';
+import { BrowserWindow, nativeImage } from 'electron';
+import path from 'node:path';
 import { loadView, viewWebPreferences } from './view-helper';
 import { clampRectToWorkArea, getWindowStateRaw, markCollapsed, trackWindowState } from './window-state';
 import type { WinCal } from './window-state';
@@ -45,6 +46,7 @@ export function createNoteWindow({ noteId, index, alwaysOnTop, getOthers, snapHo
   const ih = saved?.height ?? (collapsed ? NOTE_COLLAPSED_HEIGHT : NOTE_DEFAULT_HEIGHT);
 
   const win = new BrowserWindow({
+    icon: nativeImage.createFromPath(path.join(__dirname, '../../../resources/icon.png')),
     x: ix,
     y: iy,
     width: iw,

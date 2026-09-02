@@ -17,6 +17,10 @@ import { initAutoUpdater } from './updater';
 const goProcess = new GoProcess();
 let windowManager: WindowManager;
 
+if (process.platform === 'linux') {
+  app.setDesktopName('@pinslipdesktop.desktop');
+}
+
 app.whenReady().then(() => {
   electronApp.setAppUserModelId('app.pinslip');
 

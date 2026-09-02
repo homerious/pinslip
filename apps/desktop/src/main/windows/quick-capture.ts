@@ -1,4 +1,5 @@
-import { BrowserWindow, screen } from 'electron';
+import { BrowserWindow, nativeImage, screen } from 'electron';
+import path from 'node:path';
 import { loadView, viewWebPreferences } from './view-helper';
 
 /** 创建速记浮窗：出现在鼠标所在屏幕（多屏跟随）、居中偏上。
@@ -10,6 +11,7 @@ export function createQuickCaptureWindow(): BrowserWindow {
   const { x, y, width, height } = display.workArea;
 
   const win = new BrowserWindow({
+    icon: nativeImage.createFromPath(path.join(__dirname, '../../../resources/icon.png')),
     width: 520,
     height: 220,
     x: Math.round(x + (width - 520) / 2),
