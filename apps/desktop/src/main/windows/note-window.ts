@@ -25,6 +25,7 @@ export interface NoteWindowOptions {
   getOthers?: () => OtherNote[]; // 其他便签窗口（便签间磁铁/成组判定用；组过滤由调用方做）
   snapHooks?: SnapHooks; // 成组手势回调（stack-zone 高亮预告 + 松手成组）
   folder?: string; // 新建便签的落盘文件夹（随路由 query 下发给渲染进程）
+  managerBounds?: Electron.Rectangle; // 新便签相对主窗口摆放
 }
 
 /** 取窗口的吸附句柄：便签组 restack 走 animateTo（复用落位动画的格点量化纪律） */
@@ -34,15 +35,27 @@ export function getNoteSnapHandle(win: BrowserWindow): SnapHandle | undefined {
 
 /** 创建便签窗口：无边框、透明；进任务栏（不置顶时也能找回）、可最小化；
  *  有位置记忆则恢复原位，否则错位摆放；置顶与否由用户选择 */
-export function createNoteWindow({ noteId, index, alwaysOnTop, getOthers, snapHooks, folder }: NoteWindowOptions): BrowserWindow {
+export function createNoteWindow({
+  noteId,
+  index,
+  alwaysOnTop,
+  getOthers,
+  snapHooks,
+  folder,
+  managerBounds,
+}: NoteWindowOptions): BrowserWindow {
   const saved = getWindowStateRaw(`note:${noteId}`);
   // 期望的构造参数（恢复的记忆值或默认错位摆放）；
   // 折叠记忆的窗口：saved.height 即折叠高度，最小尺寸/可缩放同步收紧
   const collapsed = saved?.collapsed === true;
-  const ix = saved?.x ?? 120 + index * 30;
-  const iy = saved?.y ?? 120 + index * 30;
   const iw = saved?.width ?? 320;
   const ih = saved?.height ?? (collapsed ? NOTE_COLLAPSED_HEIGHT : NOTE_DEFAULT_HEIGHT);
+
+  // New notes open beside the manager when its live bounds are available.
+  // Existing notes continue to use their saved position.
+  const cascade = (index % 6) * 28;
+  const ix = saved?.x ?? (managerBounds ? managerBounds.x - iw - 12 : 120 + index * 30);
+  const iy = saved?.y ?? (managerBounds ? managerBounds.y + 36 + cascade : 120 + index * 30);
 
   const win = new BrowserWindow({
     x: ix,

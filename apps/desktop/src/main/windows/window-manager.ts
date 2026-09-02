@@ -54,6 +54,10 @@ export class WindowManager {
       index: this.noteWindows.size,
       alwaysOnTop,
       folder,
+      managerBounds:
+        !noteId && this.mainWindow && !this.mainWindow.isDestroyed()
+          ? this.mainWindow.getBounds()
+          : undefined,
       // 便签间磁铁/成组判定：实时取除自己外的其他置顶便签（仅置顶便签参与）。
       // 自己在组内 → 空池（组成员不触发磁铁/成组，v1 组不合并）；
       // 目标在组内 → 带 grouped 标记：退出磁铁层但保留 stack-zone
