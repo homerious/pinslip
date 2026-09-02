@@ -1908,6 +1908,20 @@ input.sticky-note__groupname-input::placeholder {
   flex: none;
 }
 
+/* Multi-line note preview in the manager. */
+.note-list__preview {
+  display: -webkit-box;
+  margin: 5px 0 6px;
+  font-size: 12px;
+  line-height: 1.35;
+  color: #555;
+  white-space: pre-wrap;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 5;
+}
+
 .note-list__snippet,
 .note-list__meta {
   display: block;

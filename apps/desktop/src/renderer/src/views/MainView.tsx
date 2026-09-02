@@ -111,6 +111,7 @@ export default function MainView() {
   const [stage, setStage] = useState<Stage>('loading');
   const [vaultPath, setVaultPath] = useState('');
   const [notes, setNotes] = useState<NoteMeta[]>([]);
+  const [notePreviews, setNotePreviews] = useState<Record<string, string>>({});
   const [query, setQuery] = useState('');
   const [hits, setHits] = useState<SearchHit[] | null>(null);
   /** 与 hits 同源的高亮词快照（搜索返回时记录，避免防抖期内 query 已变、结果未变的错配） */
@@ -243,6 +244,17 @@ export default function MainView() {
       .then((list) => {
         setNotes(list);
         setError('');
+
+        void Promise.all(
+          list.map(async (meta) => {
+            try {
+              const full = await notesApi.get(meta.id);
+              return [meta.id, full.content] as const;
+            } catch {
+              return [meta.id, ''] as const;
+            }
+          }),
+        ).then((entries) => setNotePreviews(Object.fromEntries(entries)));
       })
       .catch((err) => setError(t('error.serviceDown', { message: err.message })));
     foldersApi
@@ -688,6 +700,9 @@ export default function MainView() {
         {note.pin && <PinIcon className="note-list__pin" />}
         {note.title}
       </span>
+      {notePreviews[note.id] && (
+        <span className="note-list__preview">{notePreviews[note.id]}</span>
+      )}
       <span className="note-list__meta">
         {formatTime(note.updatedAt)} · {t('note.words', { count: note.wordCount })}
         {showFolder && note.folder && !note.inbox && (
