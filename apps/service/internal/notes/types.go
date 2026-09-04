@@ -5,20 +5,21 @@ import "time"
 
 // Note 是完整笔记（对应 docs/api.md 的 Note）。
 type Note struct {
-	ID        string    `json:"id"`
-	Title     string    `json:"title"`
-	Content   string    `json:"content"`
-	Tags      []string  `json:"tags"`
-	Source    string    `json:"source"`
-	Pin       bool     `json:"pin"`
-	Color     string   `json:"color"`
-	Collapsed bool     `json:"collapsed"`        // 折叠成标题条
-	Zoom      float64  `json:"zoom,omitempty"` // 内容缩放倍率（1.3 = 130%；缺省 = 100%）
-	Group     string   `json:"group"`            // 所属便签组 id（"" = 不属于任何组）
-	Inbox     bool     `json:"inbox"`
-	Folder    string   `json:"folder"` // notes/ 下的相对子目录，"" 为根目录
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
+	ID          string    `json:"id"`
+	Title       string    `json:"title"`
+	TitleManual bool      `json:"titleManual"`
+	Content     string    `json:"content"`
+	Tags        []string  `json:"tags"`
+	Source      string    `json:"source"`
+	Pin         bool      `json:"pin"`
+	Color       string    `json:"color"`
+	Collapsed   bool      `json:"collapsed"`      // 折叠成标题条
+	Zoom        float64   `json:"zoom,omitempty"` // 内容缩放倍率（1.3 = 130%；缺省 = 100%）
+	Group       string    `json:"group"`          // 所属便签组 id（"" = 不属于任何组）
+	Inbox       bool      `json:"inbox"`
+	Folder      string    `json:"folder"` // notes/ 下的相对子目录，"" 为根目录
+	CreatedAt   time.Time `json:"createdAt"`
+	UpdatedAt   time.Time `json:"updatedAt"`
 }
 
 // Meta 是列表项（不含正文）。

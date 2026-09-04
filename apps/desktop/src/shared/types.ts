@@ -7,6 +7,8 @@ export type NoteColor = 'yellow' | 'pink' | 'green' | 'blue' | 'purple' | 'orang
 export interface Note {
   id: string;
   title: string;
+  /** 用户显式重命名的标题；为 true 时正文首行变化不覆盖标题。 */
+  titleManual: boolean;
   content: string;
   tags: string[];
   source: string;

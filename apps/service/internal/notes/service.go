@@ -69,7 +69,8 @@ func (s *Service) Save(id string, in SaveInput) (*Note, error) {
 
 	if in.Title != "" {
 		fm.Title = in.Title
-	} else if in.Content != nil {
+		fm.TitleManual = true
+	} else if in.Content != nil && !fm.TitleManual {
 		// 内容变化时重新推导标题：客户端不传 title 即「自动标题」，
 		// 主界面列表才能和便签窗口的实时标题保持一致
 		fm.Title = deriveTitle(content)
@@ -397,20 +398,21 @@ func toNote(fm *storage.Frontmatter, body string, inbox bool, folder string) *No
 		tags = []string{}
 	}
 	return &Note{
-		ID:        fm.ID,
-		Title:     fm.Title,
-		Content:   body,
-		Tags:      tags,
-		Source:    fm.Source,
-		Pin:       fm.Pin,
-		Color:     fm.Color,
-		Collapsed: fm.Collapsed,
-		Zoom:      fm.Zoom,
-		Group:     fm.Group,
-		Inbox:     inbox,
-		Folder:    folder,
-		CreatedAt: parseTime(fm.CreatedAt),
-		UpdatedAt: parseTime(fm.UpdatedAt),
+		ID:          fm.ID,
+		Title:       fm.Title,
+		TitleManual: fm.TitleManual,
+		Content:     body,
+		Tags:        tags,
+		Source:      fm.Source,
+		Pin:         fm.Pin,
+		Color:       fm.Color,
+		Collapsed:   fm.Collapsed,
+		Zoom:        fm.Zoom,
+		Group:       fm.Group,
+		Inbox:       inbox,
+		Folder:      folder,
+		CreatedAt:   parseTime(fm.CreatedAt),
+		UpdatedAt:   parseTime(fm.UpdatedAt),
 	}
 }
 

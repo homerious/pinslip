@@ -333,6 +333,23 @@ input.sticky-note__groupname-input::placeholder {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  -webkit-app-region: no-drag;
+  cursor: text;
+}
+
+.sticky-note__title-input {
+  flex: 1;
+  min-width: 0;
+  height: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  border-radius: 4px;
+  outline: none;
+  padding: 0 5px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #222;
+  font: inherit;
+  font-size: 12px;
+  -webkit-app-region: no-drag;
 }
 
 .sticky-note__state {
@@ -956,6 +973,28 @@ input.sticky-note__groupname-input::placeholder {
   top: 36px;
   bottom: auto;
   right: 46px; /* 对齐标题栏右数第三个按钮（＋） */
+}
+
+.sticky-note__menu--title {
+  top: 28px;
+  bottom: auto;
+  right: auto;
+  left: 30px;
+}
+
+.sticky-note__rename-error {
+  position: absolute;
+  top: 36px;
+  left: 34px;
+  right: 34px;
+  z-index: 50;
+  padding: 5px 8px;
+  border-radius: 5px;
+  background: #b91c1c;
+  color: #fff;
+  font-size: 11px;
+  text-align: center;
+  pointer-events: none;
 }
 
 /* 组手柄右键菜单：渲染在卡片内部（absolute），贴在手柄正下方——手柄骑

@@ -10,17 +10,18 @@ import (
 
 // Frontmatter 是 Markdown 文件头部的 YAML 元数据。
 type Frontmatter struct {
-	ID        string   `yaml:"id"`
-	Title     string   `yaml:"title,omitempty"`
-	Tags      []string `yaml:"tags,omitempty"`
-	Source    string   `yaml:"source,omitempty"`
-	Pin       bool     `yaml:"pin,omitempty"`
-	Color     string   `yaml:"color,omitempty"`     // 便签颜色：yellow/pink/green/blue/purple/orange，空为默认黄
-	Zoom      float64  `yaml:"zoom,omitempty"`      // 内容缩放倍率（1.3 = 130%；缺省/0 = 100% 不写）
-	Collapsed bool     `yaml:"collapsed,omitempty"` // 折叠成标题条（只显示标题栏）
-	Group     string   `yaml:"group,omitempty"`     // 所属便签组 id（空 = 不属于任何组）
-	CreatedAt string   `yaml:"created_at"`
-	UpdatedAt string   `yaml:"updated_at"`
+	ID          string   `yaml:"id"`
+	Title       string   `yaml:"title,omitempty"`
+	TitleManual bool     `yaml:"title_manual,omitempty"` // true = 用户显式标题；正文更新不再自动覆盖
+	Tags        []string `yaml:"tags,omitempty"`
+	Source      string   `yaml:"source,omitempty"`
+	Pin         bool     `yaml:"pin,omitempty"`
+	Color       string   `yaml:"color,omitempty"`     // 便签颜色：yellow/pink/green/blue/purple/orange，空为默认黄
+	Zoom        float64  `yaml:"zoom,omitempty"`      // 内容缩放倍率（1.3 = 130%；缺省/0 = 100% 不写）
+	Collapsed   bool     `yaml:"collapsed,omitempty"` // 折叠成标题条（只显示标题栏）
+	Group       string   `yaml:"group,omitempty"`     // 所属便签组 id（空 = 不属于任何组）
+	CreatedAt   string   `yaml:"created_at"`
+	UpdatedAt   string   `yaml:"updated_at"`
 }
 
 // MarshalNote 把 frontmatter + 正文序列化为完整的 Markdown 文件内容。

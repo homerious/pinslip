@@ -25,6 +25,7 @@ import MagnifyingGlassPlusIcon from '~icons/ph/magnifying-glass-plus';
 import CopyIcon from '~icons/ph/copy';
 import CheckIcon from '~icons/ph/check';
 import ArrowsClockwiseIcon from '~icons/ph/arrows-clockwise';
+import PencilSimpleIcon from '~icons/ph/pencil-simple';
 import PinIcon from '../components/icons/PinIcon';
 import Editor from '../components/editor/Editor';
 import type { EditorHandle } from '../components/editor/Editor';
@@ -86,6 +87,15 @@ function deriveTitle(markdown: string): string {
   return '';
 }
 
+/** 与 storage.Slugify 的非法字符规则一致；文件名长度截断仍由服务端处理。 */
+function sanitizeNoteTitle(value: string): { title: string; changed: boolean } {
+  const trimmed = value.trim();
+  const title = trimmed
+    .replace(/[\\/:*?"<>|\u0000-\u001f]/g, '')
+    .replace(/^[ .]+|[ .]+$/g, '');
+  return { title, changed: title !== trimmed };
+}
+
 /** 内容缩放：整数百分比存储/计算（50–200，步进 10，默认 100），
  *  避免 0.7+0.1 这类浮点误差；持久化到 frontmatter 时 /100 转倍率 */
 const ZOOM_MIN = 50;
@@ -114,6 +124,11 @@ export default function NoteView() {
   /** 新建便签的落盘文件夹（窗口创建时经路由 query 下发；已存在便签忽略，以 note.folder 为准） */
   const initialFolder = searchParams.get('folder') ?? '';
   const [title, setTitle] = useState('');
+  const [titleManual, setTitleManual] = useState(false);
+  const [titleRenaming, setTitleRenaming] = useState(false);
+  const [titleDraft, setTitleDraft] = useState('');
+  const [titleRenameError, setTitleRenameError] = useState<string | null>(null);
+  const [titleMenuOpen, setTitleMenuOpen] = useState(false);
   const [content, setContent] = useState('');
   const [pinned, setPinned] = useState(true); // 新便签默认置顶
   const [collapsed, setCollapsed] = useState(false); // 折叠成标题条（只显示标题栏）
@@ -162,6 +177,8 @@ export default function NoteView() {
   /** 组手柄右键菜单（解散此组） */
   const [groupMenuOpen, setGroupMenuOpen] = useState(false);
   const groupRenameCancelRef = useRef(false);
+  const titleRenameCancelRef = useRef(false);
+  const titleInputRef = useRef<HTMLInputElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -237,6 +254,7 @@ export default function NoteView() {
       setActive(false);
       setPaletteOpen(false);
       setMenuOpen(false);
+      setTitleMenuOpen(false);
       setNewMenuOpen(false);
       setTagPanelOpen(false);
       setFolderPanelOpen(false);
@@ -255,12 +273,13 @@ export default function NoteView() {
    *  remount 走 defaultValue 初始化，不触发 listener 回声，也不会多写一次盘。
    *  代价是撤销历史清空（外部更新极少发生，可接受）；不主动 refocus，避免抢滚动 */
   const applyExternal = useCallback(
-    (disk: string, diskTitle: string, withToast: boolean) => {
+    (disk: string, diskTitle: string, diskTitleManual: boolean, withToast: boolean) => {
       contentRef.current = disk;
       lastSavedRef.current = disk;
       dirtyRef.current = false;
       setContent(disk);
       setTitle(diskTitle); // 兜底标题顺手刷新（显示标题仍由 deriveTitle 实时推导）
+      setTitleManual(diskTitleManual);
       setExternalUpdate(null);
       setEditorEpoch((n) => n + 1);
       if (withToast) setToast(t('note.toastSynced'));
@@ -284,6 +303,7 @@ export default function NoteView() {
           dirtyRef.current = false;
           setExternalUpdate(null);
           setTitle(note.title);
+          setTitleManual(note.titleManual ?? false);
           setContent(note.content);
           setEditorEpoch((n) => n + 1);
           setSaveState('saved');
@@ -322,7 +342,7 @@ export default function NoteView() {
           // disk === contentRef：自己保存的广播先于回包到达（磁盘即编辑器现值），同样无操作
           if (disk === lastSavedRef.current || disk === contentRef.current) return;
           if (dirtyRef.current) setExternalUpdate(disk);
-          else applyExternal(disk, note.title, true);
+          else applyExternal(disk, note.title, note.titleManual ?? false, true);
         })
         .catch((err: unknown) => {
           if (err instanceof Error && err.message.startsWith('API 404')) {
@@ -361,6 +381,7 @@ export default function NoteView() {
         lastSavedRef.current = note.content;
         contentRef.current = note.content;
         setTitle(note.title);
+        setTitleManual(note.titleManual ?? false);
         setContent(note.content);
         setPinned(note.pin);
         setCollapsed(note.collapsed ?? false);
@@ -379,6 +400,7 @@ export default function NoteView() {
       })
       .catch(() => {
         setTitle('');
+        setTitleManual(false);
         contentRef.current = '';
         setContent('');
         // 新建便签：落盘文件夹来自窗口路由 query（主界面文件夹视图/便签＋菜单传入）；
@@ -394,10 +416,10 @@ export default function NoteView() {
       });
   }, [noteId, focusEditorIfIdle, initialFolder]);
 
-  /** 显示用标题：实时跟随内容首行（与服务端同算法），兜底已保存标题，再兜底「新便签」 */
+  /** 手动标题优先；自动标题继续实时跟随正文首行。 */
   const displayTitle = useMemo(
-    () => deriveTitle(content) || title || t('note.newTitle'),
-    [content, title, t],
+    () => (titleManual ? title : deriveTitle(content) || title) || t('note.newTitle'),
+    [content, title, titleManual, t],
   );
 
   /** 冲突标记实时检测：随 content 派生，编辑删掉标记即消失（涵盖初始载入/外部重载/保存后）。
@@ -431,6 +453,7 @@ export default function NoteView() {
           if (contentRef.current === note.content) dirtyRef.current = false;
           setExternalUpdate(null);
           setTitle(note.title);
+          setTitleManual(note.titleManual ?? false);
           setSaveState('saved');
           window.api.notifyNotesChanged(); // 广播：主界面列表近实时刷新
         })
@@ -497,6 +520,53 @@ export default function NoteView() {
     dirtyRef.current = true;
     setContent(markdown);
   }, []);
+
+  const startTitleRename = useCallback(() => {
+    setTitleMenuOpen(false);
+    setTitleRenameError(null);
+    setTitleDraft(title || deriveTitle(content));
+    setTitleRenaming(true);
+  }, [content, title]);
+
+  const commitTitleRename = useCallback(
+    (value: string) => {
+      if (titleRenameCancelRef.current) {
+        titleRenameCancelRef.current = false;
+        setTitleRenameError(null);
+        setTitleRenaming(false);
+        return;
+      }
+      const sanitized = sanitizeNoteTitle(value);
+      if (!sanitized.title) {
+        setTitleRenameError(t('note.renameEmptyError'));
+        requestAnimationFrame(() => titleInputRef.current?.focus());
+        return;
+      }
+      if (sanitized.title === title && titleManual) {
+        setTitleRenaming(false);
+        if (sanitized.changed) setToast(t('note.renameSanitized'));
+        return;
+      }
+      setTitleRenaming(false);
+      notesApi
+        .save(noteId, { title: sanitized.title })
+        .then((note) => {
+          existsRef.current = true;
+          setTitle(note.title);
+          setTitleManual(note.titleManual ?? true);
+          setTitleRenameError(null);
+          if (sanitized.changed) setToast(t('note.renameSanitized'));
+          window.api.notifyNotesChanged();
+        })
+        .catch(() => {
+          setTitleRenameError(t('note.renameSaveError'));
+          setTitleDraft(sanitized.title);
+          setTitleRenaming(true);
+          requestAnimationFrame(() => titleInputRef.current?.focus());
+        });
+    },
+    [noteId, t, title, titleManual],
+  );
 
   /** 添加图像：系统选图 → 上传 vault attachments/ → 按当前文件夹深度补 ../ 前缀插入 */
   const pickImage = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -744,7 +814,13 @@ export default function NoteView() {
   }, [allFolders, folderFilter]);
 
   const overlayOpen =
-    paletteOpen || menuOpen || newMenuOpen || tagPanelOpen || folderPanelOpen || groupMenuOpen;
+    paletteOpen ||
+    menuOpen ||
+    newMenuOpen ||
+    tagPanelOpen ||
+    folderPanelOpen ||
+    groupMenuOpen ||
+    titleMenuOpen;
 
   return (
     <>
@@ -821,7 +897,19 @@ export default function NoteView() {
       data-color={color}
       onMouseDownCapture={() => setActive(true)} /* 兜底：点击即激活，不依赖 focus 事件 */
     >
-      <div className="sticky-note__titlebar">
+      <div
+        className="sticky-note__titlebar"
+        onContextMenu={(e) => {
+          if ((e.target as HTMLElement).closest('button,input')) return;
+          e.preventDefault();
+          setPaletteOpen(false);
+          setMenuOpen(false);
+          setNewMenuOpen(false);
+          setTagPanelOpen(false);
+          setFolderPanelOpen(false);
+          setTitleMenuOpen(true);
+        }}
+      >
         {/* 顺序：置顶 - 标题 - 新建 - 颜色 - 折叠 - 关闭；data-tip 驱动 CSS tooltip；
             折叠态隐藏 新建/颜色，只留 置顶/折叠/关闭 */}
         <button
@@ -835,9 +923,36 @@ export default function NoteView() {
         </button>
         {/* 标题文字单独缩放（CSS zoom，Chromium 下排版自动重排）；
             标题栏按钮留在缩放元素外 */}
-        <span className="sticky-note__title" style={{ zoom: zoomPct / 100 }}>
-          {displayTitle}
-        </span>
+        {titleRenaming ? (
+          <input
+            ref={titleInputRef}
+            className="sticky-note__title-input"
+            style={{ zoom: zoomPct / 100 }}
+            value={titleDraft}
+            autoFocus
+            aria-label={t('note.renameNote')}
+            onFocus={(e) => e.currentTarget.select()}
+            onChange={(e) => setTitleDraft(e.currentTarget.value)}
+            onBlur={(e) => commitTitleRename(e.currentTarget.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                e.currentTarget.blur();
+              } else if (e.key === 'Escape') {
+                titleRenameCancelRef.current = true;
+                e.currentTarget.blur();
+              }
+            }}
+          />
+        ) : (
+          <span
+            className="sticky-note__title"
+            style={{ zoom: zoomPct / 100 }}
+            onDoubleClick={startTitleRename}
+          >
+            {displayTitle}
+          </span>
+        )}
         {/* 折叠态只留核心按钮：新建/颜色收起（底部栏已卸载，新建落点菜单无从依附） */}
         {!collapsed && (
           <button
@@ -907,7 +1022,7 @@ export default function NoteView() {
           <div className="sticky-note__banner-actions">
             <button
               className="sticky-note__banner-btn"
-              onClick={() => applyExternal(externalUpdate, title, false)}
+              onClick={() => applyExternal(externalUpdate, title, titleManual, false)}
             >
               {t('note.loadLatest')}
             </button>
@@ -961,10 +1076,22 @@ export default function NoteView() {
             setTagPanelOpen(false);
             setFolderPanelOpen(false);
             setGroupMenuOpen(false);
+            setTitleMenuOpen(false);
             setConfirmDelete(false);
           }}
         />
       )}
+
+      {titleMenuOpen && (
+        <div className="sticky-note__menu sticky-note__menu--title">
+          <button className="sticky-note__menu-item" onClick={startTitleRename}>
+            <PencilSimpleIcon />
+            {t('note.renameNote')}
+          </button>
+        </div>
+      )}
+
+      {titleRenameError && <div className="sticky-note__rename-error">{titleRenameError}</div>}
 
       {/* ＋新建落点菜单：仅便签在子文件夹时弹出（标题栏下方） */}
       {newMenuOpen && folder && (

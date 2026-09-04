@@ -346,6 +346,20 @@ func TestRenameOnTitleChange(t *testing.T) {
 	if strings.Contains(base, "旧标题") {
 		t.Fatalf("path still uses old title: %q", p)
 	}
+
+	// A user rename is durable: later body autosaves must not derive over it.
+	updatedBody := "正文改成另一个首行"
+	note, err := svc.Save("id0004", SaveInput{Content: &updatedBody})
+	if err != nil {
+		t.Fatalf("Save body after rename: %v", err)
+	}
+	if note.Title != "新标题" || !note.TitleManual {
+		t.Fatalf("manual title was overwritten: title=%q manual=%v", note.Title, note.TitleManual)
+	}
+	fm, _, _, _, err := store.Load("id0004")
+	if err != nil || !fm.TitleManual {
+		t.Fatalf("title_manual was not persisted: fm=%+v err=%v", fm, err)
+	}
 }
 
 // 速记进入 inbox、source=quick，并且能被搜索到。
