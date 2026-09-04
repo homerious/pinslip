@@ -217,7 +217,7 @@ func (e *Engine) Delete(id string) error {
 
 // 允许的附件扩展名（图片粘贴场景，MIME 不可信，只认扩展名白名单）
 var attachExts = map[string]bool{
-	".png": true, ".jpg": true, ".jpeg": true, ".gif": true, ".webp": true,
+	".png": true, ".jpg": true, ".jpeg": true, ".gif": true, ".webp": true, ".svg": true,
 }
 
 // SaveAttachment 把附件字节写入 attachments/ 目录，返回 vault 相对路径（attachments/<name>）。

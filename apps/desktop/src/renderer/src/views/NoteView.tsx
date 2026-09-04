@@ -30,7 +30,7 @@ import Editor from '../components/editor/Editor';
 import type { EditorHandle } from '../components/editor/Editor';
 import ConflictResolver from '../components/ConflictResolver';
 import { toMarkdownImageSrc } from '../components/editor/image-support';
-import { attachmentsApi } from '../api/attachments';
+import { attachmentsApi, SUPPORTED_IMAGE_MIME_TYPES } from '../api/attachments';
 import { foldersApi, notesApi } from '../api/notes';
 import { syncApi } from '../api/sync';
 import { hasConflictMarkers } from '../utils/conflict';
@@ -157,6 +157,8 @@ export default function NoteView() {
   const [groupHover, setGroupHover] = useState(false);
   /** 组手柄拖拽中（整组移动）：驱动手柄 is-dragging 态（cursor: grabbing） */
   const [groupDragging, setGroupDragging] = useState(false);
+  /** 文件管理器拖入受支持图片时的卡片级投放反馈。 */
+  const [imageDragActive, setImageDragActive] = useState(false);
   /** 组名编辑中（组标签手柄双击进入）；Esc 置取消标记，blur 提交 */
   const [groupRenaming, setGroupRenaming] = useState(false);
   /** 组手柄右键菜单（解散此组） */
@@ -507,10 +509,90 @@ export default function NoteView() {
       .upload(file)
       .then((res) => {
         if (!res) return; // MIME 不在白名单（理论不会，accept 已限定 image/*）
-        editorRef.current?.insertImage(toMarkdownImageSrc(res.path, folderRef.current));
+        editorRef.current?.insertImages([
+          { src: toMarkdownImageSrc(res.path, folderRef.current), alt: file.name },
+        ]);
       })
       .catch(() => {});
   }, []);
+
+  const hasFilePayload = useCallback(
+    (transfer: DataTransfer) =>
+      transfer.files.length > 0 ||
+      Array.from(transfer.items).some((item) => item.kind === 'file') ||
+      Array.from(transfer.types).includes('Files'),
+    [],
+  );
+
+  const supportedDropFiles = useCallback(
+    (transfer: DataTransfer) =>
+      Array.from(transfer.files).filter((file) => SUPPORTED_IMAGE_MIME_TYPES.has(file.type)),
+    [],
+  );
+
+  const hasSupportedDropItem = useCallback(
+    (transfer: DataTransfer) =>
+      Array.from(transfer.items).some(
+        (item) => item.kind === 'file' && SUPPORTED_IMAGE_MIME_TYPES.has(item.type),
+      ) || supportedDropFiles(transfer).length > 0,
+    [supportedDropFiles],
+  );
+
+  const handleImageDragEnter = useCallback(
+    (e: React.DragEvent<HTMLDivElement>) => {
+      if (collapsed || hasConflict || !hasFilePayload(e.dataTransfer)) return;
+      e.preventDefault();
+      if (hasSupportedDropItem(e.dataTransfer)) setImageDragActive(true);
+    },
+    [collapsed, hasConflict, hasFilePayload, hasSupportedDropItem],
+  );
+
+  const handleImageDragOver = useCallback(
+    (e: React.DragEvent<HTMLDivElement>) => {
+      if (collapsed || hasConflict || !hasFilePayload(e.dataTransfer)) return;
+      // Always consume file drops so unsupported files cannot replace the page or
+      // inject a local path into contenteditable. Only supported images show copy UI.
+      e.preventDefault();
+      const supported = hasSupportedDropItem(e.dataTransfer);
+      e.dataTransfer.dropEffect = supported ? 'copy' : 'none';
+      setImageDragActive(supported);
+    },
+    [collapsed, hasConflict, hasFilePayload, hasSupportedDropItem],
+  );
+
+  const handleImageDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    if (e.relatedTarget instanceof Node && e.currentTarget.contains(e.relatedTarget)) return;
+    setImageDragActive(false);
+  }, []);
+
+  const handleImageDrop = useCallback(
+    (e: React.DragEvent<HTMLDivElement>) => {
+      if (!hasFilePayload(e.dataTransfer)) return;
+      e.preventDefault();
+      setImageDragActive(false);
+      if (collapsed || hasConflict) return;
+      const files = supportedDropFiles(e.dataTransfer);
+      if (files.length === 0) return;
+      const at = { left: e.clientX, top: e.clientY };
+      void Promise.all(
+        files.map(async (file) => {
+          const uploaded = await attachmentsApi.upload(file).catch(() => null);
+          return uploaded
+            ? {
+                src: toMarkdownImageSrc(uploaded.path, folderRef.current),
+                alt: file.name,
+              }
+            : null;
+        }),
+      ).then((images) => {
+        editorRef.current?.insertImages(
+          images.filter((image): image is { src: string; alt: string } => image !== null),
+          at,
+        );
+      });
+    },
+    [collapsed, hasConflict, hasFilePayload, supportedDropFiles],
+  );
 
   /** 复制全部正文到剪贴板；成功后图标短暂变 ✓ 反馈。
    *  过滤 Milkdown 写入的空行标记 <br />：独立成行 → 空行；行内 → 换行，
@@ -817,9 +899,13 @@ export default function NoteView() {
         ))}
       <div
       ref={rootRef}
-      className={`sticky-note${active ? ' is-active' : ''}${collapsed ? ' is-collapsed' : ''}${collapseAnim ? ' is-collapse-anim' : ''}${groupHover ? ' is-group-hover' : ''}${groupState && groupState.role !== 'solo' ? ` is-grouped is-group-${groupState.role}` : ''}`}
+      className={`sticky-note${active ? ' is-active' : ''}${collapsed ? ' is-collapsed' : ''}${collapseAnim ? ' is-collapse-anim' : ''}${groupHover ? ' is-group-hover' : ''}${imageDragActive ? ' is-image-drag' : ''}${groupState && groupState.role !== 'solo' ? ` is-grouped is-group-${groupState.role}` : ''}`}
       data-color={color}
       onMouseDownCapture={() => setActive(true)} /* 兜底：点击即激活，不依赖 focus 事件 */
+      onDragEnter={handleImageDragEnter}
+      onDragOver={handleImageDragOver}
+      onDragLeave={handleImageDragLeave}
+      onDrop={handleImageDrop}
     >
       <div className="sticky-note__titlebar">
         {/* 顺序：置顶 - 标题 - 新建 - 颜色 - 折叠 - 关闭；data-tip 驱动 CSS tooltip；
@@ -1120,7 +1206,7 @@ export default function NoteView() {
       <input
         ref={imageInputRef}
         type="file"
-        accept="image/*"
+        accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml"
         hidden
         onChange={pickImage}
       />

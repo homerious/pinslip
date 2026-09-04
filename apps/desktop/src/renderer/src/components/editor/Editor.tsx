@@ -43,8 +43,11 @@ export interface EditorHandle {
   /** 任务列表切换：非列表 → 包成无序列表并转为任务项；
    *  普通列表 → 选区内列表项转任务项；全为任务项 → 转回普通列表 */
   toggleTaskList(): void;
-  /** 在当前光标处插入图片节点（src 为写进 markdown 的相对路径） */
-  insertImage(src: string): void;
+  /** 在当前光标或给定视口坐标处插入图片节点。坐标不在编辑器内时追加到正文末尾。 */
+  insertImages(
+    images: { src: string; alt?: string }[],
+    at?: { left: number; top: number },
+  ): void;
 }
 
 const MilkdownEditor = forwardRef<EditorHandle, EditorProps>(function MilkdownEditor(
@@ -126,12 +129,55 @@ const MilkdownEditor = forwardRef<EditorHandle, EditorProps>(function MilkdownEd
           view.dispatch(tr);
         });
       },
-      insertImage(src) {
-        if (loading) return;
+      insertImages(images, at) {
+        if (loading || images.length === 0) return;
         getEditor().action((ctx) => {
           const view = ctx.get(editorViewCtx);
-          const imageNode = view.state.schema.nodes.image.create({ src });
-          view.dispatch(view.state.tr.replaceSelectionWith(imageNode));
+          if (!at) {
+            let tr = view.state.tr;
+            for (const image of images) {
+              tr = tr.replaceSelectionWith(
+                view.state.schema.nodes.image.create({ src: image.src, alt: image.alt ?? '' }),
+              );
+            }
+            view.dispatch(tr);
+            return;
+          }
+
+          const hit = view.posAtCoords(at);
+          let insertPos: number | null = null;
+          if (hit) {
+            const $hit = view.state.doc.resolve(hit.pos);
+            if ($hit.parent.isTextblock && !$hit.parent.type.spec.code) insertPos = hit.pos;
+          }
+          // A drop in the titlebar/toolbar still belongs to this note: append it to
+          // the last text block instead of letting Chromium navigate to the file.
+          if (insertPos === null) {
+            view.state.doc.descendants((node, pos) => {
+              if (node.isTextblock && !node.type.spec.code) {
+                insertPos = pos + 1 + node.content.size;
+              }
+            });
+          }
+          if (insertPos === null) {
+            const nodes = images.map((image) =>
+              view.state.schema.nodes.image.create({ src: image.src, alt: image.alt ?? '' }),
+            );
+            const paragraph = view.state.schema.nodes.paragraph.create(null, nodes);
+            view.dispatch(view.state.tr.insert(view.state.doc.content.size, paragraph));
+            return;
+          }
+          let tr = view.state.tr;
+          let offset = 0;
+          for (const image of images) {
+            const node = view.state.schema.nodes.image.create({
+              src: image.src,
+              alt: image.alt ?? '',
+            });
+            tr = tr.insert(insertPos + offset, node);
+            offset += node.nodeSize;
+          }
+          view.dispatch(tr);
         });
       },
     }),

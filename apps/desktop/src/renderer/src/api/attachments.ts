@@ -6,7 +6,10 @@ const EXT_BY_MIME: Record<string, string> = {
   'image/jpeg': '.jpg',
   'image/gif': '.gif',
   'image/webp': '.webp',
+  'image/svg+xml': '.svg',
 };
+
+export const SUPPORTED_IMAGE_MIME_TYPES = new Set(Object.keys(EXT_BY_MIME));
 
 /** 附件上传 API（vault attachments/ 目录） */
 export const attachmentsApi = {

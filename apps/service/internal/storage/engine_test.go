@@ -218,6 +218,11 @@ func TestSaveAttachment(t *testing.T) {
 		t.Fatalf("content mismatch: %v", data)
 	}
 
+	// Drag-and-drop accepts SVG through the same attachment pipeline.
+	if rel, err := e.SaveAttachment(".svg", []byte("<svg/>")); err != nil || !strings.HasSuffix(rel, ".svg") {
+		t.Fatalf("SaveAttachment svg: rel=%q err=%v", rel, err)
+	}
+
 	// 白名单外的扩展名拒绝
 	if _, err := e.SaveAttachment(".exe", []byte{1}); err == nil {
 		t.Fatal("expected error for .exe")
