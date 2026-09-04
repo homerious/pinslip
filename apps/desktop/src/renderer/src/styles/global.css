@@ -1422,6 +1422,10 @@ input.sticky-note__groupname-input::placeholder {
   flex: none;
 }
 
+.settings-panel__row-icon--placeholder {
+  visibility: hidden;
+}
+
 .settings-panel__label {
   font-size: 12px;
   color: #444;

@@ -23,6 +23,9 @@ const api: ElectronAPI = {
   openNoteFolder: (folder) => ipcRenderer.invoke(IPC.NoteOpenFolder, folder),
   getAutoStart: () => ipcRenderer.invoke(IPC.SettingsGetAutoStart),
   setAutoStart: (enabled) => ipcRenderer.invoke(IPC.SettingsSetAutoStart, enabled),
+  getBlankNoteCreationSettings: () => ipcRenderer.invoke(IPC.SettingsGetNoteCreation),
+  setBlankNoteCreationSettings: (settings) =>
+    ipcRenderer.invoke(IPC.SettingsSetNoteCreation, settings),
   getLanguage: () => ipcRenderer.invoke(IPC.SettingsGetLanguage),
   setLanguage: (lang) => ipcRenderer.invoke(IPC.SettingsSetLanguage, lang),
   onLanguageChanged: (cb) => {

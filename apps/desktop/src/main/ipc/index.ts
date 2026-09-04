@@ -5,7 +5,17 @@ import { IPC } from '../../shared/ipc-channels';
 import type { RuntimeInfo } from '../../shared/types';
 import type { WindowManager } from '../windows/window-manager';
 import type { GoProcess } from '../services/go-process';
-import { getVaultPath, setVaultPath, getLanguage, setLanguage } from '../settings';
+import {
+  getVaultPath,
+  setVaultPath,
+  getLanguage,
+  setLanguage,
+  getBlankNoteCreationSettings,
+  setBlankNoteCreationSettings,
+  BLANK_NOTE_SHORTCUTS,
+} from '../settings';
+import type { BlankNoteCreationSettings } from '../settings';
+import { rebindBlankNoteShortcut } from '../shortcuts';
 import { getAutoStart, setAutoStart } from '../autostart';
 import { setMainLanguage } from '../i18n';
 import { refreshTrayMenu } from '../tray';
@@ -161,6 +171,26 @@ export function registerIpcHandlers({ windowManager, goProcess }: IpcContext): v
   ipcMain.handle(IPC.SettingsSetAutoStart, (_event, enabled: boolean) => {
     setAutoStart(enabled);
   });
+
+  ipcMain.handle(IPC.SettingsGetNoteCreation, () => getBlankNoteCreationSettings());
+  ipcMain.handle(
+    IPC.SettingsSetNoteCreation,
+    (_event, requested: BlankNoteCreationSettings) => {
+      const current = getBlankNoteCreationSettings();
+      const next: BlankNoteCreationSettings = {
+        shortcut:
+          typeof requested?.shortcut === 'string' && BLANK_NOTE_SHORTCUTS.has(requested.shortcut)
+            ? requested.shortcut
+            : current.shortcut,
+        placement: requested?.placement === 'cascade' ? 'cascade' : 'default',
+      };
+      if (next.shortcut !== current.shortcut && !rebindBlankNoteShortcut(next.shortcut, windowManager)) {
+        return { ok: false, settings: current };
+      }
+      setBlankNoteCreationSettings(next);
+      return { ok: true, settings: next };
+    },
+  );
 
   // 界面语言：偏好存 userData/settings.json；systemLocale 给渲染层解析「跟随系统」
   ipcMain.handle(IPC.SettingsGetLanguage, () => ({

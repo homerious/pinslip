@@ -36,6 +36,7 @@ import CopyIcon from '~icons/ph/copy';
 import CheckIcon from '~icons/ph/check';
 import ClipboardIcon from '~icons/ph/clipboard';
 import type { NoteMeta, SearchHit, SyncStatus, UpdateState } from '@shared/types';
+import type { BlankNoteCreationSettings } from '@shared/types';
 import { foldersApi, notesApi, settingsApi, trashApi } from '../api/notes';
 import type { TrashStats } from '../api/notes';
 import { syncApi } from '../api/sync';
@@ -122,6 +123,11 @@ export default function MainView() {
   /** 自动更新状态（主进程权威，这里只是镜像展示） */
   const [updateState, setUpdateState] = useState<UpdateState>({ status: 'idle' });
   const [autoStart, setAutoStart] = useState(false);
+  const [blankNoteSettings, setBlankNoteSettings] = useState<BlankNoteCreationSettings>({
+    shortcut: 'CommandOrControl+Alt+N',
+    placement: 'default',
+  });
+  const [blankNoteShortcutError, setBlankNoteShortcutError] = useState(false);
   /** 界面语言偏好（'system' = 跟随系统；初值取自 i18n 模块的启动解析结果） */
   const [langPref, setLangPref] = useState<LanguagePreference>(getLanguagePreference());
   // 回收区：统计快照 + 保留天数 + 清空两阶段确认态
@@ -415,6 +421,10 @@ export default function MainView() {
       .getAutoStart()
       .then(setAutoStart)
       .catch(() => {});
+    window.api
+      .getBlankNoteCreationSettings()
+      .then(setBlankNoteSettings)
+      .catch(() => {});
     trashApi
       .stats()
       .then(setTrashStats)
@@ -542,6 +552,25 @@ export default function MainView() {
     setLangPref(pref);
     void applyLanguagePreference(pref);
   }, []);
+
+  const changeBlankNoteSettings = useCallback(
+    (patch: Partial<BlankNoteCreationSettings>) => {
+      const next = { ...blankNoteSettings, ...patch };
+      setBlankNoteSettings(next);
+      setBlankNoteShortcutError(false);
+      window.api
+        .setBlankNoteCreationSettings(next)
+        .then((result) => {
+          setBlankNoteSettings(result.settings);
+          setBlankNoteShortcutError(!result.ok);
+        })
+        .catch(() => {
+          setBlankNoteSettings(blankNoteSettings);
+          setBlankNoteShortcutError(true);
+        });
+    },
+    [blankNoteSettings],
+  );
 
   // 复制 MCP 接入配置（通用 mcpServers 形态，Claude Code / Kimi 等可直接粘贴）；
   // 成功后按钮短暂显示「已复制 ✓」（2s 恢复，与便签复制按钮同套路）
@@ -851,6 +880,39 @@ export default function MainView() {
               </div>
               {!isPackaged && (
                 <div className="settings-panel__hint">{t('settings.autoStartDevHint')}</div>
+              )}
+              <div className="settings-panel__row">
+                <PlusIcon className="settings-panel__row-icon" />
+                <span className="settings-panel__label">{t('settings.blankNoteShortcut')}</span>
+                <select
+                  className="settings-panel__select"
+                  value={blankNoteSettings.shortcut}
+                  onChange={(e) => changeBlankNoteSettings({ shortcut: e.target.value })}
+                >
+                  <option value="CommandOrControl+Alt+N">Ctrl/⌘ + Alt + N</option>
+                  <option value="CommandOrControl+Shift+Alt+N">Ctrl/⌘ + Shift + Alt + N</option>
+                  <option value="CommandOrControl+Alt+Insert">Ctrl/⌘ + Alt + Insert</option>
+                  <option value="">{t('settings.shortcutDisabled')}</option>
+                </select>
+              </div>
+              <div className="settings-panel__row">
+                <span className="settings-panel__row-icon settings-panel__row-icon--placeholder" />
+                <span className="settings-panel__label">{t('settings.blankNotePlacement')}</span>
+                <select
+                  className="settings-panel__select"
+                  value={blankNoteSettings.placement}
+                  onChange={(e) =>
+                    changeBlankNoteSettings({
+                      placement: e.target.value === 'cascade' ? 'cascade' : 'default',
+                    })
+                  }
+                >
+                  <option value="default">{t('settings.placementDefault')}</option>
+                  <option value="cascade">{t('settings.placementCascade')}</option>
+                </select>
+              </div>
+              {blankNoteShortcutError && (
+                <div className="settings-panel__error">{t('settings.shortcutUnavailable')}</div>
               )}
             </div>
 

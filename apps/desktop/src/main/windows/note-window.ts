@@ -11,7 +11,8 @@ export const NOTE_COLLAPSED_HEIGHT = 64;
 /** 展开态最小高度（DIP，与 minHeight 一致）：expanded 记忆高度低于它即视为脏数据 */
 const NOTE_MIN_EXPANDED_HEIGHT = 160;
 /** 新建便签默认高度（构造单位）：展开恢复遇脏数据高度时的回退目标 */
-const NOTE_DEFAULT_HEIGHT = 420;
+export const NOTE_DEFAULT_HEIGHT = 420;
+export const NOTE_DEFAULT_WIDTH = 320;
 
 /** 各便签窗口的自校准参数（win.id → calibrate），折叠/展开做 构造单位↔DIP 换算用 */
 const winCals = new Map<number, () => WinCal>();
@@ -25,6 +26,7 @@ export interface NoteWindowOptions {
   getOthers?: () => OtherNote[]; // 其他便签窗口（便签间磁铁/成组判定用；组过滤由调用方做）
   snapHooks?: SnapHooks; // 成组手势回调（stack-zone 高亮预告 + 松手成组）
   folder?: string; // 新建便签的落盘文件夹（随路由 query 下发给渲染进程）
+  position?: { x: number; y: number }; // 新建便签的显式落点（已保存窗口仍以 winstate 为准）
 }
 
 /** 取窗口的吸附句柄：便签组 restack 走 animateTo（复用落位动画的格点量化纪律） */
@@ -34,14 +36,14 @@ export function getNoteSnapHandle(win: BrowserWindow): SnapHandle | undefined {
 
 /** 创建便签窗口：无边框、透明；进任务栏（不置顶时也能找回）、可最小化；
  *  有位置记忆则恢复原位，否则错位摆放；置顶与否由用户选择 */
-export function createNoteWindow({ noteId, index, alwaysOnTop, getOthers, snapHooks, folder }: NoteWindowOptions): BrowserWindow {
+export function createNoteWindow({ noteId, index, alwaysOnTop, getOthers, snapHooks, folder, position }: NoteWindowOptions): BrowserWindow {
   const saved = getWindowStateRaw(`note:${noteId}`);
   // 期望的构造参数（恢复的记忆值或默认错位摆放）；
   // 折叠记忆的窗口：saved.height 即折叠高度，最小尺寸/可缩放同步收紧
   const collapsed = saved?.collapsed === true;
-  const ix = saved?.x ?? 120 + index * 30;
-  const iy = saved?.y ?? 120 + index * 30;
-  const iw = saved?.width ?? 320;
+  const ix = saved?.x ?? position?.x ?? 120 + index * 30;
+  const iy = saved?.y ?? position?.y ?? 120 + index * 30;
+  const iw = saved?.width ?? NOTE_DEFAULT_WIDTH;
   const ih = saved?.height ?? (collapsed ? NOTE_COLLAPSED_HEIGHT : NOTE_DEFAULT_HEIGHT);
 
   const win = new BrowserWindow({
@@ -115,7 +117,10 @@ export function createNoteWindow({ noteId, index, alwaysOnTop, getOthers, snapHo
   // 新建便签的落盘文件夹经路由 query 下发（HashRouter 下 useSearchParams 可读）
   loadView(win, `/note/${noteId}${folder ? `?folder=${encodeURIComponent(folder)}` : ''}`);
 
-  win.once('ready-to-show', () => win.show());
+  win.once('ready-to-show', () => {
+    win.show();
+    win.focus();
+  });
   return win;
 }
 

@@ -1,9 +1,16 @@
-import { BrowserWindow } from 'electron';
-import { createNoteWindow, NOTE_COLLAPSED_HEIGHT, setNoteWindowCollapsed } from './note-window';
+import { BrowserWindow, screen } from 'electron';
+import {
+  createNoteWindow,
+  NOTE_COLLAPSED_HEIGHT,
+  NOTE_DEFAULT_HEIGHT,
+  NOTE_DEFAULT_WIDTH,
+  setNoteWindowCollapsed,
+} from './note-window';
 import { createQuickCaptureWindow } from './quick-capture';
 import { createMainWindow } from './main-window';
 import { GroupManager } from './group-manager';
-import { getOpenNotes, setOpenNotes } from '../settings';
+import { getBlankNoteCreationSettings, getOpenNotes, setOpenNotes } from '../settings';
+import type { BlankNotePlacement } from '../settings';
 import { IPC } from '../../shared/ipc-channels';
 import type { GroupState } from '../../shared/types';
 import type { GoProcess } from '../services/go-process';
@@ -25,6 +32,7 @@ export class WindowManager {
   private readonly groupManager: GroupManager;
   /** 成组预告高亮映射：拖动方 noteId → 当前高亮目标 noteId（去重/清残用） */
   private stackHoverTargets = new Map<string, string>();
+  private lastFocusedNoteId: string | null = null;
 
   constructor(private readonly goProcess: GoProcess) {
     this.groupManager = new GroupManager({
@@ -37,7 +45,11 @@ export class WindowManager {
 
   /** 新建便签窗口；已有同 id 窗口则聚焦。noteId 为空时创建新 id。
    *  folder 仅新建时有效：随窗口路由下发，首次保存落盘到该文件夹 */
-  async createNoteWindow(noteId?: string, folder?: string): Promise<string> {
+  async createNoteWindow(
+    noteId?: string,
+    folder?: string,
+    position?: { x: number; y: number },
+  ): Promise<string> {
     const id = noteId ?? crypto.randomUUID().replaceAll('-', '').slice(0, 16);
 
     const existing = this.noteWindows.get(id);
@@ -54,6 +66,7 @@ export class WindowManager {
       index: this.noteWindows.size,
       alwaysOnTop,
       folder,
+      position,
       // 便签间磁铁/成组判定：实时取除自己外的其他置顶便签（仅置顶便签参与）。
       // 自己在组内 → 空池（组成员不触发磁铁/成组，v1 组不合并）；
       // 目标在组内 → 带 grouped 标记：退出磁铁层但保留 stack-zone
@@ -100,6 +113,9 @@ export class WindowManager {
       },
     });
     this.noteWindows.set(id, win);
+    win.on('focus', () => {
+      this.lastFocusedNoteId = id;
+    });
     this.syncOpenNotes();
     // 几何校正：组成员重开/会话恢复后瞬移归位（非成员 no-op；位置已正确时
     // restack 早退）。instant：启动/重开不该看到便签滑动
@@ -121,6 +137,54 @@ export class WindowManager {
       if (!this.quitting) this.syncOpenNotes();
     });
     return id;
+  }
+
+  /** 直接生成空白便签，不经过速记窗。落点始终限制在当前活动显示器工作区内。 */
+  async createBlankNote(options?: { position?: BlankNotePlacement }): Promise<string> {
+    const mode = options?.position ?? getBlankNoteCreationSettings().placement;
+    return this.createNoteWindow(undefined, undefined, this.nextBlankNotePosition(mode));
+  }
+
+  private nextBlankNotePosition(mode: BlankNotePlacement): { x: number; y: number } {
+    const last = this.lastFocusedNoteId ? this.noteWindows.get(this.lastFocusedNoteId) : undefined;
+    const display = last && !last.isDestroyed()
+      ? screen.getDisplayMatching(last.getBounds())
+      : screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
+    const area = display.workArea;
+    const margin = 24;
+    const step = 30;
+    const maxX = Math.max(area.x + margin, area.x + area.width - NOTE_DEFAULT_WIDTH - margin);
+    const maxY = Math.max(area.y + margin, area.y + area.height - NOTE_DEFAULT_HEIGHT - margin);
+    const lastBounds = last && !last.isDestroyed() && screen.getDisplayMatching(last.getBounds()).id === display.id
+      ? last.getBounds()
+      : null;
+    const start = mode === 'cascade' && lastBounds
+      ? { x: lastBounds.x + step, y: lastBounds.y + step }
+      : { x: maxX, y: area.y + margin };
+    const spanX = Math.max(step, maxX - (area.x + margin) + step);
+    const spanY = Math.max(step, maxY - (area.y + margin) + step);
+    const wrap = (value: number, min: number, span: number) => min + ((value - min) % span + span) % span;
+    const occupied = (candidate: { x: number; y: number }) => {
+      const c = { ...candidate, width: NOTE_DEFAULT_WIDTH, height: NOTE_DEFAULT_HEIGHT };
+      return [...this.noteWindows.values()].some((win) => {
+        if (win.isDestroyed() || win.isMinimized()) return false;
+        const b = win.getBounds();
+        const overlapW = Math.max(0, Math.min(c.x + c.width, b.x + b.width) - Math.max(c.x, b.x));
+        const overlapH = Math.max(0, Math.min(c.y + c.height, b.y + b.height) - Math.max(c.y, b.y));
+        return overlapW * overlapH > c.width * c.height * 0.35;
+      });
+    };
+    for (let i = 0; i < 24; i += 1) {
+      const candidate = {
+        x: Math.round(wrap(start.x + (mode === 'default' ? -i : i) * step, area.x + margin, spanX)),
+        y: Math.round(wrap(start.y + i * step, area.y + margin, spanY)),
+      };
+      if (!occupied(candidate)) return candidate;
+    }
+    return {
+      x: Math.min(maxX, Math.max(area.x + margin, start.x)),
+      y: Math.min(maxY, Math.max(area.y + margin, start.y)),
+    };
   }
 
   /** 成组预告点亮/熄灭：目标在组内时整组一起亮（加入预览 = 你将成为这个
