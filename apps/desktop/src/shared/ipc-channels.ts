@@ -35,6 +35,9 @@ export const IPC = {
   SettingsGetAutoStart: 'settings:get-auto-start',
   /** 设置开机自启，参数 enabled */
   SettingsSetAutoStart: 'settings:set-auto-start',
+  /** 管理器预览栏开关与分隔条位置。 */
+  SettingsGetManagerView: 'settings:get-manager-view',
+  SettingsSetManagerView: 'settings:set-manager-view',
   /** 查询界面语言：返回 { preference: 'system'|语言码, systemLocale: app.getLocale() } */
   SettingsGetLanguage: 'settings:get-language',
   /** 设置界面语言偏好，参数 lang（'system' 或 zh-CN/en/ja/ko/es/de/fr） */

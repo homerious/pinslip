@@ -42,6 +42,7 @@ export function createTaskCapableListItemView(
   initialNode: ListItemNodeLike,
   editorView: EditorViewLike,
   getPos: GetPosLike,
+  interactive = true,
 ) {
   let node = initialNode;
   const dom = document.createElement('li');
@@ -85,7 +86,7 @@ export function createTaskCapableListItemView(
     });
     editorView.dispatch(tr);
   };
-  check?.addEventListener('mousedown', onCheckMouseDown);
+  if (interactive) check?.addEventListener('mousedown', onCheckMouseDown);
 
   return {
     dom,
@@ -99,7 +100,7 @@ export function createTaskCapableListItemView(
       return true;
     },
     destroy() {
-      check?.removeEventListener('mousedown', onCheckMouseDown);
+      if (interactive) check?.removeEventListener('mousedown', onCheckMouseDown);
     },
   };
 }

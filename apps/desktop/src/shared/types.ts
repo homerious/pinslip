@@ -129,6 +129,11 @@ export interface RuntimeInfo {
   version: string;
 }
 
+export interface ManagerViewSettings {
+  previewVisible: boolean;
+  listWidth: number;
+}
+
 /** 自动更新状态机（主进程唯一权威，渲染层只展示）：
  *  idle → checking → available → downloading → downloaded；
  *  无更新 → latest；失败 → error（可再次检查回到 checking） */
@@ -172,6 +177,8 @@ export interface ElectronAPI {
   getAutoStart(): Promise<boolean>;
   /** 设置开机自启（dev 环境下为 no-op） */
   setAutoStart(enabled: boolean): Promise<void>;
+  getManagerViewSettings(): Promise<ManagerViewSettings>;
+  setManagerViewSettings(settings: ManagerViewSettings): Promise<ManagerViewSettings>;
   /** 查询界面语言偏好与系统 locale（渲染层据此解析「跟随系统」） */
   getLanguage(): Promise<{ preference: string; systemLocale: string }>;
   /** 持久化界面语言偏好（'system' 或具体语言码） */

@@ -1306,14 +1306,117 @@ input.sticky-note__groupname-input::placeholder {
   background: var(--quick-bg);
 }
 
-/* ===== 主窗口（main-view）：窄条便签列表面板，停靠右下角 ===== */
+/* ===== 主窗口（main-view）：左侧导航 + 右侧只读预览 ===== */
 .main-view {
   width: 100vw;
   height: 100vh;
+  overflow: hidden;
+  background: #f7f7f5;
+  display: flex;
+  position: relative; /* 设置面板的定位上下文 */
+}
+
+.manager-navigation {
+  flex: 0 0 clamp(280px, var(--manager-list-width, 340px), calc(100vw - 300px));
+  min-width: 0;
+  height: 100%;
   overflow-y: auto;
   padding: 12px 10px;
-  background: #f7f7f5;
-  position: relative; /* 设置面板的定位上下文 */
+  outline: none;
+}
+
+.main-view:not(.has-preview) .manager-navigation {
+  flex: 1 1 auto;
+}
+
+.manager-splitter {
+  flex: 0 0 7px;
+  height: 100%;
+  cursor: col-resize;
+  border-left: 1px solid #deded9;
+  border-right: 1px solid #deded9;
+  background: #efefeb;
+  touch-action: none;
+}
+
+.manager-splitter:hover {
+  background: #e3c85e;
+}
+
+.manager-preview {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+}
+
+.manager-preview__header {
+  flex: none;
+  min-height: 58px;
+  padding: 11px 16px;
+  border-bottom: 1px solid #ecece8;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.manager-preview__header h2 {
+  max-width: 52vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 16px;
+  color: #333;
+}
+
+.manager-preview__header span {
+  display: block;
+  margin-top: 3px;
+  font-size: 11px;
+  color: #999;
+}
+
+.manager-preview__header button {
+  flex: none;
+  padding: 5px 10px;
+  border: 1px solid #deded8;
+  border-radius: 6px;
+  background: #fff;
+  color: #555;
+  font-size: 12px;
+}
+
+.manager-preview__header button:hover {
+  border-color: #d1b43c;
+  background: #fffbea;
+}
+
+.manager-preview__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  padding: 14px 18px;
+}
+
+.manager-preview__body .pinslip-editor .milkdown > .ProseMirror {
+  padding: 4px 6px 24px;
+  font-size: 14px;
+  cursor: default;
+}
+
+.manager-preview__body .pinslip-task-check {
+  cursor: default;
+}
+
+.manager-preview__empty {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  color: #aaa;
+  font-size: 13px;
 }
 
 /* ===== 设置抽屉（从下往上滑出，遮住主界面） ===== */
@@ -1834,6 +1937,11 @@ input.sticky-note__groupname-input::placeholder {
 
 .note-list li:hover {
   border-color: var(--card-hover, #ffd54f);
+}
+
+.note-list li.is-selected {
+  border-color: var(--card-hover, #d1b43c);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--card-hover, #d1b43c) 40%, transparent);
 }
 
 .note-list li[data-color='yellow'] {

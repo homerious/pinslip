@@ -13,6 +13,14 @@ interface AppSettings {
   openNotes?: string[];
   /** 界面语言偏好：'system'（跟随系统，缺省）或具体语言码（zh-CN/en/ja/ko/es/de/fr） */
   language?: string;
+  /** 管理器双栏：预览开关与左栏宽度（DIP）。 */
+  managerPreviewVisible?: boolean;
+  managerListWidth?: number;
+}
+
+export interface ManagerViewSettings {
+  previewVisible: boolean;
+  listWidth: number;
 }
 
 let cache: AppSettings | null = null;
@@ -65,4 +73,24 @@ export function getLanguage(): string {
 export function setLanguage(lang: string): void {
   load().language = lang;
   persist();
+}
+
+export function getManagerViewSettings(): ManagerViewSettings {
+  const settings = load();
+  const width = Number(settings.managerListWidth);
+  return {
+    previewVisible: settings.managerPreviewVisible ?? true,
+    listWidth: Number.isFinite(width) ? Math.min(600, Math.max(280, Math.round(width))) : 340,
+  };
+}
+
+export function setManagerViewSettings(settings: ManagerViewSettings): ManagerViewSettings {
+  const next: ManagerViewSettings = {
+    previewVisible: Boolean(settings.previewVisible),
+    listWidth: Math.min(600, Math.max(280, Math.round(Number(settings.listWidth) || 340))),
+  };
+  load().managerPreviewVisible = next.previewVisible;
+  load().managerListWidth = next.listWidth;
+  persist();
+  return next;
 }

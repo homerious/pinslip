@@ -5,7 +5,15 @@ import { IPC } from '../../shared/ipc-channels';
 import type { RuntimeInfo } from '../../shared/types';
 import type { WindowManager } from '../windows/window-manager';
 import type { GoProcess } from '../services/go-process';
-import { getVaultPath, setVaultPath, getLanguage, setLanguage } from '../settings';
+import {
+  getVaultPath,
+  setVaultPath,
+  getLanguage,
+  setLanguage,
+  getManagerViewSettings,
+  setManagerViewSettings,
+} from '../settings';
+import type { ManagerViewSettings } from '../settings';
 import { getAutoStart, setAutoStart } from '../autostart';
 import { setMainLanguage } from '../i18n';
 import { refreshTrayMenu } from '../tray';
@@ -161,6 +169,10 @@ export function registerIpcHandlers({ windowManager, goProcess }: IpcContext): v
   ipcMain.handle(IPC.SettingsSetAutoStart, (_event, enabled: boolean) => {
     setAutoStart(enabled);
   });
+  ipcMain.handle(IPC.SettingsGetManagerView, () => getManagerViewSettings());
+  ipcMain.handle(IPC.SettingsSetManagerView, (_event, settings: ManagerViewSettings) =>
+    setManagerViewSettings(settings),
+  );
 
   // 界面语言：偏好存 userData/settings.json；systemLocale 给渲染层解析「跟随系统」
   ipcMain.handle(IPC.SettingsGetLanguage, () => ({

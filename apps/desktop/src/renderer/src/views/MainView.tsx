@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import PlusIcon from '~icons/ph/plus';
@@ -22,6 +23,7 @@ import TimerIcon from '~icons/ph/timer';
 import TranslateIcon from '~icons/ph/translate';
 import CaretDownIcon from '~icons/ph/caret-down';
 import CaretRightIcon from '~icons/ph/caret-right';
+import CaretLeftIcon from '~icons/ph/caret-left';
 import SortAscendingIcon from '~icons/ph/sort-ascending';
 import SortDescendingIcon from '~icons/ph/sort-descending';
 import ArrowsClockwiseIcon from '~icons/ph/arrows-clockwise';
@@ -35,7 +37,15 @@ import FileCodeIcon from '~icons/ph/file-code';
 import CopyIcon from '~icons/ph/copy';
 import CheckIcon from '~icons/ph/check';
 import ClipboardIcon from '~icons/ph/clipboard';
-import type { NoteMeta, SearchHit, SyncStatus, UpdateState } from '@shared/types';
+import type {
+  ManagerViewSettings,
+  Note,
+  NoteMeta,
+  SearchHit,
+  SyncStatus,
+  UpdateState,
+} from '@shared/types';
+import Editor from '../components/editor/Editor';
 import { foldersApi, notesApi, settingsApi, trashApi } from '../api/notes';
 import type { TrashStats } from '../api/notes';
 import { syncApi } from '../api/sync';
@@ -169,6 +179,14 @@ export default function MainView() {
   const [deleteFolderTarget, setDeleteFolderTarget] = useState<string | null>(null);
   // 面包屑中间段折叠状态（层级深时默认折叠，点 … 展开）
   const [crumbsExpanded, setCrumbsExpanded] = useState(false);
+  const [managerView, setManagerView] = useState<ManagerViewSettings>({
+    previewVisible: true,
+    listWidth: 340,
+  });
+  const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
+  const [previewNote, setPreviewNote] = useState<Note | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const navigationRef = useRef<HTMLDivElement>(null);
 
   // 标签聚合：全部笔记的标签按出现频次降序
   const tagCounts = useMemo(() => {
@@ -214,6 +232,11 @@ export default function MainView() {
       return sortDir === 'asc' ? cmp : -cmp;
     });
   }, [notes, sortKey, sortDir]);
+
+  const selectedRevision = useMemo(
+    () => notes.find((note) => note.id === selectedNoteId)?.updatedAt ?? '',
+    [notes, selectedNoteId],
+  );
 
   // 标签视图分组收起/展开切换
   const toggleTagGroup = useCallback((tag: string) => {
@@ -360,6 +383,45 @@ export default function MainView() {
       })
       .catch(() => setStage('setup'));
   }, []);
+
+  useEffect(() => {
+    window.api
+      .getManagerViewSettings()
+      .then(setManagerView)
+      .catch(() => {});
+  }, []);
+
+  // Keep a valid list selection so Up/Down and the preview have a stable anchor.
+  useEffect(() => {
+    if (notes.length === 0) {
+      setSelectedNoteId(null);
+      setPreviewNote(null);
+      return;
+    }
+    if (!selectedNoteId || !notes.some((note) => note.id === selectedNoteId)) {
+      setSelectedNoteId(sortedNotes[0]?.id ?? notes[0].id);
+    }
+  }, [notes, selectedNoteId, sortedNotes]);
+
+  useEffect(() => {
+    if (!managerView.previewVisible || !selectedNoteId) return;
+    let alive = true;
+    setPreviewLoading(true);
+    notesApi
+      .get(selectedNoteId)
+      .then((note) => {
+        if (alive) setPreviewNote(note);
+      })
+      .catch(() => {
+        if (alive) setPreviewNote(null);
+      })
+      .finally(() => {
+        if (alive) setPreviewLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [managerView.previewVisible, selectedNoteId, selectedRevision]);
 
   // 更新状态：挂载时拉一次快照（可能已有后台检查结果），之后跟随主进程广播
   useEffect(() => {
@@ -658,6 +720,64 @@ export default function MainView() {
   const openNote = (id: string) => window.api.createNote(id);
   const createNote = () => window.api.createNote();
 
+  const selectNote = (id: string) => {
+    setSelectedNoteId(id);
+    requestAnimationFrame(() => navigationRef.current?.focus({ preventScroll: true }));
+  };
+
+  const handleNavigationKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if ((e.target as HTMLElement).closest('input,textarea,select,button')) return;
+    if (e.key === 'Enter' && selectedNoteId) {
+      e.preventDefault();
+      void openNote(selectedNoteId);
+      return;
+    }
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+    const ids = Array.from(
+      new Set(
+        Array.from(navigationRef.current?.querySelectorAll<HTMLElement>('[data-note-id]') ?? [])
+          .map((el) => el.dataset.noteId)
+          .filter((id): id is string => Boolean(id)),
+      ),
+    );
+    if (ids.length === 0) return;
+    e.preventDefault();
+    const current = selectedNoteId ? ids.indexOf(selectedNoteId) : -1;
+    const delta = e.key === 'ArrowDown' ? 1 : -1;
+    const next = current < 0 ? 0 : Math.min(ids.length - 1, Math.max(0, current + delta));
+    setSelectedNoteId(ids[next]);
+    navigationRef.current
+      ?.querySelector<HTMLElement>(`[data-note-id="${CSS.escape(ids[next])}"]`)
+      ?.scrollIntoView({ block: 'nearest' });
+  };
+
+  const saveManagerView = (next: ManagerViewSettings) => {
+    setManagerView(next);
+    void window.api.setManagerViewSettings(next).then(setManagerView).catch(() => {});
+  };
+
+  const startPaneResize = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    const startX = e.clientX;
+    const startWidth = navigationRef.current?.getBoundingClientRect().width ?? managerView.listWidth;
+    let finalWidth = startWidth;
+    const onMove = (event: PointerEvent) => {
+      const max = Math.min(600, Math.max(280, window.innerWidth - 300));
+      finalWidth = Math.min(max, Math.max(280, startWidth + event.clientX - startX));
+      setManagerView((current) => ({ ...current, listWidth: Math.round(finalWidth) }));
+    };
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+      saveManagerView({ ...managerView, listWidth: Math.round(finalWidth) });
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+  };
+
   const removeNote = (id: string) => {
     notesApi
       .remove(id)
@@ -682,7 +802,22 @@ export default function MainView() {
   // 便签列表项（三视图共用）：颜色卡 + 标题/时间/标签 + 打开目录/移动/删除按钮。
   // showFolder：列表视图平铺全部便签，需要标注所在文件夹。
   const renderNoteItem = (note: NoteMeta, showFolder = false) => (
-    <li key={note.id} data-color={note.color || 'yellow'} onClick={() => openNote(note.id)}>
+    <li
+      key={note.id}
+      data-note-id={note.id}
+      data-color={note.color || 'yellow'}
+      className={selectedNoteId === note.id ? 'is-selected' : undefined}
+      onClick={() => selectNote(note.id)}
+      onDoubleClick={(e) => {
+        if (!(e.target as HTMLElement).closest('button,input')) void openNote(note.id);
+      }}
+      onAuxClick={(e) => {
+        if (e.button !== 1 || (e.target as HTMLElement).closest('button,input')) return;
+        e.preventDefault();
+        selectNote(note.id);
+        void openNote(note.id);
+      }}
+    >
       <span className="note-list__title">
         {note.inbox && <TrayIcon className="note-list__inbox" />}
         {note.pin && <PinIcon className="note-list__pin" />}
@@ -772,12 +907,38 @@ export default function MainView() {
   }
 
   return (
-    <div className="main-view">
+    <div
+      className={`main-view${managerView.previewVisible ? ' has-preview' : ''}`}
+      style={{ '--manager-list-width': `${managerView.listWidth}px` } as CSSProperties}
+    >
+      <div
+        ref={navigationRef}
+        className="manager-navigation"
+        tabIndex={0}
+        onKeyDown={handleNavigationKeyDown}
+      >
       <header className="main-view__header">
         <h1>PinSlip</h1>
         <div className="main-view__actions">
           <button className="main-view__create" onClick={createNote}>
             <PlusIcon /> {t('header.create')}
+          </button>
+          <button
+            className="main-view__settings"
+            title={
+              managerView.previewVisible ? t('preview.hidePane') : t('preview.showPane')
+            }
+            aria-label={
+              managerView.previewVisible ? t('preview.hidePane') : t('preview.showPane')
+            }
+            onClick={() =>
+              saveManagerView({
+                ...managerView,
+                previewVisible: !managerView.previewVisible,
+              })
+            }
+          >
+            {managerView.previewVisible ? <CaretRightIcon /> : <CaretLeftIcon />}
           </button>
           <button
             className="main-view__settings"
@@ -1412,7 +1573,19 @@ export default function MainView() {
           <h2>{t('search.results', { count: hits.length })}</h2>
           <ul className="note-list">
             {hits.map((hit) => (
-              <li key={hit.id} onClick={() => openNote(hit.id)}>
+              <li
+                key={hit.id}
+                data-note-id={hit.id}
+                className={selectedNoteId === hit.id ? 'is-selected' : undefined}
+                onClick={() => selectNote(hit.id)}
+                onDoubleClick={() => void openNote(hit.id)}
+                onAuxClick={(e) => {
+                  if (e.button !== 1) return;
+                  e.preventDefault();
+                  selectNote(hit.id);
+                  void openNote(hit.id);
+                }}
+              >
                 {/* 标题先做命中锚定窗口截断：长标题里命中词会被 CSS 省略号
                     截掉，窗口化保证命中词落在可视区前部（20 ≈ 一行容量） */}
                 <span className="note-list__title note-list__title--plain">
@@ -1575,6 +1748,47 @@ export default function MainView() {
               </ul>
             </section>
           )}
+        </>
+      )}
+
+      </div>
+
+      {managerView.previewVisible && (
+        <>
+          <div
+            className="manager-splitter"
+            role="separator"
+            aria-orientation="vertical"
+            aria-label={t('preview.resizePane')}
+            onPointerDown={startPaneResize}
+          />
+          <section className="manager-preview" aria-live="polite">
+            {previewLoading ? (
+              <div className="manager-preview__empty">{t('preview.loading')}</div>
+            ) : previewNote && previewNote.id === selectedNoteId ? (
+              <>
+                <header className="manager-preview__header">
+                  <div>
+                    <h2>{previewNote.title}</h2>
+                    <span>{formatTime(previewNote.updatedAt)}</span>
+                  </div>
+                  <button onClick={() => void openNote(previewNote.id)}>{t('preview.open')}</button>
+                </header>
+                <div className="manager-preview__body">
+                  <Editor
+                    key={`${previewNote.id}:${previewNote.updatedAt}`}
+                    content={previewNote.content}
+                    folder={previewNote.folder}
+                    mode="full"
+                    readOnly
+                    onChange={() => {}}
+                  />
+                </div>
+              </>
+            ) : (
+              <div className="manager-preview__empty">{t('preview.selectNote')}</div>
+            )}
+          </section>
         </>
       )}
 

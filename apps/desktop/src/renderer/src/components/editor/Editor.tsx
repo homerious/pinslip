@@ -29,6 +29,8 @@ export interface EditorProps {
   onChange: (markdown: string) => void;
   /** sticky = 便签小窗模式，full = 完整编辑模式 */
   mode?: 'sticky' | 'full';
+  /** 只读渲染（管理器预览使用）；禁用正文编辑与任务框切换。 */
+  readOnly?: boolean;
   /** 笔记所在子文件夹（notes/ 相对路径）：粘贴图片时按深度生成 ../ 前缀 */
   folder?: string;
 }
@@ -48,7 +50,7 @@ export interface EditorHandle {
 }
 
 const MilkdownEditor = forwardRef<EditorHandle, EditorProps>(function MilkdownEditor(
-  { content, onChange, folder = '' },
+  { content, onChange, folder = '', readOnly = false },
   ref,
 ) {
   const [loading, getEditor] = useInstance();
@@ -152,7 +154,11 @@ const MilkdownEditor = forwardRef<EditorHandle, EditorProps>(function MilkdownEd
         // config 阶段早于 editorView 创建，写入即生效。
         ctx.update(nodeViewCtx, (views) => [
           ...views,
-          ['list_item', createTaskCapableListItemView] as (typeof views)[number],
+          [
+            'list_item',
+            (node: any, view: any, getPos: any) =>
+              createTaskCapableListItemView(node, view, getPos, !readOnly),
+          ] as (typeof views)[number],
           ['image', createImageView] as (typeof views)[number],
         ]);
         // 粘贴图片：上传 vault attachments/ 后插入 image 节点（markdown 存相对路径，前缀深度随文件夹）
@@ -163,6 +169,7 @@ const MilkdownEditor = forwardRef<EditorHandle, EditorProps>(function MilkdownEd
             ...(typeof options.attributes === 'object' ? options.attributes : {}),
             spellcheck: 'false',
           },
+          editable: () => !readOnly,
           handlePaste: handleImagePaste(folder),
         }));
         ctx.get(listenerCtx).markdownUpdated((_ctx, markdown, _prev) => {

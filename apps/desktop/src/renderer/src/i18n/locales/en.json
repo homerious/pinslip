@@ -244,6 +244,14 @@
     "openMain": "Open main window",
     "quit": "Quit PinSlip"
   },
+  "preview": {
+    "showPane": "Show note preview",
+    "hidePane": "Hide note preview",
+    "resizePane": "Resize note list and preview",
+    "loading": "Loading preview…",
+    "selectNote": "Select a note to preview it",
+    "open": "Open sticky"
+  },
   "serverError": {
     "SYNC_URL_REQUIRED": "A repository URL is required to enable sync",
     "SYNC_LOCAL_NOT_PINSLIP_REPO": "This folder is already a git repository but not a PinSlip sync repository. Please handle .git manually before configuring sync",

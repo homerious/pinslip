@@ -244,6 +244,14 @@
     "openMain": "打开主窗口",
     "quit": "退出 PinSlip"
   },
+  "preview": {
+    "showPane": "显示便签预览",
+    "hidePane": "隐藏便签预览",
+    "resizePane": "调整列表与预览宽度",
+    "loading": "正在载入预览…",
+    "selectNote": "选择便签即可预览",
+    "open": "打开便签"
+  },
   "serverError": {
     "SYNC_URL_REQUIRED": "启用同步必须提供仓库地址",
     "SYNC_LOCAL_NOT_PINSLIP_REPO": "当前文件夹已是一个 git 仓库，但不是 PinSlip 同步仓库，请手动处理 .git 后再配置同步",
