@@ -9,6 +9,8 @@ import {
   nodeViewCtx,
   remarkStringifyOptionsCtx,
   rootCtx,
+  schemaCtx,
+  serializerCtx,
 } from '@milkdown/core';
 import { Milkdown, MilkdownProvider, useEditor, useInstance } from '@milkdown/react';
 import { Plugin, PluginKey } from '@milkdown/prose/state';
@@ -37,8 +39,7 @@ import {
 type PmSearchCommand = typeof pmFindNext;
 import { createTaskCapableListItemView } from './task-item-view';
 import { createImageView, handleImageDrop, handleImagePaste } from './image-support';
-import { fragmentToPlainText } from './doc-plain-text';
-import type { FragmentLike } from './doc-plain-text';
+import { toCompactMarkdown } from '../../utils/compact-markdown';
 import TableBar from './table-bar';
 
 /** prosemirror-search 官方插件（命中装饰 + find/replace 命令）：
@@ -80,7 +81,10 @@ export interface EditorProps {
 
 /** clipboardTextSerializer 参数的最小结构类型（避免仅为类型引入 prosemirror 值依赖） */
 interface ClipboardSliceLike {
-  content: FragmentLike;
+  content: {
+    size: number;
+    textBetween(from: number, to: number, blockSeparator?: string): string;
+  };
 }
 
 /** 搜索状态快照：total = 命中总数；active = 当前命中序号（1 起；0 = 无当前命中） */
@@ -143,9 +147,6 @@ export interface EditorHandle {
     images: { src: string; alt?: string }[],
     at?: { left: number; top: number },
   ): void;
-  /** 整篇文档的纯文本（块间单换行，与剪贴板序列化行为一致）；
-   *  编辑器未就绪时返回 null */
-  getPlainText(): string | null;
   /** 编辑器显示态 DOM 的 innerHTML（导出图片用：所见即所得，
    *  含任务勾选态与 pinslip-img 协议图片 src）；编辑器未就绪时返回 null */
   getHTML(): string | null;
@@ -326,17 +327,6 @@ const MilkdownEditor = forwardRef<EditorHandle, EditorProps>(function MilkdownEd
           view.dispatch(tr);
         });
       },
-      getPlainText() {
-        if (loading) return null;
-        let text = '';
-        getEditor().action((ctx) => {
-          const view = ctx.get(editorViewCtx);
-          // 与 clipboardTextSerializer 共用同一序列化器：按块结构重建纯文本，
-          // 列表标记（有序序号/无序 -/任务框）不丢
-          text = fragmentToPlainText(view.state.doc);
-        });
-        return text;
-      },
       getHTML() {
         if (loading) return null;
         let html = '';
@@ -426,9 +416,9 @@ const MilkdownEditor = forwardRef<EditorHandle, EditorProps>(function MilkdownEd
           ['image', createImageView] as (typeof views)[number],
         ]);
         // 粘贴图片：上传 vault attachments/ 后插入 image 节点（markdown 存相对路径，前缀深度随文件夹）
-        // 复制纯文本：块间分隔符从默认 "\n\n" 改为 "\n"——默认是 markdown 段落语义
-        // （段落隔空行），但段距只有 2px，用户按 Enter 的感知是「换行」，
-        // 复制到记事本/聊天框等纯文本目标会多一个空行
+        // Ctrl+C 复制 = 紧凑 markdown：slice 包成文档节点走 remark 序列化（与磁盘落盘同一管线，
+        // 标题/加粗/链接/表格/引用/分割线等语法全保留），再折叠块分隔空行——
+        // 与便签「复制全部」、主界面列表「复制全部」同一口径（toCompactMarkdown）
         ctx.update(editorViewOptionsCtx, (options) => ({
           ...options,
           // 关掉拼写检查：代码/命令里的英文词会被拼写检查画满红波浪线
@@ -440,8 +430,17 @@ const MilkdownEditor = forwardRef<EditorHandle, EditorProps>(function MilkdownEd
           // 拖入图片文件时拦下 PM 默认 drop（它会把 dataTransfer 里的外链 <img>
           // 再插一份，与外层上传通道重复成两张图），由 NoteView 统一上传插入
           handleDrop: handleImageDrop(),
-          clipboardTextSerializer: (slice: ClipboardSliceLike) =>
-            fragmentToPlainText(slice.content),
+          clipboardTextSerializer: (slice: ClipboardSliceLike) => {
+            try {
+              const schema = ctx.get(schemaCtx);
+              const serializer = ctx.get(serializerCtx);
+              const doc = schema.topNodeType.create(null, slice.content as never);
+              return toCompactMarkdown(serializer(doc));
+            } catch {
+              // slice 包不进文档节点（理论不会：PM 复制切片总是块级）——退回纯文本，保证复制不空
+              return slice.content.textBetween(0, slice.content.size, '\n');
+            }
+          },
         }));
         ctx.get(listenerCtx).markdownUpdated((_ctx, markdown, _prev) => {
           onChange(markdown);

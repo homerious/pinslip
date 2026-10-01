@@ -41,7 +41,13 @@ BASE = 256
 
 
 def find_p_font() -> str:
-    """优先用 matplotlib 内置的 DejaVuSans-Bold；找不到再退化到系统黑体。"""
+    """优先用 matplotlib 内置的 DejaVuSans-Bold；找不到再退化到系统黑体。
+
+    注意：仓库里的 icon.png 是用 DejaVuSans-Bold 渲染的（P 的字形/stem 比例
+    是品牌视觉的一部分）。无 matplotlib 的环境会退化到 Arial Bold，P 明显
+    变窄变小——此时不要重生成 icon.png，先装 matplotlib（pip install
+    matplotlib）或用 git 恢复图标；iconTemplate.png 菜单栏图标不受影响。
+    """
     try:
         import matplotlib  # noqa: PLC0415
 
@@ -140,6 +146,10 @@ def main() -> None:
     ap.add_argument('--out', default=os.path.join(os.path.dirname(__file__), '..', 'apps', 'desktop', 'resources', 'icon.png'))
     args = ap.parse_args()
     out = os.path.abspath(args.out)
+    p_font = find_p_font()
+    if 'DejaVuSans-Bold' not in p_font:
+        print(f'[gen-icon] WARNING: DejaVuSans-Bold 不可用,回退到 {p_font}——')
+        print('[gen-icon] WARNING: P 字形会变样,不要拿这次产物替换仓库 icon.png(先装 matplotlib)')
     img, template = render(args.size)
     img.save(out)
     print(f'[gen-icon] ok → {out} ({args.size}x{args.size})')

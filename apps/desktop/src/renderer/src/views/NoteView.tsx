@@ -44,7 +44,7 @@ import { syncApi } from '../api/sync';
 import { hasConflictMarkers } from '../utils/conflict';
 import { COLORS, LAST_NOTE_COLOR_KEY, readLastNoteColor } from '../utils/colors';
 import { formatRelativeTime } from '../utils/time';
-import { noteContentToPlainText } from '../utils/plain-text';
+import { toCompactMarkdown } from '../utils/compact-markdown';
 import { shortenFolder } from '../utils/path';
 import { COLLAPSE_ANIM_MS } from '@shared/anim';
 import { sanitizeToolbarButtons, TOOLBAR_BUTTON_DEFAULT_ORDER, TOOLBAR_DISPLAY_LIMIT } from '@shared/toolbar';
@@ -739,10 +739,10 @@ export default function NoteView() {
   );
 
   /** 复制全部正文到剪贴板；成功后图标短暂变 ✓ 反馈。
-   *  优先取编辑器文档纯文本（与 Ctrl+C 序列化一致：块间单换行）；
-   *  编辑器未就绪时回退清理后的 markdown（与主界面列表项同一口径） */
+   *  输出紧凑 markdown（语法保留、块间单换行、有意空行保留），
+   *  与 Ctrl+C、主界面列表「复制全部」同一口径（toCompactMarkdown） */
   const copyAll = useCallback(() => {
-    const cleaned = editorRef.current?.getPlainText() ?? noteContentToPlainText(content);
+    const cleaned = toCompactMarkdown(content);
     void navigator.clipboard
       .writeText(cleaned)
       .then(() => {

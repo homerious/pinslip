@@ -59,7 +59,7 @@ import { apiErrorCode, apiErrorMessage } from '../api/client';
 import { shortenFolder } from '../utils/path';
 import { COLORS, readLastNoteColor } from '../utils/colors';
 import { formatRelativeTime } from '../utils/time';
-import { noteContentToPlainText } from '../utils/plain-text';
+import { toCompactMarkdown } from '../utils/compact-markdown';
 import { highlightTerms, windowAroundMatch } from '../components/search-highlight';
 import {
   applyLanguagePreference,
@@ -1019,12 +1019,12 @@ export default function MainView() {
   const openNote = (id: string) => window.api.createNote(id);
   const createNote = () => window.api.createNote();
 
-  /** 列表项「复制全部」：拉全文 → 转纯文本（折叠块分隔空行、保留有意空行，
-   *  与便签编辑器序列化同约定）→ 写剪贴板；✓ 反馈 1.2s */
+  /** 列表项「复制全部」：拉全文 → 紧凑 markdown（语法保留、折叠块分隔空行、
+   *  保留有意空行，与便签复制/Ctrl+C 同口径）→ 写剪贴板；✓ 反馈 1.2s */
   const copyAllNote = useCallback((note: NoteMeta) => {
     notesApi
       .get(note.id)
-      .then((full) => navigator.clipboard.writeText(noteContentToPlainText(full.content)))
+      .then((full) => navigator.clipboard.writeText(toCompactMarkdown(full.content)))
       .then(() => {
         setCopiedId(note.id);
         setTimeout(() => setCopiedId((cur) => (cur === note.id ? null : cur)), 1200);

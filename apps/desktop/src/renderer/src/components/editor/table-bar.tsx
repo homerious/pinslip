@@ -27,6 +27,9 @@ import TrashIcon from '~icons/ph/trash';
 interface BarState {
   top: number;
   left: number;
+  /** 上方加行可用性：表头行（row 0）禁用——schema 要求 table 首行必须是
+   *  table_header_row，在 0 位插入 table_row 会造成非法文档，序列化后表格解体 */
+  canAddRowBefore: boolean;
   /** 删行可用性：表头行不可删；删完只剩表头也不合法（schema 要求 table_row+） */
   canDeleteRow: boolean;
   /** 删列可用性：至少留一列 */
@@ -82,6 +85,7 @@ export default function TableBar() {
       setBar({
         top,
         left: Math.max(0, (rect.left - contRect.left) / scale),
+        canAddRowBefore: sel.top > 0,
         canDeleteRow: sel.top > 0 && rowsAfterDelete >= 2,
         canDeleteCol: sel.map.width - (sel.right - sel.left) >= 1,
       });
@@ -186,6 +190,8 @@ export default function TableBar() {
       icon: <RowsPlusBottomIcon />,
       act: () => callCommand(addRowAfterCommand.key),
       disabled: false,
+      // 操作条贴表格左缘，最左按钮的居中 tooltip 会溢出窗口左缘——左对齐防裁
+      tipAlign: 'left',
     },
     {
       key: 'addColAfter',
@@ -200,7 +206,7 @@ export default function TableBar() {
       tip: t('note.table.addRowBefore'),
       icon: <RowsPlusTopIcon />,
       act: () => callCommand(addRowBeforeCommand.key),
-      disabled: false,
+      disabled: !bar.canAddRowBefore,
     },
     {
       key: 'addColBefore',
@@ -254,6 +260,7 @@ export default function TableBar() {
             key={b.key}
             className={`sticky-note__btn${'danger' in b && b.danger ? ' is-danger' : ''}`}
             data-tip={b.tip}
+            data-tip-align={'tipAlign' in b ? b.tipAlign : undefined}
             aria-label={b.tip}
             disabled={b.disabled}
             onClick={b.act}

@@ -1787,6 +1787,7 @@ input.sticky-note__title-input {
   align-items: center;
   gap: 8px;
   padding: 4px 0;
+  flex-wrap: wrap; /* 长文案语言下控件掉到下一行右对齐，不与标签硬挤 */
 }
 
 .settings-panel__row-icon {
@@ -1799,7 +1800,8 @@ input.sticky-note__title-input {
 .settings-panel__label {
   font-size: 12px;
   color: var(--mv-label);
-  flex: none;
+  flex: 1 1 auto; /* 标签吃满剩余空间，控件始终贴右 */
+  min-width: 0; /* 长标签允许换行收缩 */
 }
 
 .settings-panel__value {
@@ -1977,7 +1979,8 @@ input.sticky-note__title-input {
   pointer-events: none;
 }
 
-/* 「恢复默认顺序」按钮：行内右对齐，比主按钮轻量 */
+/* 「恢复默认顺序」按钮：行内右对齐，比主按钮轻量；限宽 + 允许换行，
+   长文案语言（英/德）下文字折行而不是把标签挤错位 */
 .settings-sortlist__reset {
   margin-left: auto;
   padding: 3px 8px;
@@ -1985,6 +1988,10 @@ input.sticky-note__title-input {
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  max-width: 62%;
+  white-space: normal;
+  text-align: left;
+  line-height: 1.3;
 }
 
 .settings-sortlist__reset svg {
@@ -1992,12 +1999,15 @@ input.sticky-note__title-input {
   height: 12px;
 }
 
-/* 回收区保留天数的下拉选择（与行右侧对齐，风格同面板控件） */
+/* 回收区保留天数的下拉选择（与行右侧对齐，风格同面板控件）；
+   限宽防长选项文案（如 Beside main window）把标签挤压错位 */
 .settings-panel__select {
   margin-left: auto;
   padding: 3px 6px;
   border: 1px solid var(--mv-border);
   border-radius: 6px;
+  max-width: 62%;
+  flex: none;
   background: var(--mv-control-bg);
   font-size: 12px;
   color: var(--mv-text);
