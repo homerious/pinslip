@@ -2,7 +2,7 @@
 
 本项目版本记录 notable 变更。格式借鉴 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 
-## [未发布]
+## [1.1.0] - 2026-10-01
 
 ### 导出便签为图片
 
