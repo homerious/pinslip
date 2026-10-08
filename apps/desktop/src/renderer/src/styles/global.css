@@ -2013,6 +2013,12 @@ input.sticky-note__title-input {
   color: var(--mv-text);
 }
 
+/* 禁用选项（快捷键池互斥等）：select 上显式 color 会盖掉 UA 的 GrayText，需显式补 */
+.settings-panel__select option:disabled {
+  color: var(--mv-muted);
+  cursor: not-allowed;
+}
+
 /* git 同步配置表单：标签列 + 文本输入（输入框风格同 settings-panel__select） */
 .settings-panel__field {
   display: flex;

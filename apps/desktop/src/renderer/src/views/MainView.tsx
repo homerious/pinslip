@@ -45,13 +45,14 @@ import DotsSixVerticalIcon from '~icons/ph/dots-six-vertical';
 import SlidersHorizontalIcon from '~icons/ph/sliders-horizontal';
 import ArrowCounterClockwiseIcon from '~icons/ph/arrow-counter-clockwise';
 import type {
-  BlankNoteShortcut,
+  GlobalShortcutKey,
   NoteMeta,
   SaveSyncConfigInput,
   SearchHit,
   SyncStatus,
   UpdateState,
 } from '@shared/types';
+import { GLOBAL_SHORTCUT_KEYS, GLOBAL_SHORTCUT_LABEL_KEYS } from '@shared/shortcuts';
 import { foldersApi, notesApi, settingsApi, trashApi } from '../api/notes';
 import type { TrashStats } from '../api/notes';
 import { syncApi } from '../api/sync';
@@ -196,8 +197,11 @@ export default function MainView() {
   const effectiveTheme: 'light' | 'dark' =
     managerTheme === 'system' ? (osDark ? 'dark' : 'light') : managerTheme;
   /** 空白便签全局快捷键（缺省 off 不注册）+ 注册失败提示态（新键被他应用占用时回滚选项） */
-  const [blankNoteShortcut, setBlankNoteShortcut] = useState<BlankNoteShortcut>('off');
+  const [blankNoteShortcut, setBlankNoteShortcut] = useState<GlobalShortcutKey>('off');
   const [blankNoteShortcutError, setBlankNoteShortcutError] = useState(false);
+  /** 速记全局快捷键（缺省 ctrl+shift+n 保持现状）+ 注册失败提示态（同空白便签模式） */
+  const [quickCaptureShortcut, setQuickCaptureShortcut] = useState<GlobalShortcutKey>('ctrl+shift+n');
+  const [quickCaptureShortcutError, setQuickCaptureShortcutError] = useState(false);
   /** 工具栏按钮自定义顺序（高级设置拖拽排序；缺省 = 现状顺序）。
    *  ref 与 state 同源：拖拽松手结算时读现值，避开闭包旧值 */
   const [toolbarButtons, setToolbarButtonsState] = useState<string[]>(() => [
@@ -501,6 +505,7 @@ export default function MainView() {
         setNotePlacement(a.notePlacement);
         setManagerTheme(a.managerTheme);
         setBlankNoteShortcut(a.blankNoteShortcut);
+        setQuickCaptureShortcut(a.quickCaptureShortcut);
         setToolbarButtons(sanitizeToolbarButtons(a.toolbarButtons));
       })
       .catch(() => {});
@@ -532,6 +537,7 @@ export default function MainView() {
         setNotePlacement(a.notePlacement);
         setManagerTheme(a.managerTheme);
         setBlankNoteShortcut(a.blankNoteShortcut);
+        setQuickCaptureShortcut(a.quickCaptureShortcut);
         setToolbarButtons(sanitizeToolbarButtons(a.toolbarButtons));
       })
       .catch(() => {});
@@ -703,7 +709,7 @@ export default function MainView() {
   // 空白便签快捷键（高级设置）：乐观切换；注册失败（新键被他应用占用）时
   // main 抛错——回滚选项并提示（设置未持久化、旧绑定保持有效）
   const changeBlankNoteShortcut = useCallback(
-    (next: BlankNoteShortcut) => {
+    (next: GlobalShortcutKey) => {
       const prev = blankNoteShortcut;
       setBlankNoteShortcut(next);
       setBlankNoteShortcutError(false);
@@ -713,6 +719,20 @@ export default function MainView() {
       });
     },
     [blankNoteShortcut],
+  );
+
+  // 速记快捷键（高级设置）：同空白便签的乐观切换 + 失败回滚提示模式
+  const changeQuickCaptureShortcut = useCallback(
+    (next: GlobalShortcutKey) => {
+      const prev = quickCaptureShortcut;
+      setQuickCaptureShortcut(next);
+      setQuickCaptureShortcutError(false);
+      window.api.setAdvanced({ quickCaptureShortcut: next }).catch(() => {
+        setQuickCaptureShortcut(prev);
+        setQuickCaptureShortcutError(true);
+      });
+    },
+    [quickCaptureShortcut],
   );
 
   // 界面语言切换：乐观更新，立即生效（i18n.changeLanguage）并持久化到主进程设置
@@ -1316,6 +1336,29 @@ export default function MainView() {
                   <span className="settings-toggle__thumb" />
                 </button>
               </div>
+              {/* 速记全局快捷键：共用键位池，已被空白便签快捷键占用的键位禁用 */}
+              <div className="settings-panel__row">
+                <KeyboardIcon className="settings-panel__row-icon" />
+                <span className="settings-panel__label">{t('settings.quickCaptureShortcut')}</span>
+                <select
+                  className="settings-panel__select"
+                  value={quickCaptureShortcut}
+                  onChange={(e) => changeQuickCaptureShortcut(e.target.value as GlobalShortcutKey)}
+                >
+                  {GLOBAL_SHORTCUT_KEYS.map((key) => (
+                    <option key={key} value={key} disabled={key === blankNoteShortcut}>
+                      {t(GLOBAL_SHORTCUT_LABEL_KEYS[key])}
+                    </option>
+                  ))}
+                  <option value="off">{t('settings.shortcutOff')}</option>
+                </select>
+              </div>
+              <div className="settings-panel__hint">{t('settings.quickCaptureShortcutHint')}</div>
+              {quickCaptureShortcutError && (
+                <div className="settings-panel__error">
+                  {t('settings.quickCaptureShortcutRegisterFailed')}
+                </div>
+              )}
               <div className="settings-panel__hint">{t('settings.quickHint')}</div>
             </div>
 
@@ -1884,16 +1927,18 @@ export default function MainView() {
                   <select
                     className="settings-panel__select"
                     value={blankNoteShortcut}
-                    onChange={(e) => changeBlankNoteShortcut(e.target.value as BlankNoteShortcut)}
+                    onChange={(e) => changeBlankNoteShortcut(e.target.value as GlobalShortcutKey)}
                   >
-                    <option value="off">{t('settings.blankNoteShortcutOff')}</option>
-                    <option value="ctrl+alt+n">{t('settings.blankNoteShortcutCtrlAltN')}</option>
-                    <option value="ctrl+shift+alt+n">
-                      {t('settings.blankNoteShortcutCtrlShiftAltN')}
-                    </option>
-                    <option value="ctrl+alt+insert">
-                      {t('settings.blankNoteShortcutCtrlAltInsert')}
-                    </option>
+                    {GLOBAL_SHORTCUT_KEYS.map((key) => (
+                      <option
+                        key={key}
+                        value={key}
+                        disabled={key === quickCaptureShortcut}
+                      >
+                        {t(GLOBAL_SHORTCUT_LABEL_KEYS[key])}
+                      </option>
+                    ))}
+                    <option value="off">{t('settings.shortcutOff')}</option>
                   </select>
                 </div>
                 <div className="settings-panel__hint">{t('settings.blankNoteShortcutHint')}</div>

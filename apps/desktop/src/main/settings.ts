@@ -26,6 +26,7 @@ const ADVANCED_DEFAULTS: ResolvedAdvancedSettings = {
   notePlacement: 'cascade',
   managerTheme: 'light',
   blankNoteShortcut: 'off',
+  quickCaptureShortcut: 'ctrl+shift+n',
   toolbarButtons: [...TOOLBAR_BUTTON_DEFAULT_ORDER],
 };
 

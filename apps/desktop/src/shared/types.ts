@@ -154,9 +154,17 @@ export interface RuntimeInfo {
   version: string;
 }
 
-/** 空白便签全局快捷键预设键位白名单（'off' = 不注册，缺省）。
- *  main/渲染共用的单一来源：渲染层只能选这些值，main 侧注册前再校验 */
-export type BlankNoteShortcut = 'off' | 'ctrl+alt+n' | 'ctrl+shift+alt+n' | 'ctrl+alt+insert';
+/** 全局快捷键预设键位池（速记/空白便签共用，'off' = 不注册）。
+ *  main/渲染共用的单一来源：渲染层只能选这些值，main 侧注册前再校验；
+ *  两功能选同一键时后注册者失败回滚（Electron 对同应用内重复注册亦返回失败） */
+export type GlobalShortcutKey =
+  | 'off'
+  | 'ctrl+shift+n'
+  | 'ctrl+alt+q'
+  | 'ctrl+shift+q'
+  | 'ctrl+alt+n'
+  | 'ctrl+shift+alt+n'
+  | 'ctrl+alt+insert';
 
 /** 高级设置选项（应用设置 settings.json 的 advanced 对象，main/渲染共用）。
  *  全部字段可选且有缺省值（缺省 = 简洁模型现状），新增选项 = 加字段，零新增 IPC */
@@ -172,7 +180,9 @@ export interface AdvancedSettings {
    *  仅作用于主窗口与设置抽屉，便签窗口/速记窗口不受影响，列表卡片六色不主题化 */
   managerTheme?: 'light' | 'dark' | 'system';
   /** 空白便签全局快捷键（缺省 'off' 不注册）：按下在根目录新建空白便签并聚焦 */
-  blankNoteShortcut?: BlankNoteShortcut;
+  blankNoteShortcut?: GlobalShortcutKey;
+  /** 速记浮窗全局快捷键（缺省 'ctrl+shift+n' 保持现状）：按下呼出速记浮窗，'off' = 不注册 */
+  quickCaptureShortcut?: GlobalShortcutKey;
   /** 便签底部工具栏左区（编辑辅助区）按钮顺序：有序 id 列表，缺省 = 现状顺序。
    *  展示上限 8 个是展示约束（渲染层截取），不是存储约束；读写两侧都过
    *  sanitizeToolbarButtons（过滤未知 id/去重/缺项补末尾） */

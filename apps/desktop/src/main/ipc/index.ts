@@ -13,7 +13,7 @@ import { createTray, destroyTray, refreshTrayMenu } from '../tray';
 import { resolveSystemLanguage } from '../../shared/languages';
 import { startVaultWatch } from '../services/vault-watch';
 import { checkForUpdate, getUpdateState, quitAndInstall } from '../updater';
-import { rebindBlankNoteShortcut } from '../shortcuts';
+import { rebindBlankNoteShortcut, rebindQuickCaptureShortcut } from '../shortcuts';
 
 interface IpcContext {
   windowManager: WindowManager;
@@ -189,15 +189,23 @@ export function registerIpcHandlers({ windowManager, goProcess }: IpcContext): v
 
   // 高级设置：整对象读取（缺省已补）；按键部分更新。trayIcon 变化立即
   // 应用（销毁/重建托盘），taskbarIcon 变化立即应用（主窗口 setSkipTaskbar，
-  // 窗口未创建时由建窗读取补齐），blankNoteShortcut 变化原子重绑全局快捷键
-  // （重绑失败抛错回渲染层，设置不持久化、旧绑定不丢），其余字段持久化即生效，
+  // 窗口未创建时由建窗读取补齐），blankNoteShortcut/quickCaptureShortcut 变化原子重绑
+  // 全局快捷键（重绑失败抛错回渲染层，设置不持久化、旧绑定不丢），其余字段持久化即生效，
   // 返回补齐后的完整对象
   ipcMain.handle(IPC.SettingsGetAdvanced, () => getAdvanced());
   ipcMain.handle(IPC.SettingsSetAdvanced, (_event, patch: AdvancedSettings) => {
     const before = getAdvanced();
-    // 空白便签快捷键：原子重绑先行——新键注册失败则整体不生效（不持久化、不丢旧绑定）
+    // 空白便签/速记快捷键：原子重绑先行——新键注册失败则整体不生效（不持久化、不丢旧绑定）
     if (patch.blankNoteShortcut !== undefined && patch.blankNoteShortcut !== before.blankNoteShortcut) {
       rebindBlankNoteShortcut(patch.blankNoteShortcut);
+    }
+    if (
+      patch.quickCaptureShortcut !== undefined &&
+      patch.quickCaptureShortcut !== before.quickCaptureShortcut
+    ) {
+      rebindQuickCaptureShortcut(patch.quickCaptureShortcut);
+      // 托盘菜单速记项显示当前键位：重绑成功后即时重建（无托盘时 no-op）
+      refreshTrayMenu();
     }
     setAdvanced(patch);
     const after = getAdvanced();
