@@ -87,6 +87,32 @@ interface ClipboardSliceLike {
   };
 }
 
+/** 切片重建文档的最小结构类型（单单元格表格判定用） */
+interface PMNodeLike {
+  type: { name: string };
+  childCount: number;
+  firstChild: PMNodeLike | null;
+  isTextblock: boolean;
+  textContent: string;
+}
+
+/** 复制切片重建后若为「单单元格表格」（table > table_row > cell > 单个文本块），
+ *  返回单元格纯文本，否则 null。复制单元格里的一串值（如单号）不该带出
+ *  `| x |\n| --- |` 的表格骨架 markdown；跨单元格/整表仍走 markdown 保留结构 */
+function singleTableCellText(doc: PMNodeLike): string | null {
+  if (doc.childCount !== 1) return null;
+  const table = doc.firstChild;
+  if (!table || table.type.name !== 'table' || table.childCount !== 1) return null;
+  const row = table.firstChild;
+  if (!row || row.type.name !== 'table_row' || row.childCount !== 1) return null;
+  const cell = row.firstChild;
+  if (!cell || (cell.type.name !== 'table_cell' && cell.type.name !== 'table_header')) return null;
+  if (cell.childCount !== 1) return null;
+  const block = cell.firstChild;
+  if (!block || !block.isTextblock) return null;
+  return block.textContent;
+}
+
 /** 搜索状态快照：total = 命中总数；active = 当前命中序号（1 起；0 = 无当前命中） */
 export interface FindStatus {
   total: number;
@@ -435,6 +461,10 @@ const MilkdownEditor = forwardRef<EditorHandle, EditorProps>(function MilkdownEd
               const schema = ctx.get(schemaCtx);
               const serializer = ctx.get(serializerCtx);
               const doc = schema.topNodeType.create(null, slice.content as never);
+              // 单单元格复制（选中单元格内文本/整格）降级为纯文本：
+              // 表格骨架 markdown 对复制单号等场景是噪音
+              const cellText = singleTableCellText(doc as unknown as PMNodeLike);
+              if (cellText !== null) return cellText;
               return toCompactMarkdown(serializer(doc));
             } catch {
               // slice 包不进文档节点（理论不会：PM 复制切片总是块级）——退回纯文本，保证复制不空

@@ -115,7 +115,9 @@
       "deleteRow": "Delete row",
       "deleteCol": "Delete column",
       "deleteTable": "Delete table",
-      "deleteTableConfirm": "Delete the entire table?"
+      "deleteTableConfirm": "Delete the entire table?",
+      "copyTable": "Copy table data",
+      "copied": "Copied"
     },
     "zoomOut": "Zoom out (now {{pct}}%)",
     "zoomIn": "Zoom in (now {{pct}}%)",

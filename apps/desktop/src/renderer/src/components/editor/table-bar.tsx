@@ -22,6 +22,8 @@ import ColumnsPlusLeftIcon from '~icons/ph/columns-plus-left';
 import RowsIcon from '~icons/ph/rows';
 import ColumnsIcon from '~icons/ph/columns';
 import TrashIcon from '~icons/ph/trash';
+import CopyIcon from '~icons/ph/copy';
+import CheckIcon from '~icons/ph/check';
 
 /** 操作条几何状态：top/left 相对 .pinslip-editor 容器（CSS px） */
 interface BarState {
@@ -40,14 +42,24 @@ interface BarState {
 const BAR_OFFSET = 30;
 
 /** 表格操作条：选区进入表格时浮现在表格块上方（编辑器区域内 absolute，findbar 同款浮层纪律）。
- *  七个操作全部为 GFM 预设命令经 commandsCtx 调用（.key 只在插件运行时挂载，必须 action 内用）；
- *  删行/删列/删表 = 先 selectRow/Col/Table 把选区扩成 CellSelection，再 deleteSelectedCells。
+ *  结构操作（增删行列/删表）为 GFM 预设命令经 commandsCtx 调用（.key 只在插件运行时挂载，
+ *  必须 action 内用）；删行/删列 = 先 selectRow/Col 把选区扩成 CellSelection，再
+ *   deleteSelectedCells；复制按钮直读文档节点写剪贴板（TSV），不经命令。
  *  选区离开表格即消失；删表为红色确认态（再点一次生效，不弹窗）。 */
 export default function TableBar() {
   const { t } = useTranslation();
   const [loading, getEditor] = useInstance();
   const [bar, setBar] = useState<BarState | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  /** 复制成功反馈态：图标变对勾 + 提示「已复制」，定时恢复 */
+  const [copied, setCopied] = useState(false);
+  const copiedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (copiedTimer.current) clearTimeout(copiedTimer.current);
+    },
+    [],
+  );
 
   /** 按当前选区重算操作条位置/可用性；不在表格内则隐藏。 */
   const update = useCallback(() => {
@@ -181,6 +193,33 @@ export default function TableBar() {
     update();
   }, [loading, getEditor, confirmDelete, update]);
 
+  /** 复制整表数据：直读文档节点（不经序列化器，行内标记不带出），TSV 写剪贴板——
+   *  制表符分列、换行分行（Excel/记事本直粘），单元格内 \t/\n 合并为空格防错位；
+   *  操作条 mousedown 已拦截默认行为，点击时表格选区仍在 */
+  const copyTable = useCallback(() => {
+    if (loading) return;
+    getEditor().action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      if (!isInTable(view.state)) return;
+      const found = findTable(view.state.selection.$from);
+      if (!found) return;
+      const rows: string[] = [];
+      found.node.forEach((row) => {
+        const cells: string[] = [];
+        row.forEach((cell) => cells.push(cell.textContent.replace(/[\t\n\r]+/g, ' ').trim()));
+        rows.push(cells.join('\t'));
+      });
+      navigator.clipboard
+        .writeText(rows.join('\n'))
+        .then(() => {
+          setCopied(true);
+          if (copiedTimer.current) clearTimeout(copiedTimer.current);
+          copiedTimer.current = setTimeout(() => setCopied(false), 1200);
+        })
+        .catch(() => {});
+    });
+  }, [loading, getEditor]);
+
   if (!bar) return null;
 
   const buttons = [
@@ -231,6 +270,14 @@ export default function TableBar() {
       disabled: !bar.canDeleteCol,
     },
     { key: 'd3', divider: true },
+    {
+      key: 'copyTable',
+      tip: copied ? t('note.table.copied') : t('note.table.copyTable'),
+      icon: copied ? <CheckIcon /> : <CopyIcon />,
+      act: copyTable,
+      disabled: false,
+    },
+    { key: 'd4', divider: true },
     {
       key: 'deleteTable',
       tip: confirmDelete ? t('note.table.deleteTableConfirm') : t('note.table.deleteTable'),

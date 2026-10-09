@@ -115,7 +115,9 @@
       "deleteRow": "行を削除",
       "deleteCol": "列を削除",
       "deleteTable": "表を削除",
-      "deleteTableConfirm": "表全体を削除しますか？"
+      "deleteTableConfirm": "表全体を削除しますか？",
+      "copyTable": "テーブルのデータをコピー",
+      "copied": "コピーしました"
     },
     "zoomOut": "縮小（現在 {{pct}}%）",
     "zoomIn": "拡大（現在 {{pct}}%）",

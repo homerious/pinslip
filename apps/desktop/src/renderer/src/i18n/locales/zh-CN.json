@@ -115,7 +115,9 @@
       "deleteRow": "删除当前行",
       "deleteCol": "删除当前列",
       "deleteTable": "删除表格",
-      "deleteTableConfirm": "确认删除整个表格？"
+      "deleteTableConfirm": "确认删除整个表格？",
+      "copyTable": "复制表格数据",
+      "copied": "已复制"
     },
     "zoomOut": "缩小（当前 {{pct}}%）",
     "zoomIn": "放大（当前 {{pct}}%）",

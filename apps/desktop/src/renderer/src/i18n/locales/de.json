@@ -112,7 +112,9 @@
       "deleteRow": "Zeile löschen",
       "deleteCol": "Spalte löschen",
       "deleteTable": "Tabelle löschen",
-      "deleteTableConfirm": "Gesamte Tabelle löschen?"
+      "deleteTableConfirm": "Gesamte Tabelle löschen?",
+      "copyTable": "Tabellendaten kopieren",
+      "copied": "Kopiert"
     },
     "zoomOut": "Verkleinern (aktuell {{pct}} %)",
     "zoomIn": "Vergrößern (aktuell {{pct}} %)",

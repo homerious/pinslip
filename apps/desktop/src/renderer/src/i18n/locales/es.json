@@ -112,7 +112,9 @@
       "deleteRow": "Eliminar fila",
       "deleteCol": "Eliminar columna",
       "deleteTable": "Eliminar tabla",
-      "deleteTableConfirm": "¿Eliminar toda la tabla?"
+      "deleteTableConfirm": "¿Eliminar toda la tabla?",
+      "copyTable": "Copiar datos de la tabla",
+      "copied": "Copiado"
     },
     "zoomOut": "Reducir (ahora {{pct}}%)",
     "zoomIn": "Ampliar (ahora {{pct}}%)",
