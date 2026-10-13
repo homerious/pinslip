@@ -180,7 +180,15 @@ func (e *Engine) save(fm *Frontmatter, body string, inbox bool, folder string) e
 		return renErr
 	}
 	if locErr == nil && oldPath != final {
-		_ = os.Remove(oldPath)
+		sameFile := false
+		if oldInfo, err := os.Stat(oldPath); err == nil {
+			if finalInfo, err := os.Stat(final); err == nil {
+				sameFile = os.SameFile(oldInfo, finalInfo)
+			}
+		}
+		if !sameFile {
+			_ = os.Remove(oldPath)
+		}
 	}
 	return nil
 }

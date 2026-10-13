@@ -123,6 +123,35 @@ func TestRenameOnTitleChange(t *testing.T) {
 	}
 }
 
+func TestRenameOnCaseOnlyTitleChange(t *testing.T) {
+	e := newTestEngine(t)
+	fm := testFM("idcase", "Case Test")
+
+	if err := e.Save(fm, "before", false); err != nil {
+		t.Fatal(err)
+	}
+
+	fm.Title = "case Test"
+	if err := e.Save(fm, "after", false); err != nil {
+		t.Fatal(err)
+	}
+
+	_, body, _, _, err := e.Load("idcase")
+	if err != nil {
+		t.Fatalf("case-only title change deleted note: %v", err)
+	}
+	if strings.TrimSpace(body) != "after" {
+		t.Errorf("saved content = %q, want %q", strings.TrimSpace(body), "after")
+	}
+
+	entries, err := os.ReadDir(e.notesDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 1 {
+		t.Errorf("case-only title change should leave exactly one file, got %d", len(entries))
+	}
+}
 func TestLegacyNamingCompat(t *testing.T) {
 	e := newTestEngine(t)
 	// 手写一个旧命名 <id>.md 文件
