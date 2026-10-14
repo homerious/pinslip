@@ -29,6 +29,7 @@ export interface NoteWindowOptions {
    *  时由 window-manager 传入；落点只喂构造参数（同为 DIP 同屏算术精确），
    *  混合 DPI 残差由 calibrate 吸收，出屏由 clampRectToWorkArea 兜底 */
   managerBounds?: Electron.Rectangle;
+  showInactive?: boolean;
 }
 
 /** 取窗口的吸附句柄：便签组 restack 走 animateTo（复用落位动画的格点量化纪律） */
@@ -38,7 +39,7 @@ export function getNoteSnapHandle(win: BrowserWindow): SnapHandle | undefined {
 
 /** 创建便签窗口：无边框、透明；进任务栏（不置顶时也能找回）、可最小化；
  *  有位置记忆则恢复原位，否则错位摆放；置顶与否由用户选择 */
-export function createNoteWindow({ noteId, index, alwaysOnTop, getOthers, snapHooks, folder, managerBounds }: NoteWindowOptions): BrowserWindow {
+export function createNoteWindow({ noteId, index, alwaysOnTop, getOthers, snapHooks, folder, managerBounds, showInactive = false }: NoteWindowOptions): BrowserWindow {
   const saved = getWindowStateRaw(`note:${noteId}`);
   // 期望的构造参数（恢复的记忆值或默认错位摆放）；
   // 折叠记忆的窗口：saved.height 即折叠高度，最小尺寸/可缩放同步收紧
@@ -128,7 +129,10 @@ export function createNoteWindow({ noteId, index, alwaysOnTop, getOthers, snapHo
   // 新建便签的落盘文件夹经路由 query 下发（HashRouter 下 useSearchParams 可读）
   loadView(win, `/note/${noteId}${folder ? `?folder=${encodeURIComponent(folder)}` : ''}`);
 
-  win.once('ready-to-show', () => win.show());
+  win.once('ready-to-show', () => {
+    if (showInactive) win.showInactive();
+    else win.show();
+  });
   return win;
 }
 

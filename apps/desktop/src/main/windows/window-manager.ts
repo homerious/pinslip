@@ -37,7 +37,7 @@ export class WindowManager {
 
   /** 新建便签窗口；已有同 id 窗口则聚焦。noteId 为空时创建新 id。
    *  folder 仅新建时有效：随窗口路由下发，首次保存落盘到该文件夹 */
-  async createNoteWindow(noteId?: string, folder?: string): Promise<string> {
+  async createNoteWindow(noteId?: string, folder?: string, restoreInactive = false): Promise<string> {
     const id = noteId ?? crypto.randomUUID().replaceAll('-', '').slice(0, 16);
 
     const existing = this.noteWindows.get(id);
@@ -66,6 +66,7 @@ export class WindowManager {
       alwaysOnTop,
       folder,
       managerBounds,
+      showInactive: restoreInactive,
       // 便签间磁铁/成组判定：实时取除自己外的其他置顶便签（仅置顶便签参与）。
       // 自己在组内 → 空池（组成员不触发磁铁/成组，v1 组不合并）；
       // 目标在组内 → 带 grouped 标记：退出磁铁层但保留 stack-zone
@@ -161,7 +162,7 @@ export class WindowManager {
   /** 启动时恢复上次退出时开着的便签（会话恢复）。 */
   async restoreNoteWindows(): Promise<void> {
     for (const id of getOpenNotes()) {
-      await this.createNoteWindow(id).catch((err) =>
+      await this.createNoteWindow(id, undefined, true).catch((err) =>
         console.error(`[main] 恢复便签窗口失败 ${id}:`, err),
       );
     }
