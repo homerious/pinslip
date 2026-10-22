@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -120,6 +121,68 @@ func TestRenameOnTitleChange(t *testing.T) {
 	entries, _ := os.ReadDir(filepath.Dir(p))
 	if len(entries) != 1 {
 		t.Errorf("改标题后应只有一个文件, got %d", len(entries))
+	}
+}
+
+// Regression for https://github.com/homerious/pinslip/pull/21.
+func TestRenameOnCaseOnlyTitleChange(t *testing.T) {
+	cases := []struct {
+		name   string
+		inbox  bool
+		folder string
+	}{
+		{name: "notes"},
+		{name: "inbox", inbox: true},
+		{name: "nested folder", folder: "work/project"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			e := newTestEngine(t)
+			fm := testFM("idcase", "Case Test")
+			fm.TitleManual = true
+			fm.Tags = []string{"work"}
+			fm.Pin = true
+			fm.Color = "blue"
+			var err error
+			if c.folder != "" {
+				err = e.SaveToFolder(fm, "before", c.folder)
+			} else {
+				err = e.Save(fm, "before", c.inbox)
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			// Lowercase, uppercase, same-title save, then a normal rename.
+			for i, title := range []string{"case Test", "CASE TEST", "CASE TEST", "Renamed note"} {
+				fm.Title = title
+				body := strings.Repeat("after ", i+1) + title
+				if err := e.Save(fm, body, c.inbox); err != nil {
+					t.Fatal(err)
+				}
+				gotFM, gotBody, inbox, folder, err := e.Load(fm.ID)
+				if err != nil {
+					t.Fatalf("title change to %q lost note: %v", title, err)
+				}
+				if !reflect.DeepEqual(gotFM, fm) || strings.TrimSpace(gotBody) != body {
+					t.Errorf("title %q: saved note = %+v / %q, want %+v / %q", title, gotFM, gotBody, fm, body)
+				}
+				if inbox != c.inbox || folder != c.folder {
+					t.Errorf("title %q: location = inbox:%v folder:%q, want inbox:%v folder:%q", title, inbox, folder, c.inbox, c.folder)
+				}
+				dir := filepath.Join(e.notesDir, filepath.FromSlash(c.folder))
+				if c.inbox {
+					dir = e.inboxDir
+				}
+				entries, err := os.ReadDir(dir)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if len(entries) != 1 {
+					t.Errorf("title %q: expected exactly one note file, got %d", title, len(entries))
+				}
+			}
+		})
 	}
 }
 

@@ -2,6 +2,12 @@
 
 本项目版本记录 notable 变更。格式借鉴 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 
+## [Unreleased]
+
+### 修复
+
+- **Windows 修改标题大小写导致便签丢失**：仅修改标题大小写时，保存后不再误删同一 Markdown 文件；保留更新后的标题、正文和目录归属。感谢 ZeroFlagLabs 报告并提供修复（[#20](https://github.com/homerious/pinslip/issues/20)、[#21](https://github.com/homerious/pinslip/pull/21)）。
+
 ## [1.1.0] - 2026-10-01
 
 ### 导出便签为图片

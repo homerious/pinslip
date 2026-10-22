@@ -180,7 +180,17 @@ func (e *Engine) save(fm *Frontmatter, body string, inbox bool, folder string) e
 		return renErr
 	}
 	if locErr == nil && oldPath != final {
-		_ = os.Remove(oldPath)
+		// 大小写不敏感的文件系统上，标题只改大小写时两条路径仍是同一个文件。
+		// 必须比较原子替换后的文件身份，避免把刚保存的笔记当旧文件删除。
+		sameFile := false
+		if oldInfo, err := os.Stat(oldPath); err == nil {
+			if finalInfo, err := os.Stat(final); err == nil {
+				sameFile = os.SameFile(oldInfo, finalInfo)
+			}
+		}
+		if !sameFile {
+			_ = os.Remove(oldPath)
+		}
 	}
 	return nil
 }
