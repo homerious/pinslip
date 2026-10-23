@@ -7,6 +7,7 @@ import {
   editorViewOptionsCtx,
   marksCtx,
   nodeViewCtx,
+  parserCtx,
   remarkStringifyOptionsCtx,
   rootCtx,
   schemaCtx,
@@ -14,6 +15,7 @@ import {
 } from '@milkdown/core';
 import { Milkdown, MilkdownProvider, useEditor, useInstance } from '@milkdown/react';
 import { Plugin, PluginKey } from '@milkdown/prose/state';
+import { DOMParser, DOMSerializer, Slice } from '@milkdown/prose/model';
 import {
   commonmark,
   toggleStrongCommand,
@@ -453,6 +455,29 @@ const MilkdownEditor = forwardRef<EditorHandle, EditorProps>(function MilkdownEd
             spellcheck: 'false',
           },
           handlePaste: handleImagePaste(folder),
+          // 仅纯文本普通粘贴会走这里；HTML 富文本与代码块由 PM 原有流程处理。
+          clipboardTextParser: (text, context, plain, view) => {
+            if (!plain) {
+              try {
+                return Slice.maxOpen(ctx.get(parserCtx)(text).content);
+              } catch {
+                // 解析失败也要保留剪贴板原文，继续走下面的普通文本处理。
+              }
+            }
+            // 对齐 PM 默认文本粘贴：分行成段，保留当前位置的行内样式。
+            const dom = document.createElement('div');
+            const serializer = DOMSerializer.fromSchema(view.state.schema);
+            for (const line of text.split(/(?:\r\n?|\n)+/)) {
+              const paragraph = dom.appendChild(document.createElement('p'));
+              if (line) {
+                paragraph.appendChild(serializer.serializeNode(view.state.schema.text(line, context.marks())));
+              }
+            }
+            return DOMParser.fromSchema(view.state.schema).parseSlice(dom, {
+              preserveWhitespace: true,
+              context,
+            });
+          },
           // 拖入图片文件时拦下 PM 默认 drop（它会把 dataTransfer 里的外链 <img>
           // 再插一份，与外层上传通道重复成两张图），由 NoteView 统一上传插入
           handleDrop: handleImageDrop(),
