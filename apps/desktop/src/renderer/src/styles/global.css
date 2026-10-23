@@ -2476,7 +2476,8 @@ input.sticky-note__title-input {
   margin-bottom: 3px;
   font-size: 12px;
   line-height: 1.4;
-  color: var(--mv-muted);
+  /* 六色卡片在深浅主题下都保持浅底，正文预览使用稳定深灰，与次级信息区分。 */
+  color: #555555;
   white-space: pre-wrap;
   /* body 全局 user-select:none，预览放开选择——选段复制与「复制全部」互补 */
   user-select: text;

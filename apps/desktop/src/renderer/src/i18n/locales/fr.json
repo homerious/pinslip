@@ -170,6 +170,8 @@
     "close": "Fermer les réglages",
     "general": "Général",
     "autoStart": "Démarrage automatique",
+    "autoStartHidden": "Masquer le gestionnaire à la connexion",
+    "autoStartHiddenTip": "Conserver les notes ; afficher le gestionnaire si la zone de notification est désactivée",
     "autoStartTip": "Lancer PinSlip au démarrage de la session",
     "autoStartPackagedOnly": "Disponible dans la version installée",
     "autoStartDevHint": "Non modifiable en mode développement ; s'applique à la version installée",

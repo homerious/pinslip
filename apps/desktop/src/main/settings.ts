@@ -21,6 +21,7 @@ interface AppSettings {
 
 /** 高级设置各字段缺省值（= 简洁模型现状）；新增选项必须在此登记缺省 */
 const ADVANCED_DEFAULTS: ResolvedAdvancedSettings = {
+  autoStartHidden: false,
   trayIcon: true,
   taskbarIcon: true,
   notePlacement: 'cascade',

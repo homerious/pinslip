@@ -170,6 +170,8 @@
     "close": "关闭设置",
     "general": "通用",
     "autoStart": "开机自启",
+    "autoStartHidden": "开机启动时隐藏管理器",
+    "autoStartHiddenTip": "保留托盘和便签，不弹出管理器；关闭托盘时仍显示管理器",
     "autoStartTip": "开机时自动启动 PinSlip",
     "autoStartPackagedOnly": "安装版中可用",
     "autoStartDevHint": "开发模式下不可改，安装版中生效",

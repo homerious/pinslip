@@ -170,6 +170,8 @@
     "close": "설정 닫기",
     "general": "일반",
     "autoStart": "시작 시 자동 실행",
+    "autoStartHidden": "자동 실행 시 관리자 숨기기",
+    "autoStartHiddenTip": "트레이와 메모를 유지합니다. 트레이가 꺼져 있으면 관리자를 표시합니다",
     "autoStartTip": "로그인할 때 PinSlip 자동 실행",
     "autoStartPackagedOnly": "설치 버전에서 사용 가능",
     "autoStartDevHint": "개발 모드에서는 변경할 수 없으며 설치 버전에서 적용됩니다",

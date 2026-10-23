@@ -12,7 +12,9 @@
     "build:service": "node scripts/build-service.js",
     "build:all": "pnpm build:service && pnpm build",
     "dist": "pnpm build:service && pnpm --filter @pinslip/desktop dist",
-    "typecheck": "pnpm --filter @pinslip/desktop typecheck"
+    "typecheck": "pnpm --filter @pinslip/desktop typecheck",
+    "test:note-window": "node scripts/test-note-window.js",
+    "test:startup": "node scripts/test-startup.js"
   },
   "engines": {
     "node": ">=18.0.0"

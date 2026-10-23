@@ -149,6 +149,7 @@ export default function MainView() {
   /** 自动更新状态（主进程权威，这里只是镜像展示） */
   const [updateState, setUpdateState] = useState<UpdateState>({ status: 'idle' });
   const [autoStart, setAutoStart] = useState(false);
+  const [autoStartHidden, setAutoStartHidden] = useState(false);
   /** 界面语言偏好（'system' = 跟随系统；初值取自 i18n 模块的启动解析结果） */
   const [langPref, setLangPref] = useState<LanguagePreference>(getLanguagePreference());
   // 回收区：统计快照 + 保留天数 + 清空两阶段确认态
@@ -545,6 +546,7 @@ export default function MainView() {
       .getAdvanced()
       .then((a) => {
         setTrayIcon(a.trayIcon);
+        setAutoStartHidden(a.autoStartHidden);
         setTaskbarIcon(a.taskbarIcon);
         setNotePlacement(a.notePlacement);
         setManagerTheme(a.managerTheme);
@@ -577,6 +579,7 @@ export default function MainView() {
       .getAdvanced()
       .then((a) => {
         setTrayIcon(a.trayIcon);
+        setAutoStartHidden(a.autoStartHidden);
         setTaskbarIcon(a.taskbarIcon);
         setNotePlacement(a.notePlacement);
         setManagerTheme(a.managerTheme);
@@ -1361,6 +1364,25 @@ export default function MainView() {
                     const next = !autoStart;
                     setAutoStart(next);
                     window.api.setAutoStart(next).catch(() => setAutoStart(!next));
+                  }}
+                >
+                  <span className="settings-toggle__thumb" />
+                </button>
+              </div>
+              <div className="settings-panel__row">
+                <PowerIcon className="settings-panel__row-icon" />
+                <span className="settings-panel__label">{t('settings.autoStartHidden')}</span>
+                <button
+                  className="settings-toggle"
+                  role="switch"
+                  aria-checked={autoStartHidden}
+                  data-on={autoStartHidden}
+                  disabled={!isPackaged || !autoStart}
+                  title={t('settings.autoStartHiddenTip')}
+                  onClick={() => {
+                    const next = !autoStartHidden;
+                    setAutoStartHidden(next);
+                    window.api.setAdvanced({ autoStartHidden: next }).catch(() => setAutoStartHidden(!next));
                   }}
                 >
                   <span className="settings-toggle__thumb" />

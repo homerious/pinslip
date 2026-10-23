@@ -170,6 +170,8 @@
     "close": "Cerrar ajustes",
     "general": "General",
     "autoStart": "Inicio automático",
+    "autoStartHidden": "Ocultar el gestor al iniciar sesión",
+    "autoStartHiddenTip": "Mantener bandeja y notas; mostrar el gestor si la bandeja está desactivada",
     "autoStartTip": "Iniciar PinSlip al arrancar el sistema",
     "autoStartPackagedOnly": "Disponible en la versión instalada",
     "autoStartDevHint": "No se puede cambiar en modo desarrollo; se aplica en la versión instalada",

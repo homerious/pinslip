@@ -169,6 +169,8 @@ export type GlobalShortcutKey =
 /** 高级设置选项（应用设置 settings.json 的 advanced 对象，main/渲染共用）。
  *  全部字段可选且有缺省值（缺省 = 简洁模型现状），新增选项 = 加字段，零新增 IPC */
 export interface AdvancedSettings {
+  /** 开机启动时隐藏管理器（缺省 false；手动启动不受影响） */
+  autoStartHidden?: boolean;
   /** 系统托盘图标显隐（缺省 true）；关闭后全部窗口关闭时应用退出 */
   trayIcon?: boolean;
   /** 主窗口任务栏图标显隐（缺省 true）；仅作用于主窗口，便签窗口任务栏入口不受影响 */

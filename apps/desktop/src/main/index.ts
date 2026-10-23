@@ -13,22 +13,27 @@ import { registerShortcuts, unregisterShortcuts } from './shortcuts';
 import { startVaultWatch, stopVaultWatch } from './services/vault-watch';
 import { initAutoUpdater } from './updater';
 import { flushWindowState } from './windows/window-state';
+import { shouldShowManager } from './startup';
 import { IPC } from '../shared/ipc-channels';
 
 // 只做装配：app 生命周期 + 各模块注册，业务逻辑分散到各模块
 const goProcess = new GoProcess();
 let windowManager: WindowManager;
+let startupComplete = false;
+let pendingShowManager = false;
 
 // 单实例锁：重复启动（任务栏固定图标/安装后自动运行 + 托盘常驻）时，
-// 第二实例直接退出并把已有实例的主窗口带到前台。
+// 第二实例直接退出；普通启动唤起管理器，--hidden 保持当前窗口状态。
 // 没有这把锁时每个实例都会建托盘图标 + 在记忆的同一位置开主窗口，
 // 半透明面板下两个窗口叠成「文字重影」，难以察觉是多开了实例。
 // 未拿到锁时 app.quit()，whenReady 不会触发，后续注册全部无副作用。
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 }
-app.on('second-instance', () => {
-  windowManager?.showMainWindow();
+app.on('second-instance', (_event, argv) => {
+  if (argv.includes('--hidden')) return;
+  if (startupComplete) windowManager.showMainWindow();
+  else pendingShowManager = true;
 });
 
 app.whenReady().then(() => {
@@ -92,7 +97,12 @@ app.whenReady().then(() => {
   // 外部文件变更监听：同步盘/手动改 vault 时主界面列表自动刷新（未设保险库时为 no-op）
   startVaultWatch(() => windowManager.broadcastNotesChanged());
 
-  windowManager.showMainWindow();
+  const loginHidden = process.platform === 'darwin' &&
+    app.getLoginItemSettings().wasOpenedAtLogin && getAdvanced().autoStartHidden;
+  if (pendingShowManager || shouldShowManager(process.argv, !!getVaultPath(), getAdvanced().trayIcon, loginHidden)) {
+    windowManager.showMainWindow();
+  }
+  startupComplete = true;
   // 会话恢复：已设保险库时，重新打开上次退出时开着的便签
   if (getVaultPath()) {
     windowManager.restoreNoteWindows().catch((err) =>

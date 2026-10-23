@@ -207,7 +207,9 @@ export function registerIpcHandlers({ windowManager, goProcess }: IpcContext): v
       // 托盘菜单速记项显示当前键位：重绑成功后即时重建（无托盘时 no-op）
       refreshTrayMenu();
     }
+    const autoStartEnabled = patch.autoStartHidden !== undefined ? getAutoStart() : false;
     setAdvanced(patch);
+    if (patch.autoStartHidden !== undefined && autoStartEnabled) setAutoStart(true);
     const after = getAdvanced();
     if (before.trayIcon !== after.trayIcon) {
       if (after.trayIcon) createTray(windowManager);

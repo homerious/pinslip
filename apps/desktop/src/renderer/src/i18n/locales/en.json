@@ -170,6 +170,8 @@
     "close": "Close settings",
     "general": "General",
     "autoStart": "Launch at login",
+    "autoStartHidden": "Hide manager at login",
+    "autoStartHiddenTip": "Keep the tray and notes; show the manager if the tray is disabled",
     "autoStartTip": "Start PinSlip automatically at login",
     "autoStartPackagedOnly": "Available in the installed app",
     "autoStartDevHint": "Not changeable in dev mode; applies to the installed app",

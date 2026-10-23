@@ -10,6 +10,8 @@ import { COLLAPSE_ANIM_MS } from '../../shared/anim';
 
 /** 折叠成标题条时的窗口高度（DIP）：标题栏 32 + 上下透明边距 16×2（阴影留白） */
 export const NOTE_COLLAPSED_HEIGHT = 64;
+/** 新建便签默认宽度（构造单位）：建窗与跟随主窗口落点共用。 */
+const NOTE_DEFAULT_WIDTH = 340;
 /** 新建便签默认高度（构造单位）：展开恢复遇脏数据高度时的回退目标 */
 const NOTE_DEFAULT_HEIGHT = 420;
 
@@ -29,6 +31,7 @@ export interface NoteWindowOptions {
    *  时由 window-manager 传入；落点只喂构造参数（同为 DIP 同屏算术精确），
    *  混合 DPI 残差由 calibrate 吸收，出屏由 clampRectToWorkArea 兜底 */
   managerBounds?: Electron.Rectangle;
+  showInactive?: boolean;
 }
 
 /** 取窗口的吸附句柄：便签组 restack 走 animateTo（复用落位动画的格点量化纪律） */
@@ -38,7 +41,7 @@ export function getNoteSnapHandle(win: BrowserWindow): SnapHandle | undefined {
 
 /** 创建便签窗口：无边框、透明；进任务栏（不置顶时也能找回）、可最小化；
  *  有位置记忆则恢复原位，否则错位摆放；置顶与否由用户选择 */
-export function createNoteWindow({ noteId, index, alwaysOnTop, getOthers, snapHooks, folder, managerBounds }: NoteWindowOptions): BrowserWindow {
+export function createNoteWindow({ noteId, index, alwaysOnTop, getOthers, snapHooks, folder, managerBounds, showInactive = false }: NoteWindowOptions): BrowserWindow {
   const saved = getWindowStateRaw(`note:${noteId}`);
   // 期望的构造参数（恢复的记忆值或默认错位摆放）；
   // 折叠记忆的窗口：saved.height 即折叠高度，最小尺寸/可缩放同步收紧
@@ -46,9 +49,9 @@ export function createNoteWindow({ noteId, index, alwaysOnTop, getOthers, snapHo
   // 无位置记忆的全新便签且有主窗口位置（落点选项跟随主窗口）：
   // 开在主窗口左侧 12px，垂直级联最多 6 层循环；否则固定起点级联
   const beside = !saved && managerBounds;
-  const ix = saved?.x ?? (beside ? managerBounds.x - 320 - 12 : 120 + index * 30);
+  const ix = saved?.x ?? (beside ? managerBounds.x - NOTE_DEFAULT_WIDTH - 12 : 120 + index * 30);
   const iy = saved?.y ?? (beside ? managerBounds.y + 36 + (index % 6) * 28 : 120 + index * 30);
-  const iw = saved?.width ?? 320;
+  const iw = saved?.width ?? NOTE_DEFAULT_WIDTH;
   let ih = saved?.height ?? (collapsed ? NOTE_COLLAPSED_HEIGHT : NOTE_DEFAULT_HEIGHT);
   // 恢复高度下限兜底:minHeight 只约束用户交互缩放,不拦构造参数——
   // 任何来源的脏小高度(K 漂移/状态撕裂)都会被原样应用,且 (68,160) 区间
@@ -128,7 +131,10 @@ export function createNoteWindow({ noteId, index, alwaysOnTop, getOthers, snapHo
   // 新建便签的落盘文件夹经路由 query 下发（HashRouter 下 useSearchParams 可读）
   loadView(win, `/note/${noteId}${folder ? `?folder=${encodeURIComponent(folder)}` : ''}`);
 
-  win.once('ready-to-show', () => win.show());
+  win.once('ready-to-show', () => {
+    if (showInactive) win.showInactive();
+    else win.show();
+  });
   return win;
 }
 
@@ -249,8 +255,10 @@ export function setNoteWindowCollapsed(
     console.log(
       `[note] expand commit: win=${win.id} k=${cal.k} restored=${restored}${useDefault ? ' (default-fallback)' : ''} intendedPhys=(${xPhys},${yPhys} ${widthPhys}x${hPhys}) reportPhys=(${Math.round(rb.x * cal.k)},${Math.round(rb.y * cal.k)} ${Math.round(rb.width * cal.k)}x${Math.round(rb.height * cal.k)})`,
     );
-    win.setMinimumSize(220, NOTE_MIN_EXPANDED_HEIGHT);
+    // Windows 恢复可缩放时会还原之前缓存的尺寸约束；必须在它之后重设下限，
+    // 否则折叠再展开会沿用 64 高度，折叠状态建窗后展开甚至会还原成 0×0。
     win.setResizable(true);
+    win.setMinimumSize(220, NOTE_MIN_EXPANDED_HEIGHT);
     markCollapsed(key, false);
     onCommitted?.(); // 便签组联动：兄弟下移让位（与卡片 CSS 长入大致同步，160ms vs 180ms）
   }

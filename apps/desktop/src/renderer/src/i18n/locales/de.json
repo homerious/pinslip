@@ -170,6 +170,8 @@
     "close": "Einstellungen schließen",
     "general": "Allgemein",
     "autoStart": "Autostart",
+    "autoStartHidden": "Verwaltung beim Anmelden ausblenden",
+    "autoStartHiddenTip": "Tray und Notizen bleiben verfügbar; ohne Tray wird die Verwaltung angezeigt",
     "autoStartTip": "PinSlip beim Anmelden automatisch starten",
     "autoStartPackagedOnly": "In der installierten Version verfügbar",
     "autoStartDevHint": "Im Entwicklungsmodus nicht änderbar; gilt für die installierte Version",

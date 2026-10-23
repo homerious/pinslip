@@ -170,6 +170,8 @@
     "close": "設定を閉じる",
     "general": "一般",
     "autoStart": "自動起動",
+    "autoStartHidden": "自動起動時に管理画面を非表示",
+    "autoStartHiddenTip": "トレイと付箋を維持します。トレイが無効の場合は管理画面を表示します",
     "autoStartTip": "ログイン時に PinSlip を自動起動",
     "autoStartPackagedOnly": "インストール版で利用可能",
     "autoStartDevHint": "開発モードでは変更できません。インストール版で有効です",

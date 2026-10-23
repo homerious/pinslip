@@ -1,6 +1,7 @@
 import { app } from 'electron';
 import { existsSync, mkdirSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
+import { getAdvanced } from './settings';
 
 /**
  * 开机自启：
@@ -22,7 +23,7 @@ function linuxDesktopEntry(): string {
     '[Desktop Entry]',
     'Type=Application',
     'Name=PinSlip',
-    `Exec=${app.getPath('exe')}`,
+    `Exec="${app.getPath('exe').replace(/[\\"`$]/g, (ch) => '\\' + ch)}"${getAdvanced().autoStartHidden ? ' --hidden' : ''}`,
     'X-GNOME-Autostart-enabled=true',
     'Comment=贴在桌面上的 Markdown 便利贴',
     '',
@@ -46,6 +47,12 @@ function setLinuxAutoStart(enabled: boolean): void {
 export function getAutoStart(): boolean {
   if (!app.isPackaged) return false;
   if (isLinux) return existsSync(linuxAutostartFile());
+  if (process.platform === 'win32') {
+    // 同时兼容旧注册项与新隐藏注册项；读取必须带上注册时相同的参数。
+    return [[], ['--hidden']].some((args) =>
+      app.getLoginItemSettings({ path: app.getPath('exe'), args }).openAtLogin,
+    );
+  }
   return app.getLoginItemSettings().openAtLogin;
 }
 
@@ -55,14 +62,23 @@ export function setAutoStart(enabled: boolean): void {
     setLinuxAutoStart(enabled);
     return;
   }
-  app.setLoginItemSettings({ openAtLogin: enabled });
+  app.setLoginItemSettings({
+    openAtLogin: enabled,
+    ...(process.platform === 'win32'
+      ? { path: app.getPath('exe'), args: getAdvanced().autoStartHidden ? ['--hidden'] : [] }
+      : {}),
+  });
 }
 
 /** 打包后首次运行默认开启自启；marker 文件保证只初始化一次，之后尊重用户选择 */
 export function initAutoStart(): void {
   if (!app.isPackaged) return;
   const marker = join(app.getPath('userData'), '.autostart-init');
-  if (existsSync(marker)) return;
+  if (existsSync(marker)) {
+    // 仅刷新已开启的命令，不重新开启用户已关闭的自启。
+    if (getAutoStart()) setAutoStart(true);
+    return;
+  }
   setAutoStart(true);
   try {
     writeFileSync(marker, '1');

@@ -221,6 +221,8 @@ export default function NoteView() {
   /** 窗口激活时若焦点没落在具体控件上，把焦点交给编辑器（光标置文末，直接可输入）。
    *  编辑器异步初始化，未就绪时短间隔重试几次 */
   const focusEditorIfIdle = useCallback((attempt = 0) => {
+    // 会话恢复不主动聚焦；窗口激活后仍由 onFocus 进入编辑器。
+    if (!document.hasFocus()) return;
     const el = document.activeElement;
     if (el && el !== document.body) return;
     const ok = editorRef.current?.focusEnd() ?? false;
