@@ -40,6 +40,8 @@
     "serviceDown": "로컬 서비스에 연결할 수 없습니다: {{message}}"
   },
   "dialog": {
+    "noteSaveFailed": "메모를 저장하지 못해 닫기를 취소했습니다",
+    "noteSaveFailedDetail": "창과 내용은 유지됩니다. 메모를 확인한 후 다시 시도하세요. 충돌 해결 초안은 먼저 직접 저장하세요.",
     "chooseVaultTitle": "노트 저장 위치 선택",
     "chooseVaultButton": "이 폴더 선택",
     "exportSaveTitle": "메모 이미지보내기",

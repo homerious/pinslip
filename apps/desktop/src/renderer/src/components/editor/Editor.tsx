@@ -160,6 +160,8 @@ function scrollMatchIntoView(view: {
 
 /** 对外暴露的编辑器句柄 */
 export interface EditorHandle {
+  /** 读取尚未回传给父视图的文档；无新变化或未就绪返回 null，不规范化回写原文。 */
+  getPendingMarkdown(): string | null;
   /** 聚焦编辑器并把光标移到文末（窗口激活/点空白区时直接可输入）。
    *  返回是否成功——编辑器尚未就绪时返回 false，调用方可稍后重试 */
   focusEnd(): boolean;
@@ -220,6 +222,14 @@ const MilkdownEditor = forwardRef<EditorHandle, EditorProps>(function MilkdownEd
         return status;
       };
       return {
+      getPendingMarkdown() {
+        if (loading) return null;
+        return getEditor().action((ctx) => {
+          const view = ctx.get(editorViewCtx);
+          const parsed = ctx.get(parserCtx)(content);
+          return parsed && view.state.doc.eq(parsed) ? null : ctx.get(serializerCtx)(view.state.doc);
+        });
+      },
       focusEnd() {
         if (loading) return false;
         getEditor().action((ctx) => {
@@ -423,7 +433,7 @@ const MilkdownEditor = forwardRef<EditorHandle, EditorProps>(function MilkdownEd
       },
       };
     },
-    [loading, getEditor],
+    [loading, getEditor, content],
   );
 
   useEditor((root) =>

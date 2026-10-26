@@ -21,6 +21,7 @@ const goProcess = new GoProcess();
 let windowManager: WindowManager;
 let startupComplete = false;
 let pendingShowManager = false;
+let quitPending = false;
 
 // 单实例锁：重复启动（任务栏固定图标/安装后自动运行 + 托盘常驻）时，
 // 第二实例直接退出；普通启动唤起管理器，--hidden 保持当前窗口状态。
@@ -121,8 +122,18 @@ app.on('window-all-closed', () => {
   if (!getAdvanced().trayIcon) app.quit();
 });
 
-app.on('before-quit', () => {
-  if (windowManager) windowManager.quitting = true; // 放行主窗口的 close 拦截，确保能真正退出
+app.on('before-quit', (event) => {
+  if (!windowManager || windowManager.quitting) return;
+  event.preventDefault();
+  if (quitPending) return;
+  quitPending = true;
+  windowManager.flushAllNotes().then(() => {
+    windowManager.quitting = true;
+    app.quit();
+  }).catch(() => windowManager.reportSaveFailure()).finally(() => { quitPending = false; });
+});
+
+app.on('will-quit', () => {
   unregisterShortcuts();
   stopVaultWatch();
   windowManager?.flushManagerLayout();

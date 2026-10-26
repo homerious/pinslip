@@ -92,6 +92,7 @@ async function main() {
 
   const options = []; const windows = []; let wcId = 0;
   const { WindowManager } = load('main/windows/window-manager.ts', { electron: {},
+    './note-close-guard': load('main/windows/note-close-guard.ts', { '../../shared/ipc-channels': { IPC } }), '../i18n': {},
     './note-window': { createNoteWindow(opts) {
       options.push(opts); const win = new EventEmitter(); win.webContents = { id: ++wcId };
       win.isDestroyed = () => false; win.focus = () => {}; windows.push(win); return win;

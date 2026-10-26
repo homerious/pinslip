@@ -398,7 +398,7 @@ export default function MainView() {
         .remove(path, mode)
         .then(() => {
           setDeleteFolderTarget(null);
-          for (const n of affected) window.api.closeNote(n.id);
+          for (const n of affected) window.api.closeNote(n.id, true);
           if (currentFolder === path || currentFolder.startsWith(path + '/')) {
             enterFolder(path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '');
           }
@@ -1156,7 +1156,7 @@ export default function MainView() {
       .then(() => {
         // 关开窗着的便签窗口：文件已进回收区，窗口留着不仅幽灵存在，
         // 下次自动保存还会把文件写回来（删除失效）
-        window.api.closeNote(id);
+        window.api.closeNote(id, true);
         refresh();
       })
       .catch(() => {});

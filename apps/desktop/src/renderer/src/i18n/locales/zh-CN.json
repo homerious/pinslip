@@ -40,6 +40,8 @@
     "serviceDown": "无法连接本地服务：{{message}}"
   },
   "dialog": {
+    "noteSaveFailed": "便签尚未保存，已取消关闭操作",
+    "noteSaveFailedDetail": "窗口和内容已保留。请检查便签后重试；如有冲突解决草稿，请先点击「保存解决」。",
     "chooseVaultTitle": "选择便签存储位置",
     "chooseVaultButton": "选择此文件夹",
     "exportSaveTitle": "导出便签图片",

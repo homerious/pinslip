@@ -235,7 +235,10 @@ export interface ElectronAPI {
   createNote(noteId?: string, folder?: string): Promise<void>;
   /** 仅领取调用方新便签的一次性初始文本；其他窗口或已消费返回 null */
   takeInitialNoteContent(): Promise<string | null>;
-  closeNote(noteId: string): Promise<void>;
+  /** discard 仅用于已成功删除笔记后关窗，不执行关闭前保存。 */
+  closeNote(noteId: string, discard?: boolean): Promise<void>;
+  /** 订阅主进程关闭前保存；成功 resolve 才允许关闭，失败 reject。 */
+  onNoteFlushRequested(save: () => Promise<void>, resume: () => void): () => void;
   /** 查询当前窗口 DevTools 是否打开（速记窗失焦自动关闭的豁免判定） */
   isDevToolsOpen(): Promise<boolean>;
   setNotePin(noteId: string, pinned: boolean): Promise<void>;

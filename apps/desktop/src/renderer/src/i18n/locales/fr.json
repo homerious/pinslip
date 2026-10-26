@@ -40,6 +40,8 @@
     "serviceDown": "Impossible de joindre le service local : {{message}}"
   },
   "dialog": {
+    "noteSaveFailed": "Les notes n’ont pas pu être enregistrées. Fermeture annulée.",
+    "noteSaveFailedDetail": "Les fenêtres et leur contenu sont conservés. Vérifiez vos notes et réessayez. Enregistrez d’abord tout brouillon de résolution de conflit.",
     "chooseVaultTitle": "Choisissez où stocker vos notes",
     "chooseVaultButton": "Sélectionner ce dossier",
     "exportSaveTitle": "Exporter l'image de la note",

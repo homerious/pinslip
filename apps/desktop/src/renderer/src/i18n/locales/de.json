@@ -40,6 +40,8 @@
     "serviceDown": "Lokaler Dienst nicht erreichbar: {{message}}"
   },
   "dialog": {
+    "noteSaveFailed": "Notizen konnten nicht gespeichert werden. Schließen wurde abgebrochen.",
+    "noteSaveFailedDetail": "Fenster und Inhalte bleiben erhalten. Prüfen Sie Ihre Notizen und versuchen Sie es erneut. Speichern Sie einen Konfliktlösungsentwurf zuerst ausdrücklich.",
     "chooseVaultTitle": "Speicherort für Notizen wählen",
     "chooseVaultButton": "Diesen Ordner wählen",
     "exportSaveTitle": "Notizbild exportieren",

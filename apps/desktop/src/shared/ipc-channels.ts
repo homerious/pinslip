@@ -5,6 +5,10 @@ export const IPC = {
   /** 新建/聚焦便签窗口，参数 noteId? */
   WindowCreate: 'window:create',
   NoteTakeInitialContent: 'note:take-initial-content',
+  NoteFlush: 'note:flush',
+  NoteFlushResult: 'note:flush-result',
+  NoteSaveReady: 'note:save-ready',
+  NoteResumeEditing: 'note:resume-editing',
   /** 关闭指定便签窗口，参数 noteId */
   WindowClose: 'window:close',
   /** 查询调用方窗口的 DevTools 是否打开（速记窗失焦关闭的调试豁免用） */

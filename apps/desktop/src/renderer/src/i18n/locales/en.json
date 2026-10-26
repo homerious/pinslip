@@ -40,6 +40,8 @@
     "serviceDown": "Cannot connect to the local service: {{message}}"
   },
   "dialog": {
+    "noteSaveFailed": "Notes could not be saved. Closing was cancelled.",
+    "noteSaveFailedDetail": "Your windows and content have been kept open. Check your notes and retry. Save any conflict resolution draft explicitly first.",
     "chooseVaultTitle": "Choose where to store your notes",
     "chooseVaultButton": "Select this folder",
     "exportSaveTitle": "Export note image",

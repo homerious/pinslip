@@ -18,6 +18,7 @@
     "test:editor-paste": "node scripts/test-editor-paste.js",
     "test:note-info": "node scripts/test-note-info.js",
     "test:clipboard-note": "node scripts/test-clipboard-note.js",
+    "test:note-close": "node scripts/test-note-close.js",
     "test:manager-layout": "node scripts/test-manager-layout.js"
   },
   "engines": {

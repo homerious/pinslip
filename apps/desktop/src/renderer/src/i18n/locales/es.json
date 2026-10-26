@@ -40,6 +40,8 @@
     "serviceDown": "No se puede conectar con el servicio local: {{message}}"
   },
   "dialog": {
+    "noteSaveFailed": "No se pudieron guardar las notas. Se canceló el cierre.",
+    "noteSaveFailedDetail": "Las ventanas y su contenido se conservan. Revisa las notas y vuelve a intentarlo. Guarda primero cualquier borrador de resolución de conflictos.",
     "chooseVaultTitle": "Elige dónde guardar tus notas",
     "chooseVaultButton": "Seleccionar esta carpeta",
     "exportSaveTitle": "Exportar imagen de la nota",

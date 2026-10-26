@@ -42,6 +42,7 @@ import NoteInfo from '../components/NoteInfo';
 import { toMarkdownImageSrc } from '../components/editor/image-support';
 import { attachmentsApi, SUPPORTED_IMAGE_MIME_TYPES } from '../api/attachments';
 import { foldersApi, notesApi } from '../api/notes';
+import { SaveQueue } from '../utils/save-queue';
 import { syncApi } from '../api/sync';
 import { hasConflictMarkers } from '../utils/conflict';
 import { COLORS, LAST_NOTE_COLOR_KEY, readLastNoteColor } from '../utils/colors';
@@ -214,6 +215,13 @@ export default function NoteView() {
   const imageInputRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<EditorHandle>(null);
   const loadedRef = useRef(false);
+  const loadPromiseRef = useRef<Promise<void> | null>(null);
+  const closingRef = useRef(false);
+  const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveQueueRef = useRef(new SaveQueue());
+  const flushRef = useRef<() => Promise<void>>(async () => {});
+  const saveNote = useCallback((patch: Parameters<typeof notesApi.save>[1]) =>
+    saveQueueRef.current.run(() => notesApi.save(noteId, patch)), [noteId]);
   // StrictMode 重放 effect 时共用同一次领取，避免第二次 null 清空初始化文本。
   const initialContentRef = useRef<Promise<string | null> | null>(null);
   const existsRef = useRef(false); // 是否已存在于服务端（新便签写了内容才落盘）
@@ -380,8 +388,7 @@ export default function NoteView() {
   const saveResolution = useCallback(
     (text: string) => {
       setSaveState('saving');
-      notesApi
-        .save(noteId, { content: text, source: 'sticky', pin: pinned, color, tags, collapsed, folder: folderRef.current, zoom: zoomPct === ZOOM_DEFAULT ? 1 : zoomPct / 100 })
+      saveNote({ content: text, source: 'sticky', pin: pinned, color, tags, collapsed, folder: folderRef.current, zoom: zoomPct === ZOOM_DEFAULT ? 1 : zoomPct / 100 })
         .then((note) => {
           existsRef.current = true;
           lastSavedRef.current = note.content;
@@ -462,7 +469,7 @@ export default function NoteView() {
   useEffect(() => {
     initialContentRef.current ??= window.api.takeInitialNoteContent().catch(() => null);
     let cancelled = false;
-    initialContentRef.current.then(async (initialContent) => {
+    loadPromiseRef.current = initialContentRef.current.then(async (initialContent) => {
       if (cancelled) return;
       if (typeof initialContent === 'string' && initialContent.trim()) {
         contentRef.current = initialContent;
@@ -562,14 +569,15 @@ export default function NoteView() {
   // 守卫：空白新便签不落盘；内容未变化不回写。
   useEffect(() => {
     if (!loadedRef.current) return;
+    if (closingRef.current) return;
     if (!existsRef.current && !content.trim()) return;
     if (content === lastSavedRef.current) return;
     setSaveState('saving');
     const timer = setTimeout(() => {
+      if (closingRef.current) return;
       // folder 随保存带上：仅新建便签首次落盘生效（已存在便签服务端忽略，移动走 move）；
       // collapsed 一并带上（全量快照式 upsert，与 pin/color 同模式），折叠的新便签首次落盘不丢状态
-      notesApi
-        .save(noteId, { content, source: 'sticky', pin: pinned, color, tags, collapsed, folder: folderRef.current, zoom: zoomPct === ZOOM_DEFAULT ? 1 : zoomPct / 100 })
+      saveNote({ content, source: 'sticky', pin: pinned, color, tags, collapsed, folder: folderRef.current, zoom: zoomPct === ZOOM_DEFAULT ? 1 : zoomPct / 100 })
         .then((note) => {
           existsRef.current = true;
           lastSavedRef.current = note.content;
@@ -584,15 +592,53 @@ export default function NoteView() {
         })
         .catch(() => setSaveState('error'));
     }, 1000);
-    return () => clearTimeout(timer);
+    autosaveTimerRef.current = timer;
+    return () => { clearTimeout(timer); if (autosaveTimerRef.current === timer) autosaveTimerRef.current = null; };
   }, [content, noteId, pinned, color, tags, collapsed, zoomPct]);
+
+  const saveSnapshotRef = useRef({ pin: pinned, color, tags, collapsed, zoom: zoomPct / 100 });
+  saveSnapshotRef.current = { pin: pinned, color, tags, collapsed, zoom: zoomPct / 100 };
+  const resumeEditing = useCallback(() => {
+    closingRef.current = false;
+    if (rootRef.current) rootRef.current.inert = false;
+  }, []);
+  flushRef.current = async () => {
+    closingRef.current = true;
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    if (rootRef.current) rootRef.current.inert = true;
+    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+    try {
+      await loadPromiseRef.current;
+      const draft = rootRef.current?.querySelector<HTMLTextAreaElement>('.sticky-note__conflict-textarea');
+      if (draft && draft.value !== contentRef.current) throw new Error('Unsaved conflict resolution');
+      const pending = editorRef.current?.getPendingMarkdown();
+      if (pending != null) { contentRef.current = pending; dirtyRef.current = true; setContent(pending); }
+      await saveQueueRef.current.idle();
+      const latest = contentRef.current;
+      if (!existsRef.current && !latest.trim()) return;
+      if (latest === lastSavedRef.current && !saveQueueRef.current.failed) return;
+      setSaveState('saving');
+      const saved = await saveNote({ content: latest, source: 'sticky', folder: folderRef.current, ...saveSnapshotRef.current });
+      existsRef.current = true;
+      lastSavedRef.current = saved.content;
+      dirtyRef.current = false;
+      saveQueueRef.current.failed = false;
+      setSaveState('saved');
+      window.api.notifyNotesChanged();
+    } catch (error) {
+      setSaveState('error');
+      resumeEditing();
+      throw error;
+    }
+  };
+  useEffect(() => window.api.onNoteFlushRequested(() => flushRef.current(), resumeEditing), [resumeEditing]);
 
   // 标签增删：立即更新本地；已存在的笔记立即持久化，新便签随首次内容保存落盘
   const saveTags = useCallback(
     (next: string[]) => {
       setTags(next);
       if (existsRef.current) {
-        notesApi.save(noteId, { tags: next }).catch(() => {});
+        saveNote({ tags: next }).catch(() => {});
       }
     },
     [noteId],
@@ -679,6 +725,7 @@ export default function NoteView() {
   );
 
   const handleChange = useCallback((markdown: string) => {
+    if (closingRef.current) return; // 关闭快照直接读编辑器，忽略排队中的旧 listener 回调。
     contentRef.current = markdown;
     dirtyRef.current = true;
     lastEditAtRef.current = Date.now();
@@ -825,7 +872,7 @@ export default function NoteView() {
       const next = !prev;
       void window.api.setNotePin(noteId, next);
       if (existsRef.current) {
-        notesApi.save(noteId, { pin: next }).catch(() => {});
+        saveNote({ pin: next }).catch(() => {});
       }
       return next;
     });
@@ -839,7 +886,7 @@ export default function NoteView() {
       const next = !prev;
       void window.api.setNoteCollapsed(noteId, next);
       if (existsRef.current) {
-        notesApi.save(noteId, { collapsed: next }).catch(() => {});
+        saveNote({ collapsed: next }).catch(() => {});
       }
       return next;
     });
@@ -862,7 +909,7 @@ export default function NoteView() {
       setNewNoteColor(next); // 换色即成为新建用色（圆点与本便签同色后自然隐藏）
       setPaletteOpen(false);
       if (existsRef.current) {
-        notesApi.save(noteId, { color: next }).catch(() => {});
+        saveNote({ color: next }).catch(() => {});
       }
     },
     [noteId],
@@ -876,8 +923,7 @@ export default function NoteView() {
         const next = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, prev + delta));
         if (next === prev) return prev;
         if (existsRef.current) {
-          notesApi
-            .save(noteId, { zoom: next === ZOOM_DEFAULT ? 1 : next / 100 })
+          saveNote({ zoom: next === ZOOM_DEFAULT ? 1 : next / 100 })
             .catch(() => {});
         }
         return next;
@@ -887,18 +933,20 @@ export default function NoteView() {
   );
 
   // 删除：菜单内二次确认；空白新便签未落盘，直接关窗
-  const handleDelete = useCallback(() => {
+  const handleDelete = useCallback(async () => {
     if (!confirmDelete) {
       setConfirmDelete(true);
       return;
     }
-    if (existsRef.current) {
-      notesApi
-        .remove(noteId)
-        .then(() => window.api.notifyNotesChanged())
-        .catch(() => {});
-    }
-    window.close();
+    closingRef.current = true;
+    if (rootRef.current) rootRef.current.inert = true;
+    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+    try {
+      await saveQueueRef.current.idle();
+      if (existsRef.current) await notesApi.remove(noteId);
+      window.api.notifyNotesChanged();
+      await window.api.closeNote(noteId, true);
+    } catch { resumeEditing(); setSaveState('error'); }
   }, [confirmDelete, noteId]);
 
   // 点正文空白区（padding 边条、文本下方的 PM 空盒）时聚焦编辑器到文末。
@@ -988,8 +1036,7 @@ export default function NoteView() {
       }
       const v = raw.replace(/[\\/:*?"<>|]/g, '').trim();
       if (!v || v === displayTitle) return; // 空值/未改动 = no-op（幂等）
-      notesApi
-        .save(noteId, { title: v, titleManual: true })
+      saveNote({ title: v, titleManual: true })
         .then((note) => {
           existsRef.current = true; // upsert 已建档，后续内容保存走常规路径
           setTitle(note.title);
@@ -1004,8 +1051,7 @@ export default function NoteView() {
   /** 恢复自动标题：服务端立即按当前正文重推导并重命名文件（所见即所得） */
   const restoreAutoTitle = useCallback(() => {
     setTitleMenuOpen(false);
-    notesApi
-      .save(noteId, { titleManual: false })
+    saveNote({ titleManual: false })
       .then((note) => {
         setTitle(note.title);
         setTitleManual(false);

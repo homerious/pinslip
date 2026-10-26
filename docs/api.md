@@ -224,6 +224,12 @@ token 不出现在任何接口响应与日志中。
 
 ## Electron 内部窗口初始化
 
+- 关闭保存握手：渲染层通过 `onNoteFlushRequested(save, resume)` 订阅后报告 `note:save-ready`；
+  主进程发送带请求号的 `note:flush`，preload 等待 save 完成后回复 `note:flush-result`。
+  主进程同时校验发送方窗口与当前请求号，8 秒未完成视为失败，保留窗口并通过
+  `note:resume-editing` 恢复编辑。正文仍通过 HTTP 保存，不经此 IPC 传输。
+  正常关窗、退出、切库和安装更新先等待保存；已成功删除后的 `closeNote(id, true)` 直接销毁窗口，跳过保存。
+
 - `note:take-initial-content`（`window.api.takeInitialNoteContent()`）无参数，返回 `string | null`。
   仅新建便签快捷键可为新窗口提供剪贴板纯文本快照；主进程根据 IPC 发送方识别窗口，
   领取一次即清理，非对应窗口、已领取或没有初始内容时返回 `null`，关闭窗口也会清理。

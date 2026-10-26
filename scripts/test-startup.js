@@ -80,8 +80,10 @@ function autostart(platform, packaged = true) {
   const created = []; const openIds = ['one', 'two']; let focusCount = 0;
   const noteWindows = [];
   const { WindowManager } = load('windows/window-manager', {
+    './note-close-guard': load('windows/note-close-guard', { '../../shared/ipc-channels': {} }),
+    '../i18n': {},
     electron: {}, './note-window': { createNoteWindow(options) { created.push(options); const win = {
-      isDestroyed: () => false, focus() { focusCount++; }, once() {}, on() {},
+      isDestroyed: () => false, focus() { focusCount++; }, once() {}, on() {}, webContents: { id: noteWindows.length + 1 },
     }; noteWindows.push(win); return win; } },
     './quick-capture': {}, './main-window': {}, './group-manager': { GroupManager: class {
       async load() {} restackOf() {} } },

@@ -1,4 +1,6 @@
-import { BrowserWindow } from 'electron';
+import { BrowserWindow, dialog } from 'electron';
+import { NoteCloseGuard } from './note-close-guard';
+import { tMain } from '../i18n';
 import { createNoteWindow, NOTE_COLLAPSED_HEIGHT, setNoteWindowCollapsed } from './note-window';
 import { createQuickCaptureWindow } from './quick-capture';
 import { createMainWindow, flushMainWindowLayout, resetMainWindowLayout, setMainWindowLayoutEnabled } from './main-window';
@@ -15,6 +17,9 @@ export class WindowManager {
   private noteWindows = new Map<string, BrowserWindow>();
   /** 只保存快捷键新建窗口的初始化快照，领取或关窗即清理，不进入 URL/设置。 */
   private initialNoteContents = new Map<string, string>();
+  readonly noteCloseGuard = new NoteCloseGuard();
+  private flushBatch: Promise<void> | null = null;
+  private closeRequests = new Set<string>();
   private quickCaptureWindow: BrowserWindow | null = null;
   private mainWindow: BrowserWindow | null = null;
   /** 应用退出中：before-quit 置位，主窗口的 close 不再拦截为隐藏 */
@@ -115,6 +120,17 @@ export class WindowManager {
       },
     });
     this.noteWindows.set(id, win);
+    this.noteCloseGuard.add(win);
+    const senderId = win.webContents.id;
+    win.on('close', (event) => {
+      if (this.quitting || this.noteCloseGuard.isPrepared(win)) return;
+      event.preventDefault();
+      if (this.closeRequests.has(id)) return;
+      this.closeRequests.add(id);
+      this.noteCloseGuard.flush(win).then(() => {
+        if (!win.isDestroyed()) win.close();
+      }).catch(() => this.reportSaveFailure(win)).finally(() => this.closeRequests.delete(id));
+    });
     if (!noteId && initialContent?.trim()) this.initialNoteContents.set(id, initialContent);
     this.syncOpenNotes();
     // 新窗创建/show 可能把其他置顶便签踢出置顶带（见 reassertPinnedNotes）
@@ -135,6 +151,7 @@ export class WindowManager {
     // 最小化恢复归位：最小化不收拢（组留空位），恢复时滑回槽位
     win.on('restore', () => this.groupManager.restackOf(id));
     win.on('closed', () => {
+      this.noteCloseGuard.remove(senderId);
       this.noteWindows.delete(id);
       this.initialNoteContents.delete(id);
       // 成组预告残影清理：拖动方中途关窗，目标的高亮要收掉
@@ -281,12 +298,36 @@ export class WindowManager {
   }
 
   /** 关闭指定便签窗口。 */
-  closeNoteWindow(noteId: string): void {
+  closeNoteWindow(noteId: string, discard = false): void {
     const win = this.noteWindows.get(noteId);
     if (win && !win.isDestroyed()) {
-      win.close();
+      if (discard) win.destroy();
+      else win.close();
     }
-    this.noteWindows.delete(noteId);
+  }
+
+  reportSaveFailure(win?: BrowserWindow): void {
+    const options = { type: 'error' as const, title: 'PinSlip',
+      message: tMain('dialog.noteSaveFailed'), detail: tMain('dialog.noteSaveFailedDetail') };
+    if (win && !win.isDestroyed()) void dialog.showMessageBox(win, options);
+    else void dialog.showMessageBox(options);
+  }
+
+  /** 保存期间渲染层暂停编辑；全部成功才让调用方关窗/停服务。 */
+  flushAllNotes(): Promise<void> {
+    if (this.flushBatch) return this.flushBatch;
+    this.flushBatch = (async () => {
+      try {
+        do {
+          const results = await Promise.allSettled([...this.noteWindows.values()].map(win => this.noteCloseGuard.flush(win)));
+          if (results.some(result => result.status === 'rejected')) throw new Error('Notes not saved');
+        } while ([...this.noteWindows.values()].some(win => !this.noteCloseGuard.isPrepared(win)));
+      } catch (error) {
+        this.noteCloseGuard.resumeAll();
+        throw error;
+      } finally { this.flushBatch = null; }
+    })();
+    return this.flushBatch;
   }
 
   /** 关闭全部便签窗口（切换保险库时调用，旧数据的窗口全部失效）。

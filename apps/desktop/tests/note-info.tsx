@@ -33,12 +33,22 @@ let noteClipboard = false;
 let clipboardFailure = false;
 let initialContent: string | null = null;
 let initialReads = 0;
+let flushHandler: (() => Promise<void>) | null = null;
+let resumeHandler: (() => void) | null = null;
+let saveFailure = false;
+let holdSave: Promise<void> | null = null;
+let initialGate: Promise<void> | null = null;
+const closedNotes: Array<{ id: string; discard: boolean }> = [];
 const writes: Array<Record<string, unknown>> = [];
 let resets = 0;
 const layoutChanges: boolean[] = [];
 const requests: Array<{ path: string; method: string }> = [];
 (window as any).api = new Proxy({}, { get: (_, key: string) => {
   if (key === 'onNotesChanged') return (fn: () => void) => { listeners.add(fn); return () => listeners.delete(fn); };
+  if (key === 'onNoteFlushRequested') return (save: () => Promise<void>, resume: () => void) => {
+    flushHandler = save; resumeHandler = resume;
+    return () => { if (flushHandler === save) { flushHandler = null; resumeHandler = null; } };
+  };
   if (key.startsWith('on')) return () => () => {};
   if (key === 'getRuntimeInfo') return () => runtimeError ? Promise.reject(new Error('IPC unavailable')) : Promise.resolve(runtime);
   if (key === 'getAdvanced') return async () => ({ managerTheme: 'light', toolbarButtons: [], trayIcon: true, taskbarIcon: true,
@@ -50,7 +60,8 @@ const requests: Array<{ path: string; method: string }> = [];
     if (patch.blankNoteClipboard !== undefined) noteClipboard = patch.blankNoteClipboard;
     return { rememberManagerLayout: rememberLayout, blankNoteShortcut: noteShortcut, blankNoteClipboard: noteClipboard };
   };
-  if (key === 'takeInitialNoteContent') return async () => { initialReads++; const text = initialContent; initialContent = null; return text; };
+  if (key === 'takeInitialNoteContent') return async () => { initialReads++; const text = initialContent; initialContent = null; if (initialGate) await initialGate; return text; };
+  if (key === 'closeNote') return async (id: string, discard: boolean) => { closedNotes.push({ id, discard }); };
   if (key === 'resetManagerLayout') return async () => { if (layoutFailure) throw new Error('Layout unavailable'); resets++; };
   if (key === 'getUpdateState') return async () => ({ status: 'idle' });
   if (key === 'getGroupState') return async () => null;
@@ -62,6 +73,8 @@ window.fetch = async (url, init) => {
   requests.push({ path, method: init?.method ?? 'GET' });
   if (path.startsWith('/api/notes/') && init?.method === 'PUT') {
     const patch = JSON.parse(String(init.body)); writes.push(patch);
+    if (holdSave) await holdSave;
+    if (saveFailure) return new Response('{"error":"disk unavailable"}', { status: 503 });
     note = { ...baseNote, ...patch, title: 'Clipboard heading', titleManual: false };
     return new Response(JSON.stringify(note));
   }
@@ -242,6 +255,71 @@ async function refresh() {
     check(!requests.slice(start).some(r => r.method === 'GET' && r.path === '/api/notes/' + note.id), 'No missing-note load to wipe prefill');
     check(document.title === 'Clipboard heading', 'Existing title derivation used');
     await unmount();
+  });
+  const mountNote = async (text: string | null = null, missing = false) => {
+    await unmount(); note = { ...baseNote }; noteError = missing ? 404 : 0; initialContent = text; writes.length = 0;
+    root.render(<MemoryRouter initialEntries={['/note/' + note.id]}><Routes><Route path="/note/:noteId" element={<NoteView />} /></Routes></MemoryRouter>);
+    await until(() => flushHandler && document.querySelector('.ProseMirror'));
+  };
+  await test('Close flush: untouched saved/blank notes do not write; clipboard prefill saves immediately', async () => {
+    await mountNote(); await flushHandler!(); check(writes.length === 0, 'Opening and closing must not normalize/rewrite existing Markdown');
+    await mountNote(null, true); await flushHandler!(); check(writes.length === 0, 'Blank new note stays unsaved');
+    await mountNote('# Clipboard heading\n\nImmediate close', true);
+    await flushHandler!(); check(writes.length === 1 && String(writes[0].content).includes('Immediate close'), 'Prefill saved before debounce');
+    check(document.querySelector<HTMLElement>('.sticky-note')!.inert, 'Successful prepare pauses editing');
+    resumeHandler!(); check(!document.querySelector<HTMLElement>('.sticky-note')!.inert, 'Cancelled close resumes editing');
+  });
+  await test('Close flush captures typing before Milkdown listener and retries failed saves', async () => {
+    await mountNote();
+    const pm = document.querySelector<HTMLElement>('.ProseMirror')!;
+    pm.focus(); document.execCommand('selectAll'); document.execCommand('insertText', false, 'Last keystroke');
+    saveFailure = true;
+    let rejected = false; try { await flushHandler!(); } catch { rejected = true; }
+    check(rejected && !document.querySelector<HTMLElement>('.sticky-note')!.inert, 'Failure preserves window and releases editing');
+    check(String(writes.at(-1)!.content).includes('Last keystroke'), 'Real editor contents bypass listener delay');
+    saveFailure = false; await flushHandler!();
+    check(String(writes.at(-1)!.content).includes('Last keystroke'), 'Retry retains last input');
+  });
+  await test('Close requested during initial clipboard loading waits for content before saving', async () => {
+    await unmount(); noteError = 404; initialContent = 'Clipboard during startup'; writes.length = 0;
+    let release!: () => void; initialGate = new Promise<void>(resolve => { release = resolve; });
+    root.render(<MemoryRouter initialEntries={['/note/' + note.id]}><Routes><Route path="/note/:noteId" element={<NoteView />} /></Routes></MemoryRouter>);
+    await until(() => flushHandler);
+    let done = false; const closing = flushHandler!().then(() => { done = true; });
+    await wait(60); check(!done && writes.length === 0, 'Must await initial content');
+    initialGate = null; release(); await closing;
+    check(writes.length === 1 && writes[0].content === 'Clipboard during startup', 'Initialization text saved before close');
+    noteError = 0;
+  });
+  await test('Close flush waits for an old save then persists the newest editor contents', async () => {
+    await mountNote('# Clipboard heading\n\nOld snapshot', true);
+    let release!: () => void; holdSave = new Promise<void>(resolve => { release = resolve; });
+    await until(() => writes.length === 1);
+    const pm = document.querySelector<HTMLElement>('.ProseMirror')!;
+    pm.focus(); document.execCommand('selectAll'); document.execCommand('insertText', false, 'Newest snapshot');
+    let done = false; const closing = flushHandler!().then(() => { done = true; });
+    await wait(70); check(!done && writes.length === 1, 'Must wait for in-flight save');
+    holdSave = null; release(); await closing;
+    check(writes.length === 2 && String(writes[1].content).includes('Newest snapshot'), 'Last snapshot is saved last');
+    noteError = 0;
+  });
+  await test('Conflict resolution draft remains explicit and prevents close until saved', async () => {
+    await unmount(); noteError = 0; note = { ...baseNote, content: '<<<<<<< HEAD\nlocal\n=======\nremote\n>>>>>>> branch' };
+    root.render(<MemoryRouter initialEntries={['/note/' + note.id]}><Routes><Route path="/note/:noteId" element={<NoteView />} /></Routes></MemoryRouter>);
+    await until(() => flushHandler && document.querySelector('.sticky-note__conflict-textarea'));
+    const textarea = document.querySelector<HTMLTextAreaElement>('.sticky-note__conflict-textarea')!;
+    textarea.value += '\nUncommitted resolution';
+    writes.length = 0; let rejected = false; try { await flushHandler!(); } catch { rejected = true; }
+    check(rejected && writes.length === 0 && textarea.value.includes('Uncommitted resolution'), 'Draft preserved without silent save');
+  });
+  await test('Confirmed deletion bypasses close flush and cancels pending autosave', async () => {
+    await mountNote('Delete this unsaved prefill', true); closedNotes.length = 0;
+    document.querySelector<HTMLButtonElement>('[aria-label="' + i18n.t('note.more') + '"]')!.click(); await wait();
+    const button = Array.from(document.querySelectorAll<HTMLButtonElement>('.sticky-note__menu-item')).find(b => b.textContent?.trim() === i18n.t('note.deleteNote'))!;
+    check(button, 'Delete action exists'); button.click(); await wait(); button.click();
+    await until(() => closedNotes.length > 0); await wait(1050);
+    check(closedNotes[0].discard === true && writes.length === 0, 'No flush/upsert for deliberately deleted note');
+    noteError = 0;
   });
   // 留下中文长路径信息视图供截图与最小尺寸布局检查。
   note = { ...baseNote, folder: '工作/一个很长的项目目录/调研资料' };

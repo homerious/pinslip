@@ -47,9 +47,11 @@ export function registerIpcHandlers({ windowManager, goProcess }: IpcContext): v
     windowManager.takeInitialNoteContent(event.sender.id),
   );
 
-  ipcMain.handle(IPC.WindowClose, (_event, noteId: string) => {
-    windowManager.closeNoteWindow(noteId);
+  ipcMain.handle(IPC.WindowClose, (_event, noteId: string, discard?: boolean) => {
+    windowManager.closeNoteWindow(noteId, discard === true);
   });
+  ipcMain.on(IPC.NoteSaveReady, (event, ready: boolean) => windowManager.noteCloseGuard.ready(event.sender.id, ready === true));
+  ipcMain.on(IPC.NoteFlushResult, (event, id: number, ok: boolean) => windowManager.noteCloseGuard.finish(event.sender.id, id, ok === true));
 
   // 速记窗失焦豁免判定：渲染层 blur 时查询 DevTools 是否开着（开着则不关窗）
   ipcMain.handle(IPC.WindowDevToolsOpen, (event) => {
@@ -123,8 +125,10 @@ export function registerIpcHandlers({ windowManager, goProcess }: IpcContext): v
     if (res.canceled || res.filePaths.length === 0) return null;
 
     const dir = res.filePaths[0];
-    setVaultPath(dir);
+    try { await windowManager.flushAllNotes(); }
+    catch { windowManager.reportSaveFailure(); return null; }
     windowManager.closeAllNoteWindows(); // 旧 vault 的便签窗口全部失效
+    setVaultPath(dir);
     const goPort = await goProcess.restart();
     // 组注册表切到新 vault（旧 vault 的组关系对新数据无意义）
     await windowManager.reloadGroups().catch((err) => console.error('[group] reload failed:', err));
@@ -219,8 +223,6 @@ export function registerIpcHandlers({ windowManager, goProcess }: IpcContext): v
       patch.quickCaptureShortcut !== before.quickCaptureShortcut
     ) {
       rebindQuickCaptureShortcut(patch.quickCaptureShortcut);
-      // 托盘菜单速记项显示当前键位：重绑成功后即时重建（无托盘时 no-op）
-      refreshTrayMenu();
     }
     const autoStartEnabled = patch.autoStartHidden !== undefined ? getAutoStart() : false;
     try {
@@ -240,6 +242,8 @@ export function registerIpcHandlers({ windowManager, goProcess }: IpcContext): v
       if (after.trayIcon) createTray(windowManager);
       else destroyTray();
     }
+    // 菜单从 getAdvanced 读键位，必须等新设置持久化后再重建。
+    if (before.quickCaptureShortcut !== after.quickCaptureShortcut) refreshTrayMenu();
     if (before.taskbarIcon !== after.taskbarIcon) {
       windowManager.setAllWindowsSkipTaskbar(!after.taskbarIcon);
     }
@@ -261,8 +265,11 @@ export function registerIpcHandlers({ windowManager, goProcess }: IpcContext): v
   ipcMain.handle(IPC.UpdateCheck, () => {
     checkForUpdate();
   });
-  ipcMain.handle(IPC.UpdateInstall, () => {
-    quitAndInstall();
+  ipcMain.handle(IPC.UpdateInstall, async () => {
+    if (!app.isPackaged || getUpdateState().status !== 'downloaded') return;
+    try { await windowManager.flushAllNotes(); quitAndInstall(); }
+    catch { windowManager.reportSaveFailure(); }
+    finally { windowManager.noteCloseGuard.resumeAll(); }
   });
   ipcMain.handle(IPC.UpdateGetState, () => getUpdateState());
   // 手动下载兜底：URL 固定在主进程，渲染层不能传参，避免 openExternal 被滥用成开放跳转

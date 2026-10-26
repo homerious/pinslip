@@ -8,7 +8,23 @@ const api: ElectronAPI = {
   getRuntimeInfo: () => ipcRenderer.invoke(IPC.RuntimeInfo),
   createNote: (noteId, folder) => ipcRenderer.invoke(IPC.WindowCreate, noteId, folder),
   takeInitialNoteContent: () => ipcRenderer.invoke(IPC.NoteTakeInitialContent),
-  closeNote: (noteId) => ipcRenderer.invoke(IPC.WindowClose, noteId),
+  closeNote: (noteId, discard) => ipcRenderer.invoke(IPC.WindowClose, noteId, discard),
+  onNoteFlushRequested: (save, resume) => {
+    const listener = (_event: Electron.IpcRendererEvent, requestId: number): void => {
+      Promise.resolve().then(save).then(
+        () => ipcRenderer.send(IPC.NoteFlushResult, requestId, true),
+        () => ipcRenderer.send(IPC.NoteFlushResult, requestId, false),
+      );
+    };
+    ipcRenderer.on(IPC.NoteFlush, listener);
+    ipcRenderer.on(IPC.NoteResumeEditing, resume);
+    ipcRenderer.send(IPC.NoteSaveReady, true);
+    return () => {
+      ipcRenderer.removeListener(IPC.NoteFlush, listener);
+      ipcRenderer.removeListener(IPC.NoteResumeEditing, resume);
+      ipcRenderer.send(IPC.NoteSaveReady, false);
+    };
+  },
   isDevToolsOpen: () => ipcRenderer.invoke(IPC.WindowDevToolsOpen),
   setNotePin: (noteId, pinned) => ipcRenderer.invoke(IPC.WindowSetPin, noteId, pinned),
   setNoteCollapsed: (noteId, collapsed) =>

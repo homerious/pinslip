@@ -40,6 +40,8 @@
     "serviceDown": "ローカルサービスに接続できません：{{message}}"
   },
   "dialog": {
+    "noteSaveFailed": "ノートを保存できなかったため、終了を中止しました",
+    "noteSaveFailedDetail": "ウィンドウと内容は保持されています。確認して再試行してください。競合の解決中は、先に解決内容を保存してください。",
     "chooseVaultTitle": "ノートの保存場所を選択",
     "chooseVaultButton": "このフォルダーを選択",
     "exportSaveTitle": "ノート画像の書き出し",
