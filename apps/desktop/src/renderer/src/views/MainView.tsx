@@ -61,7 +61,10 @@ import { apiErrorCode, apiErrorMessage } from '../api/client';
 import { shortenFolder } from '../utils/path';
 import { COLORS, readLastNoteColor } from '../utils/colors';
 import { formatRelativeTime } from '../utils/time';
-import { toCompactMarkdown } from '../utils/compact-markdown';
+import { copyText } from '../utils/copy-text';
+import { useCopyFormat } from '../hooks/use-copy-format';
+import CopyFormatMenu, { type CopyMenuAnchor } from '../components/CopyFormatMenu';
+import type { CopyAllFormat } from '@shared/types';
 import { highlightTerms, windowAroundMatch } from '../components/search-highlight';
 import {
   applyLanguagePreference,
@@ -239,6 +242,12 @@ export default function MainView() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   /** 列表项「复制全部」的 ✓ 反馈：最近复制成功的便签 id（1.2s 后复位） */
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [copyErrorId, setCopyErrorId] = useState<string | null>(null);
+  const [copyFormat, changeCopyFormat] = useCopyFormat();
+  const [copyFormatBusy, setCopyFormatBusy] = useState(false);
+  const [copyFormatError, setCopyFormatError] = useState(false);
+  const [copyMenu, setCopyMenu] = useState<{ anchor: CopyMenuAnchor; note: NoteMeta } | null>(null);
+  const closeCopyMenu = useCallback(() => setCopyMenu(null), []);
   /** 移动弹层的路径筛选 */
   const [moveFilter, setMoveFilter] = useState('');
   // 列表视图排序：按更新/创建时间 × 升/倒序（默认更新倒序，与 API 顺序一致）
@@ -1137,18 +1146,19 @@ export default function MainView() {
   const openNote = (id: string) => window.api.createNote(id);
   const createNote = () => window.api.createNote();
 
-  /** 列表项「复制全部」：拉全文 → 紧凑 markdown（语法保留、折叠块分隔空行、
-   *  保留有意空行，与便签复制/Ctrl+C 同口径）→ 写剪贴板；✓ 反馈 1.2s */
-  const copyAllNote = useCallback((note: NoteMeta) => {
+  /** 列表项「复制全部」：拉取全文，按默认或临时指定格式写剪贴板；✓ 反馈 1.2s。 */
+  const copyAllNote = useCallback((note: NoteMeta, format: CopyAllFormat = copyFormat) => {
+    setCopyMenu(null);
+    setCopyErrorId(null);
     notesApi
       .get(note.id)
-      .then((full) => navigator.clipboard.writeText(toCompactMarkdown(full.content)))
+      .then((full) => navigator.clipboard.writeText(copyText(full.content, format)))
       .then(() => {
         setCopiedId(note.id);
         setTimeout(() => setCopiedId((cur) => (cur === note.id ? null : cur)), 1200);
       })
-      .catch(() => {});
-  }, []);
+      .catch(() => { setCopiedId(null); setCopyErrorId(note.id); });
+  }, [copyFormat]);
 
   const removeNote = (id: string) => {
     notesApi
@@ -1268,13 +1278,25 @@ export default function MainView() {
       ) : null}
       <button
         className="note-list__copy-all"
-        title={copiedId === note.id ? t('note.copied') : t('note.copyAll')}
+        title={copyErrorId === note.id ? t('copyFormat.failed') : copiedId === note.id ? t('note.copied') : t('copyFormat.tip', { format: t('copyFormat.' + copyFormat) })}
+        aria-label={t('note.copyAll')}
+        aria-haspopup="menu"
+        aria-expanded={copyMenu?.note.id === note.id}
+        onContextMenu={(event) => {
+          event.preventDefault(); event.stopPropagation();
+          setCopyMenu({ note, anchor: { element: event.currentTarget, x: event.clientX || undefined, y: event.clientY || undefined } });
+        }}
+        onKeyDown={(event) => {
+          if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) {
+            event.preventDefault(); event.stopPropagation(); setCopyMenu({ note, anchor: { element: event.currentTarget } });
+          }
+        }}
         onClick={(e) => {
           e.stopPropagation();
           copyAllNote(note);
         }}
       >
-        {copiedId === note.id ? <CheckIcon /> : <CopyIcon />}
+        {copyErrorId === note.id ? <WarningIcon /> : copiedId === note.id ? <CheckIcon /> : <CopyIcon />}
       </button>
       <button
         className="note-list__open-note"
@@ -2084,6 +2106,23 @@ export default function MainView() {
                 </div>
                 <div className="settings-panel__hint">{t('settings.managerThemeHint')}</div>
                 <div className="settings-panel__row">
+                  <CopyIcon className="settings-panel__row-icon" />
+                  <span className="settings-panel__label">{t('copyFormat.defaultLabel')}</span>
+                  <select className="settings-panel__select" aria-label={t('copyFormat.defaultLabel')}
+                    value={copyFormat} disabled={copyFormatBusy}
+                    onChange={async (event) => {
+                      setCopyFormatBusy(true); setCopyFormatError(false);
+                      try { await changeCopyFormat(event.target.value as CopyAllFormat); }
+                      catch { setCopyFormatError(true); }
+                      finally { setCopyFormatBusy(false); }
+                    }}>
+                    <option value="markdown">{t('copyFormat.markdown')}</option>
+                    <option value="plain">{t('copyFormat.plain')}</option>
+                  </select>
+                </div>
+                <div className="settings-panel__hint">{t('copyFormat.defaultHint')}</div>
+                {copyFormatError && <div className="settings-panel__error" role="alert">{t('copyFormat.settingFailed')}</div>}
+                <div className="settings-panel__row">
                   <KeyboardIcon className="settings-panel__row-icon" />
                   <span className="settings-panel__label">{t('settings.blankNoteShortcut')}</span>
                   <select
@@ -2565,6 +2604,7 @@ export default function MainView() {
           </div>
         </>
       )}
+      {copyMenu && <CopyFormatMenu anchor={copyMenu.anchor} onSelect={format => copyAllNote(copyMenu.note, format)} onClose={closeCopyMenu} />}
     </div>
   );
 }

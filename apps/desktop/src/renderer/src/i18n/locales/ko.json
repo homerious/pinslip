@@ -39,6 +39,18 @@
   "error": {
     "serviceDown": "로컬 서비스에 연결할 수 없습니다: {{message}}"
   },
+  "copyFormat": {
+    "choose": "복사 형식 선택",
+    "asMarkdown": "Markdown으로 복사",
+    "asPlain": "일반 텍스트로 복사",
+    "markdown": "Markdown",
+    "plain": "일반 텍스트",
+    "tip": "전체 복사 ({{format}}) · 우클릭으로 형식 선택",
+    "failed": "복사하지 못했습니다. 다시 시도하세요.",
+    "defaultLabel": "기본 복사 형식",
+    "defaultHint": "관리 창과 메모의 전체 복사에 적용됩니다. 우클릭 선택은 한 번만 적용되며 Ctrl+C는 그대로입니다.",
+    "settingFailed": "저장하지 못했습니다. 이전 설정이 유지됩니다. 다시 시도하세요."
+  },
   "dialog": {
     "noteSaveFailed": "메모를 저장하지 못해 닫기를 취소했습니다",
     "noteSaveFailedDetail": "창과 내용은 유지됩니다. 메모를 확인한 후 다시 시도하세요. 충돌 해결 초안은 먼저 직접 저장하세요.",

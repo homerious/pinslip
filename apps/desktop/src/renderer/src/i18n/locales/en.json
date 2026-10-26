@@ -39,6 +39,18 @@
   "error": {
     "serviceDown": "Cannot connect to the local service: {{message}}"
   },
+  "copyFormat": {
+    "choose": "Choose copy format",
+    "asMarkdown": "Copy as Markdown",
+    "asPlain": "Copy as plain text",
+    "markdown": "Markdown",
+    "plain": "Plain text",
+    "tip": "Copy all ({{format}}) · Right-click for formats",
+    "failed": "Copy failed. Please retry.",
+    "defaultLabel": "Default copy format",
+    "defaultHint": "Used by Copy all in the manager and notes. Right-click for a one-time choice. Ctrl+C is unchanged.",
+    "settingFailed": "Could not save. Your previous setting is retained. Please retry."
+  },
   "dialog": {
     "noteSaveFailed": "Notes could not be saved. Closing was cancelled.",
     "noteSaveFailedDetail": "Your windows and content have been kept open. Check your notes and retry. Save any conflict resolution draft explicitly first.",

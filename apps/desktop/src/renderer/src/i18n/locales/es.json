@@ -39,6 +39,18 @@
   "error": {
     "serviceDown": "No se puede conectar con el servicio local: {{message}}"
   },
+  "copyFormat": {
+    "choose": "Elegir formato de copia",
+    "asMarkdown": "Copiar como Markdown",
+    "asPlain": "Copiar como texto sin formato",
+    "markdown": "Markdown",
+    "plain": "Texto sin formato",
+    "tip": "Copiar todo ({{format}}) · Clic derecho para formatos",
+    "failed": "No se pudo copiar. Vuelve a intentarlo.",
+    "defaultLabel": "Formato de copia predeterminado",
+    "defaultHint": "Se usa en Copiar todo del gestor y las notas. El clic derecho elige solo para esta vez. Ctrl+C no cambia.",
+    "settingFailed": "No se pudo guardar. Se conserva el ajuste anterior."
+  },
   "dialog": {
     "noteSaveFailed": "No se pudieron guardar las notas. Se canceló el cierre.",
     "noteSaveFailedDetail": "Las ventanas y su contenido se conservan. Revisa las notas y vuelve a intentarlo. Guarda primero cualquier borrador de resolución de conflictos.",

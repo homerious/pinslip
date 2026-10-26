@@ -39,6 +39,18 @@
   "error": {
     "serviceDown": "Impossible de joindre le service local : {{message}}"
   },
+  "copyFormat": {
+    "choose": "Choisir le format de copie",
+    "asMarkdown": "Copier en Markdown",
+    "asPlain": "Copier en texte brut",
+    "markdown": "Markdown",
+    "plain": "Texte brut",
+    "tip": "Tout copier ({{format}}) · Clic droit pour les formats",
+    "failed": "Échec de la copie. Réessayez.",
+    "defaultLabel": "Format de copie par défaut",
+    "defaultHint": "S’applique à « Tout copier » dans le gestionnaire et les notes. Le clic droit choisit pour cette fois. Ctrl+C reste inchangé.",
+    "settingFailed": "Échec de l’enregistrement. Le réglage précédent est conservé."
+  },
   "dialog": {
     "noteSaveFailed": "Les notes n’ont pas pu être enregistrées. Fermeture annulée.",
     "noteSaveFailedDetail": "Les fenêtres et leur contenu sont conservés. Vérifiez vos notes et réessayez. Enregistrez d’abord tout brouillon de résolution de conflit.",

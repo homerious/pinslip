@@ -47,7 +47,11 @@ import { syncApi } from '../api/sync';
 import { hasConflictMarkers } from '../utils/conflict';
 import { COLORS, LAST_NOTE_COLOR_KEY, readLastNoteColor } from '../utils/colors';
 import { formatRelativeTime } from '../utils/time';
-import { toCompactMarkdown } from '../utils/compact-markdown';
+import { copyText } from '../utils/copy-text';
+import { useCopyFormat } from '../hooks/use-copy-format';
+import CopyFormatMenu, { type CopyMenuAnchor } from '../components/CopyFormatMenu';
+import AnchoredMenu from '../components/AnchoredMenu';
+import type { CopyAllFormat } from '@shared/types';
 import { shortenFolder } from '../utils/path';
 import { COLLAPSE_ANIM_MS } from '@shared/anim';
 import { sanitizeToolbarButtons, TOOLBAR_BUTTON_DEFAULT_ORDER, TOOLBAR_DISPLAY_LIMIT } from '@shared/toolbar';
@@ -172,6 +176,8 @@ export default function NoteView() {
   const [findReplaceOpen, setFindReplaceOpen] = useState(false);
   /** 导出为图片：菜单开关 + 进行中断言（主进程同一时间只允许一次导出）+ 复制成功 ✓ 反馈 */
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const exportButtonRef = useRef<HTMLButtonElement>(null);
+  const closeExportMenu = useCallback(() => setExportMenuOpen(false), []);
   const [exportBusy, setExportBusy] = useState(false);
   const [exported, setExported] = useState(false);
   /** ＋新建落点菜单（便签在子文件夹时才有：同文件夹 / 根目录） */
@@ -190,6 +196,10 @@ export default function NoteView() {
   const [hiddenAux, setHiddenAux] = useState(0);
   /** 复制全部成功反馈（图标短暂变 ✓） */
   const [copied, setCopied] = useState(false);
+  const [copyError, setCopyError] = useState(false);
+  const [copyFormat] = useCopyFormat();
+  const [copyMenu, setCopyMenu] = useState<CopyMenuAnchor | null>(null);
+  const closeCopyMenu = useCallback(() => setCopyMenu(null), []);
   /** 便签组态：null = 不在组内；角色驱动 CSS 拼框（首/中/尾圆角/描边/阴影） */
   const [groupState, setGroupState] = useState<GroupState | null>(null);
   /** 成组预告高亮：拖动中与目标卡片重叠 ≥50% 时两张同时点亮，拖开即消 */
@@ -851,19 +861,19 @@ export default function NoteView() {
     [exportBusy, color, displayTitle, tags],
   );
 
-  /** 复制全部正文到剪贴板；成功后图标短暂变 ✓ 反馈。
-   *  输出紧凑 markdown（语法保留、块间单换行、有意空行保留），
-   *  与 Ctrl+C、主界面列表「复制全部」同一口径（toCompactMarkdown） */
-  const copyAll = useCallback(() => {
-    const cleaned = toCompactMarkdown(content);
+  /** 按默认或临时指定格式复制当前正文；成功后图标短暂变 ✓ 反馈。 */
+  const copyAll = useCallback((format: CopyAllFormat = copyFormat) => {
+    setCopyMenu(null); setMenuOpen(false); setCopyError(false); setCopied(false);
+    const current = editorRef.current?.getPendingMarkdown() ?? contentRef.current;
+    const cleaned = copyText(current, format);
     void navigator.clipboard
       .writeText(cleaned)
       .then(() => {
         setCopied(true);
         setTimeout(() => setCopied(false), 1200);
       })
-      .catch(() => {});
-  }, [content]);
+      .catch(() => { setCopyError(true); setToast(t('copyFormat.failed')); });
+  }, [copyFormat, t]);
 
   // 置顶切换：窗口行为立即生效（IPC）。
   // 已存在的笔记立即持久化 pin；空白新便签只影响当前窗口，不落盘。
@@ -1181,6 +1191,10 @@ export default function NoteView() {
     .filter((b): b is EditButtonDef => !!b);
   const displayedEditButtons = orderedEditButtons.slice(0, TOOLBAR_DISPLAY_LIMIT);
   const visibleEditButtons = displayedEditButtons.slice(0, displayedEditButtons.length - hiddenEdit);
+  const exportButtonVisible = !collapsed && visibleEditButtons.some(button => button.key === 'export');
+  useLayoutEffect(() => {
+    if (!exportButtonVisible) setExportMenuOpen(false);
+  }, [exportButtonVisible]);
   /** 不在可视集的按钮（超出 8 位 + 被宽度收敛藏掉的尾部）：⋯ 菜单按 id 找回 */
   const overflowEditButtons = orderedEditButtons.filter((b) => !visibleEditButtons.includes(b));
 
@@ -1536,11 +1550,14 @@ export default function NoteView() {
           {visibleEditButtons.map((b) => (
             <button
               key={b.key}
+              ref={b.key === 'export' ? exportButtonRef : undefined}
               className="sticky-note__btn"
               data-tip={b.tip}
               data-tip-place="top"
               data-tip-align="left"
               aria-label={b.tip}
+              aria-haspopup={b.key === 'export' ? 'menu' : undefined}
+              aria-expanded={b.key === 'export' ? exportMenuOpen : undefined}
               disabled={b.disabled}
               onMouseDown={(e) => e.preventDefault()}
               onClick={b.act}
@@ -1623,13 +1640,25 @@ export default function NoteView() {
           {hiddenAux < 1 && (
             <button
               className="sticky-note__btn"
-              data-tip={copied ? t('note.copied') : t('note.copyAll')}
+              data-tip={copyError ? t('copyFormat.failed') : copied ? t('note.copied') : t('copyFormat.tip', { format: t('copyFormat.' + copyFormat) })}
               data-tip-place="top"
               data-tip-align="right"
               aria-label={t('note.copyAll')}
-              onClick={copyAll}
+              data-tip-wrap=""
+              aria-haspopup="menu"
+              aria-expanded={!!copyMenu}
+              onContextMenu={(event) => {
+                event.preventDefault(); event.stopPropagation(); setMenuOpen(false);
+                setCopyMenu({ element: event.currentTarget, x: event.clientX || undefined, y: event.clientY || undefined });
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) {
+                  event.preventDefault(); setMenuOpen(false); setCopyMenu({ element: event.currentTarget });
+                }
+              }}
+              onClick={() => copyAll()}
             >
-              {copied ? <CheckIcon /> : <CopyIcon />}
+              {copyError ? <WarningCircleFillIcon /> : copied ? <CheckIcon /> : <CopyIcon />}
             </button>
           )}
           <button
@@ -1837,11 +1866,13 @@ export default function NoteView() {
         </div>
       )}
 
-      {/* 导出为图片菜单(工具栏导出按钮触发;左对齐锚定编辑区) */}
-      {exportMenuOpen && (
-        <div className="sticky-note__menu sticky-note__menu--export">
+      {/* 图片导出跟随实际按钮位置，支持用户重排工具栏。 */}
+      {exportMenuOpen && exportButtonRef.current && (
+        <AnchoredMenu anchor={{ element: exportButtonRef.current }} label={t('note.exportImage')}
+          className="sticky-note__menu--export" onClose={closeExportMenu}>
           <button
             className="sticky-note__menu-item"
+            role="menuitem"
             disabled={exportBusy}
             onClick={() => doExport('copy')}
           >
@@ -1850,20 +1881,27 @@ export default function NoteView() {
           </button>
           <button
             className="sticky-note__menu-item"
+            role="menuitem"
             disabled={exportBusy}
             onClick={() => doExport('save')}
           >
             <FloppyDiskIcon />
             {t('note.exportSave')}
           </button>
-        </div>
+        </AnchoredMenu>
       )}
 
       {/* ⋯ 菜单（不在可视集的按钮在这里按 id 动态找回：超出展示上限 8 个的
           位次 + 被宽度收敛藏掉的尾部；导出保持「复制为图片/另存为 PNG」
           两条目特殊形态，缩放的百分比/上限态文案照旧） */}
       {menuOpen && (
-        <div className="sticky-note__menu">
+        <div className="sticky-note__menu sticky-note__menu--more">
+          <button className="sticky-note__menu-item" onClick={() => copyAll('markdown')}>
+            <CopyIcon />{t('copyFormat.asMarkdown')}
+          </button>
+          <button className="sticky-note__menu-item" onClick={() => copyAll('plain')}>
+            <CopyIcon />{t('copyFormat.asPlain')}
+          </button>
           {overflowEditButtons.map((b) => {
             if (b.key === 'export') {
               return (
@@ -1992,6 +2030,7 @@ export default function NoteView() {
           onClose={() => setInfoOpen(false)}
         />
       )}
+      {copyMenu && <CopyFormatMenu anchor={copyMenu} onSelect={copyAll} onClose={closeCopyMenu} />}
       </div>
     </>
   );

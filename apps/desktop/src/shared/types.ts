@@ -166,9 +166,13 @@ export type GlobalShortcutKey =
   | 'ctrl+shift+alt+n'
   | 'ctrl+alt+insert';
 
+export type CopyAllFormat = 'markdown' | 'plain';
+
 /** 高级设置选项（应用设置 settings.json 的 advanced 对象，main/渲染共用）。
  *  全部字段可选且有缺省值（缺省 = 简洁模型现状），新增选项 = 加字段，零新增 IPC */
 export interface AdvancedSettings {
+  /** 全文复制的默认格式，缺省 markdown；不影响选区 Ctrl+C。 */
+  copyAllFormat?: CopyAllFormat;
   /** 记住管理器尺寸和位置（缺省 false），关闭清除记忆但不移动当前窗口 */
   rememberManagerLayout?: boolean;
   /** 开机启动时隐藏管理器（缺省 false；手动启动不受影响） */

@@ -1060,11 +1060,10 @@ input.sticky-note__title-input {
   z-index: 40;
 }
 
-/* 导出为图片菜单：左对齐锚定编辑区（导出按钮在左区末尾），
-   其余与 ⋯ 菜单同款 */
-.sticky-note__menu--export {
-  right: auto;
-  left: 6px;
+.sticky-note__menu--more {
+  max-width: calc(100vw - 44px);
+  max-height: calc(100vh - 56px);
+  overflow-y: auto;
 }
 
 /* ===== 便签内搜索条（Ctrl+F）：编辑器区域右上角浮层卡片（不贴顶） ===== */
@@ -1913,6 +1912,33 @@ input.sticky-note__title-input {
 
 .settings-panel__dependent {
   padding-left: 23px;
+}
+
+.anchored-menu {
+  position: fixed;
+  z-index: 10000;
+  right: auto;
+  bottom: auto;
+  width: max-content;
+  max-width: calc(100vw - 16px);
+  max-height: calc(100vh - 16px);
+  overflow-y: auto;
+  -webkit-app-region: no-drag;
+}
+
+.anchored-menu .sticky-note__menu-item {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.anchored-menu .sticky-note__menu-item svg {
+  flex-shrink: 0;
+}
+
+.anchored-menu .sticky-note__menu-item:focus-visible {
+  background: rgba(0, 0, 0, 0.06);
+  outline: 1px solid rgba(0, 0, 0, 0.24);
+  outline-offset: -1px;
 }
 
 .settings-panel__label {

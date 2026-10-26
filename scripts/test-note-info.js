@@ -46,8 +46,8 @@ async function run() {
   app.setPath('userData', path.join(temp, 'profile'));
   app.disableHardwareAcceleration();
   await app.whenReady();
-  const win = new BrowserWindow({ show: false, width: 340, height: 420, frame: false,
-    webPreferences: { backgroundThrottling: false } });
+  const win = new BrowserWindow({ show: false, width: 640, height: 420, frame: false,
+    webPreferences: { backgroundThrottling: false, offscreen: !!process.env.PINSLIP_INFO_SCREENSHOTS } });
   try {
     await win.loadFile(path.join(temp, 'dist', path.basename(temp), 'index.html'));
     const results = await win.webContents.executeJavaScript('window.runNoteInfoTests()');
@@ -55,10 +55,11 @@ async function run() {
     assert(results.length > 0 && results.every((result) => !result.error), 'Note info regression failed');
     const capture = async (name) => {
       if (!process.env.PINSLIP_INFO_SCREENSHOTS) return;
+      win.webContents.invalidate();
       await new Promise((resolve) => setTimeout(resolve, 200)); // 等待隐藏窗口提交新的合成帧。
       const dir = path.resolve(process.env.PINSLIP_INFO_SCREENSHOTS);
       fs.mkdirSync(dir, { recursive: true });
-      fs.writeFileSync(path.join(dir, name + '.png'), (await win.webContents.capturePage()).toPNG());
+      fs.writeFileSync(path.join(dir, name + '.png'), (await win.webContents.capturePage(undefined, { stayHidden: true, stayAwake: true })).toPNG());
     };
     win.setContentSize(220, 160);
     await new Promise((resolve) => setTimeout(resolve, 150));
@@ -76,6 +77,19 @@ async function run() {
     win.setContentSize(320, 600);
     await win.webContents.executeJavaScript('window.showNoteListPreview()');
     await capture('note-list-ids');
+    for (const lang of ['zh-CN', 'de']) {
+      win.setContentSize(640, 420);
+      await new Promise(resolve => setTimeout(resolve, 150));
+      await win.webContents.executeJavaScript(`window.showExportMenuPreview(${JSON.stringify(lang)}, true)`);
+      await capture('export-menu-first-' + lang);
+      await win.webContents.executeJavaScript(`window.showExportMenuPreview(${JSON.stringify(lang)}, false)`);
+      await capture('export-menu-last-' + lang);
+      win.setContentSize(220, 160);
+      await win.webContents.executeJavaScript('window.checkHiddenExportMenu()');
+      await win.webContents.executeJavaScript(`window.showExportMenuPreview(${JSON.stringify(lang)}, true)`);
+      await capture('export-menu-minimum-' + lang);
+    }
+    win.setContentSize(320, 600);
     if (process.env.PINSLIP_INFO_SCREENSHOTS) {
       for (const lang of ['zh-CN', 'de']) {
         await win.webContents.executeJavaScript(`window.showManagerLayoutSettings(${JSON.stringify(lang)})`);
@@ -89,6 +103,20 @@ async function run() {
         await new Promise((resolve) => setTimeout(resolve, 100));
         win.setContentSize(320, 600);
         await capture('clipboard-note-settings-' + lang);
+        await win.webContents.executeJavaScript(`window.showCopySettingPreview(${JSON.stringify(lang)})`);
+        win.setContentSize(321, 600);
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        win.setContentSize(320, 600);
+        await capture('copy-format-setting-' + lang);
+        win.setContentSize(220, 160);
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        await win.webContents.executeJavaScript(`window.showCopyMenuPreview(${JSON.stringify(lang)})`);
+        assert(await win.webContents.executeJavaScript('!!document.querySelector(".copy-format-menu")'), 'Copy preview stays open');
+        await capture('copy-format-menu-minimum-' + lang);
+        assert(await win.webContents.executeJavaScript('!!document.querySelector(".copy-format-menu")'), 'Capture retains the copy menu');
+        await win.webContents.executeJavaScript(`window.showNoteMorePreview(${JSON.stringify(lang)})`);
+        await capture('copy-format-more-minimum-' + lang);
+        win.setContentSize(320, 600);
       }
     }
     console.log(`Note info: ${results.length}/${results.length} passed; minimum-size layout passed (Electron ${process.versions.electron})`);

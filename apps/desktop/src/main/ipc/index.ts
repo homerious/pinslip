@@ -202,6 +202,9 @@ export function registerIpcHandlers({ windowManager, goProcess }: IpcContext): v
   // 返回补齐后的完整对象
   ipcMain.handle(IPC.SettingsGetAdvanced, () => getAdvanced());
   ipcMain.handle(IPC.SettingsSetAdvanced, (_event, patch: AdvancedSettings) => {
+    if (patch.copyAllFormat !== undefined && patch.copyAllFormat !== 'markdown' && patch.copyAllFormat !== 'plain') {
+      throw new TypeError('Invalid copyAllFormat');
+    }
     if (patch.rememberManagerLayout !== undefined && typeof patch.rememberManagerLayout !== 'boolean') {
       throw new TypeError('rememberManagerLayout must be boolean');
     }

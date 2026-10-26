@@ -21,6 +21,7 @@ interface AppSettings {
 
 /** 高级设置各字段缺省值（= 简洁模型现状）；新增选项必须在此登记缺省 */
 const ADVANCED_DEFAULTS: ResolvedAdvancedSettings = {
+  copyAllFormat: 'markdown',
   rememberManagerLayout: false,
   autoStartHidden: false,
   trayIcon: true,
@@ -92,6 +93,7 @@ export function getAdvanced(): ResolvedAdvancedSettings {
   const merged = { ...ADVANCED_DEFAULTS, ...(load().advanced ?? {}) };
   merged.rememberManagerLayout = merged.rememberManagerLayout === true;
   merged.blankNoteClipboard = merged.blankNoteClipboard === true;
+  merged.copyAllFormat = merged.copyAllFormat === 'plain' ? 'plain' : 'markdown';
   merged.toolbarButtons = sanitizeToolbarButtons(merged.toolbarButtons);
   return merged;
 }
@@ -106,8 +108,8 @@ export function setAdvanced(patch: AdvancedSettings): void {
   const previous = load().advanced;
   load().advanced = { ...(previous ?? {}), ...clean };
   try {
-    // 剪贴板子选项保存失败必须可回报 UI，不能显示已保存却在重启后丢失。
-    persist(patch.blankNoteClipboard !== undefined);
+    // 剪贴板与复制格式保存失败必须回报 UI，不能显示已保存却在重启后丢失。
+    persist(patch.blankNoteClipboard !== undefined || patch.copyAllFormat !== undefined);
   } catch (error) {
     load().advanced = previous;
     throw error;

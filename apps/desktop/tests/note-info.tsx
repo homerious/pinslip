@@ -5,6 +5,8 @@ import NoteInfo from '../src/renderer/src/components/NoteInfo';
 import MainView from '../src/renderer/src/views/MainView';
 import NoteView from '../src/renderer/src/views/NoteView';
 import i18n from '../src/renderer/src/i18n';
+import { copyText, toPlainText } from '../src/renderer/src/utils/copy-text';
+import { TOOLBAR_BUTTON_DEFAULT_ORDER } from '../src/shared/toolbar';
 import '../src/renderer/src/styles/global.css';
 
 const root = createRoot(document.getElementById('root')!);
@@ -31,6 +33,18 @@ let layoutFailure = false;
 let noteShortcut = 'off';
 let noteClipboard = false;
 let clipboardFailure = false;
+let copyDefault = 'markdown';
+let copySettingFailure = false;
+let copyWriteFailure = false;
+const copiedTexts: string[] = [];
+const advancedListeners = new Set<(value: any) => void>();
+let menuToolbarOrder: string[] = [];
+const advanced = () => ({ managerTheme: 'light', toolbarButtons: menuToolbarOrder, trayIcon: true, taskbarIcon: true,
+  rememberManagerLayout: rememberLayout, blankNoteShortcut: noteShortcut, blankNoteClipboard: noteClipboard,
+  quickCaptureShortcut: 'ctrl+shift+n', copyAllFormat: copyDefault });
+Object.defineProperty(navigator, 'clipboard', { configurable: true, value: {
+  writeText: async (text: string) => { if (copyWriteFailure) throw new Error('Clipboard unavailable'); copiedTexts.push(text); },
+} });
 let initialContent: string | null = null;
 let initialReads = 0;
 let flushHandler: (() => Promise<void>) | null = null;
@@ -45,20 +59,21 @@ const layoutChanges: boolean[] = [];
 const requests: Array<{ path: string; method: string }> = [];
 (window as any).api = new Proxy({}, { get: (_, key: string) => {
   if (key === 'onNotesChanged') return (fn: () => void) => { listeners.add(fn); return () => listeners.delete(fn); };
+  if (key === 'onAdvancedChanged') return (fn: (value: any) => void) => { advancedListeners.add(fn); return () => advancedListeners.delete(fn); };
   if (key === 'onNoteFlushRequested') return (save: () => Promise<void>, resume: () => void) => {
     flushHandler = save; resumeHandler = resume;
     return () => { if (flushHandler === save) { flushHandler = null; resumeHandler = null; } };
   };
   if (key.startsWith('on')) return () => () => {};
   if (key === 'getRuntimeInfo') return () => runtimeError ? Promise.reject(new Error('IPC unavailable')) : Promise.resolve(runtime);
-  if (key === 'getAdvanced') return async () => ({ managerTheme: 'light', toolbarButtons: [], trayIcon: true, taskbarIcon: true,
-    rememberManagerLayout: rememberLayout, blankNoteShortcut: noteShortcut, blankNoteClipboard: noteClipboard, quickCaptureShortcut: 'ctrl+shift+n' });
-  if (key === 'setAdvanced') return async (patch: { rememberManagerLayout?: boolean; blankNoteShortcut?: string; blankNoteClipboard?: boolean }) => {
-    if (layoutFailure || clipboardFailure) throw new Error('Settings unavailable');
+  if (key === 'getAdvanced') return async () => advanced();
+  if (key === 'setAdvanced') return async (patch: { rememberManagerLayout?: boolean; blankNoteShortcut?: string; blankNoteClipboard?: boolean; copyAllFormat?: string }) => {
+    if (layoutFailure || clipboardFailure || copySettingFailure) throw new Error('Settings unavailable');
     if (patch.rememberManagerLayout !== undefined) { rememberLayout = patch.rememberManagerLayout; layoutChanges.push(rememberLayout); }
     if (patch.blankNoteShortcut !== undefined) noteShortcut = patch.blankNoteShortcut;
     if (patch.blankNoteClipboard !== undefined) noteClipboard = patch.blankNoteClipboard;
-    return { rememberManagerLayout: rememberLayout, blankNoteShortcut: noteShortcut, blankNoteClipboard: noteClipboard };
+    if (patch.copyAllFormat !== undefined) copyDefault = patch.copyAllFormat;
+    const next = advanced(); advancedListeners.forEach(fn => fn(next)); return next;
   };
   if (key === 'takeInitialNoteContent') return async () => { initialReads++; const text = initialContent; initialContent = null; if (initialGate) await initialGate; return text; };
   if (key === 'closeNote') return async (id: string, discard: boolean) => { closedNotes.push({ id, discard }); };
@@ -118,6 +133,22 @@ async function refresh() {
   const test = async (name: string, fn: () => Promise<void>) => {
     try { await fn(); results.push({ name }); } catch (e) { results.push({ name, error: String(e) }); }
   };
+  await test('Plain text conversion: formatting, escaping, code, links, references, tasks, tables and deliberate blank lines', async () => {
+    const cases = [
+      ['# Heading\n\n**bold** and ~~old~~\n\n> quoted', 'Heading\nbold and old\nquoted'],
+      ['\\*literal\\* and `# **code**`', '*literal* and # **code**'],
+      ['```js\nconst x = "**#**";\n\nprint(x);\n```', 'const x = "**#**";\n\nprint(x);'],
+      ['[site](https://example.com) and ![plot](../attachments/x.png)', 'site (https://example.com) and plot (../attachments/x.png)'],
+      ['[site][A]\n\n[A]: https://example.com', 'site (https://example.com)'],
+      ['3. Three\n4. Four', '3. Three\n4. Four'],
+      ['- [x] done\n  - [ ] todo', '☑ done\n  ☐ todo'],
+      ['| A | B |\n|---|---|\n| **one** | `#two` |', 'A\tB\none\t#two'],
+      ['first\n\n<br/>\n\nlast', 'first\n\nlast'],
+      ['first\r\n\r\nsecond', 'first\nsecond'],
+    ];
+    for (const [source, expected] of cases) check(toPlainText(source) === expected, JSON.stringify({ source, expected, actual: toPlainText(source) }));
+    check(copyText('# H\n\n**B**', 'markdown') === '# H\n**B**', 'Existing compact Markdown unchanged');
+  });
   await test('Three views: short ID, full hover, duplicate prefixes open distinct notes', async () => {
     root.render(<MainView />); await until(() => document.querySelectorAll('.note-list__id').length === 2);
     for (const tab of ['list', 'folders', 'tags']) {
@@ -161,6 +192,43 @@ async function refresh() {
     clipboardFailure = true; toggle.click(); await wait();
     check(toggle.getAttribute('aria-checked') === 'true' && document.querySelector('[role="alert"]')?.textContent === i18n.t('settings.blankNoteClipboardError'), 'Failure visible and preference intact');
     clipboardFailure = false; toggle.click(); await wait(); check(!noteClipboard, 'Can retry');
+  });
+  await test('Copy all default setting: Markdown legacy default, failure preserves preference and broadcasts plain text', async () => {
+    const select = document.querySelector<HTMLSelectElement>('[aria-label="' + i18n.t('copyFormat.defaultLabel') + '"]')!;
+    check(select.value === 'markdown', 'Legacy default is Markdown');
+    copySettingFailure = true; select.value = 'plain'; select.dispatchEvent(new Event('change', { bubbles: true })); await wait();
+    check(select.value === 'markdown' && document.body.textContent!.includes(i18n.t('copyFormat.settingFailed')), 'Failure must preserve old preference');
+    copySettingFailure = false; select.value = 'plain'; select.dispatchEvent(new Event('change', { bubbles: true })); await wait();
+    check(select.value === 'plain' && copyDefault === 'plain', 'Default stored successfully');
+    document.querySelector<HTMLButtonElement>('[aria-label="' + i18n.t('settings.close') + '"]')!.click(); await wait(350);
+  });
+  await test('Manager Copy all: default, context override, no row click, viewport fit, keyboard focus and failure retry', async () => {
+    note = { ...baseNote, content: '# Heading\n\n**Body**' }; emit(); await wait(60);
+    const button = document.querySelector<HTMLButtonElement>('.note-list__copy-all')!;
+    copiedTexts.length = 0; button.click(); await until(() => copiedTexts.length > 0);
+    check(copiedTexts.at(-1) === 'Heading\nBody', 'Default plain text uses full content');
+    const expanded = document.querySelectorAll('.note-list__preview.is-expanded').length;
+    button.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: innerWidth - 1, clientY: innerHeight - 1 }));
+    await until(() => document.querySelector('.copy-format-menu'));
+    const rect = document.querySelector('.copy-format-menu')!.getBoundingClientRect();
+    check(rect.right <= innerWidth && rect.bottom <= innerHeight && rect.left >= 0 && rect.top >= 0, 'Menu inside viewport');
+    check(document.querySelectorAll('.note-list__preview.is-expanded').length === expanded, 'Right-click does not expand row');
+    document.querySelector<HTMLButtonElement>('.copy-format-menu button')!.click(); await wait();
+    check(copiedTexts.at(-1) === '# Heading\n**Body**' && copyDefault === 'plain', 'Temporary Markdown does not persist');
+    button.click(); await wait(); check(copiedTexts.at(-1) === 'Heading\nBody', 'Next click still uses default');
+    button.focus(); button.dispatchEvent(new KeyboardEvent('keydown', { key: 'F10', shiftKey: true, bubbles: true })); await wait();
+    const menu = document.querySelector<HTMLElement>('.copy-format-menu')!;
+    menu.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+    check(document.activeElement?.textContent === i18n.t('copyFormat.asPlain'), 'Arrow navigation');
+    menu.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); await wait();
+    check(!document.querySelector('.copy-format-menu') && document.activeElement === button, 'Esc restores copy focus');
+    button.dispatchEvent(new KeyboardEvent('keydown', { key: 'ContextMenu', bubbles: true })); await wait();
+    document.querySelector('.copy-format-menu')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); await wait();
+    check(!document.querySelector('.copy-format-menu') && copiedTexts.at(-1) === '# Heading\n**Body**' && copyDefault === 'plain', 'Menu key and Enter copy temporarily');
+    copyWriteFailure = true; const before = copiedTexts.length; button.click(); await wait();
+    check(copiedTexts.length === before && button.title === i18n.t('copyFormat.failed'), 'Failure visible and no success');
+    copyWriteFailure = false; button.click(); await wait(); check(copiedTexts.length === before + 1, 'Retry succeeds');
+    note = { ...baseNote }; copyDefault = 'markdown'; advancedListeners.forEach(fn => fn(advanced())); emit(); await wait();
   });
   await test('Saved fields: ID, title, actual directory, server timestamps', async () => {
     await mount();
@@ -221,6 +289,9 @@ async function refresh() {
       await i18n.changeLanguage(lang); await wait();
       check(document.querySelector('h2')!.textContent === i18n.t('noteInfo.heading'), 'Heading translated: ' + lang);
       check(!document.querySelector('.note-info')!.textContent!.includes('noteInfo.'), 'No missing keys: ' + lang);
+      for (const key of ['choose','asMarkdown','asPlain','markdown','plain','tip','failed','defaultLabel','defaultHint','settingFailed']) {
+        check(Boolean(i18n.getResource(lang, 'translation', 'copyFormat.' + key)), 'Copy translation: ' + lang + '/' + key);
+      }
     }
     await i18n.changeLanguage('zh-CN');
     runtime = { ...runtime, platform: 'win32', vaultPath: 'D:\\知识库' };
@@ -256,8 +327,8 @@ async function refresh() {
     check(document.title === 'Clipboard heading', 'Existing title derivation used');
     await unmount();
   });
-  const mountNote = async (text: string | null = null, missing = false) => {
-    await unmount(); note = { ...baseNote }; noteError = missing ? 404 : 0; initialContent = text; writes.length = 0;
+  const mountNote = async (text: string | null = null, missing = false, body = baseNote.content) => {
+    await unmount(); note = { ...baseNote, content: body }; noteError = missing ? 404 : 0; initialContent = text; writes.length = 0;
     root.render(<MemoryRouter initialEntries={['/note/' + note.id]}><Routes><Route path="/note/:noteId" element={<NoteView />} /></Routes></MemoryRouter>);
     await until(() => flushHandler && document.querySelector('.ProseMirror'));
   };
@@ -321,6 +392,65 @@ async function refresh() {
     check(closedNotes[0].discard === true && writes.length === 0, 'No flush/upsert for deliberately deleted note');
     noteError = 0;
   });
+  await test('Note Copy all: shared live default, More formats, fresh editor content and no save side effect', async () => {
+    await mountNote(null, false, '# Heading\n\n**Body**'); copiedTexts.length = 0;
+    const more = () => document.querySelector<HTMLButtonElement>('[aria-label="' + i18n.t('note.more') + '"]')!.click();
+    const entry = (format: string) => Array.from(document.querySelectorAll<HTMLButtonElement>('.sticky-note__menu--more button')).find(b => b.textContent?.trim() === i18n.t('copyFormat.' + format))!;
+    more(); await wait(); check(entry('asPlain') && entry('asMarkdown'), 'Both fallback entries always available');
+    entry('asPlain').click(); await wait(); check(copiedTexts.at(-1) === 'Heading\nBody' && copyDefault === 'markdown', 'More choice is temporary');
+    copyDefault = 'plain'; advancedListeners.forEach(fn => fn(advanced())); await wait();
+    const copy = document.querySelector<HTMLButtonElement>('[aria-label="' + i18n.t('note.copyAll') + '"]');
+    check(copy, 'Wide note exposes the toolbar copy button');
+    if (copy) {
+      copy.click(); await wait(); check(copiedTexts.at(-1) === 'Heading\nBody', 'Live default used by existing note');
+      copy.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true })); await wait();
+      document.querySelector<HTMLButtonElement>('.copy-format-menu button')!.click(); await wait();
+      check(copiedTexts.at(-1) === '# Heading\n**Body**', 'Toolbar context chooses Markdown');
+    }
+    const pm = document.querySelector<HTMLElement>('.ProseMirror')!;
+    pm.focus(); document.execCommand('selectAll'); document.execCommand('insertText', false, '# Fresh **typing**');
+    // 让浏览器的 DOM observer 提交这次输入，但不等待 listener 的 200ms 防抖。
+    await Promise.resolve();
+    if (copy) copy.click();
+    else { more(); await wait(); entry('asPlain').click(); }
+    await wait(); check(copiedTexts.at(-1)!.includes('Fresh **typing**'), 'Fresh literal input preserved before listener: ' + copiedTexts.at(-1));
+    check(writes.length === 0, 'Copy must not force save');
+    copyDefault = 'markdown'; advancedListeners.forEach(fn => fn(advanced()));
+    await unmount();
+  });
+  await test('Popup menus: shared appearance, export follows reordered button, keyboard dismissal', async () => {
+    await mountNote(); await wait(100);
+    document.querySelector('.sticky-note')!.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); await wait(200);
+    const look = (menu: Element) => {
+      const box = getComputedStyle(menu); const item = getComputedStyle(menu.querySelector('button')!);
+      return JSON.stringify([box.backgroundColor, box.border, box.borderRadius, box.boxShadow, box.padding,
+        item.fontSize, item.padding, item.borderRadius, item.color]);
+    };
+    document.querySelector<HTMLButtonElement>('[aria-label="' + i18n.t('note.more') + '"]')!.click(); await wait();
+    const existing = look(document.querySelector('.sticky-note__menu--more')!);
+    document.querySelector<HTMLButtonElement>('.sticky-note__backdrop')!.click(); await wait();
+    const copy = document.querySelector<HTMLButtonElement>('[aria-label="' + i18n.t('note.copyAll') + '"]')!;
+    copy.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true })); await wait();
+    check(look(document.querySelector('.copy-format-menu')!) === existing, 'Copy matches existing menu appearance');
+    document.querySelector('.copy-format-menu')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); await wait();
+    menuToolbarOrder = ['export', ...TOOLBAR_BUTTON_DEFAULT_ORDER.filter(id => id !== 'export')];
+    advancedListeners.forEach(fn => fn(advanced())); await wait(100);
+    const button = () => document.querySelector<HTMLButtonElement>('[aria-label="' + i18n.t('note.exportImage') + '"]')!;
+    button().click(); await wait();
+    const first = document.querySelector('.sticky-note__menu--export')!;
+    check(look(first) === existing, 'Export matches existing menu appearance');
+    const firstLeft = first.getBoundingClientRect().left;
+    check(Math.abs(firstLeft - button().getBoundingClientRect().left) < 1, 'Export starts at actual first button');
+    menuToolbarOrder = [...TOOLBAR_BUTTON_DEFAULT_ORDER]; advancedListeners.forEach(fn => fn(advanced())); await wait(100);
+    const menu = document.querySelector('.sticky-note__menu--export')!;
+    const r = menu.getBoundingClientRect(); const b = button().getBoundingClientRect();
+    check(r.left > firstLeft + 80 && Math.abs(r.left - b.left) < 1 && r.bottom <= b.top - 3, 'Open export follows reorder and stays above button');
+    menu.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+    check(document.activeElement?.textContent?.includes(i18n.t('note.exportSave')), 'Export keyboard selection');
+    menu.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); await wait();
+    check(!document.querySelector('.sticky-note__menu--export') && document.activeElement === button(), 'Export Esc closes and restores focus');
+    menuToolbarOrder = []; advancedListeners.forEach(fn => fn(advanced())); await unmount();
+  });
   // 留下中文长路径信息视图供截图与最小尺寸布局检查。
   note = { ...baseNote, folder: '工作/一个很长的项目目录/调研资料' };
   await unmount();
@@ -358,4 +488,53 @@ async function refresh() {
   const row = document.getElementById('note-clipboard-label')!.parentElement!;
   row.scrollIntoView({ block: 'center' }); await wait(100);
   check(row.scrollWidth <= row.clientWidth, 'Clipboard label/switch must fit: ' + lang);
+};
+
+(window as any).showCopyMenuPreview = async (lang: string) => {
+  await unmount(); await i18n.changeLanguage(lang); note = { ...baseNote };
+  root.render(<MainView />); await until(() => document.querySelector('.note-list__copy-all'));
+  const button = document.querySelector<HTMLButtonElement>('.note-list__copy-all')!;
+  button.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: innerWidth - 12, clientY: innerHeight - 12 }));
+  await until(() => document.querySelector('.copy-format-menu')); await wait();
+  const r = document.querySelector('.copy-format-menu')!.getBoundingClientRect();
+  check(r.left >= 0 && r.right <= innerWidth && r.bottom <= innerHeight, 'Copy menu preview fits: ' + lang);
+};
+(window as any).showCopySettingPreview = async (lang: string) => {
+  await (window as any).showManagerLayoutSettings(lang);
+  const select = document.querySelector<HTMLSelectElement>('[aria-label="' + i18n.t('copyFormat.defaultLabel') + '"]')!;
+  select.parentElement!.scrollIntoView({ block: 'center' }); await wait();
+  check(select.parentElement!.scrollWidth <= select.parentElement!.clientWidth, 'Copy setting fits: ' + lang);
+};
+(window as any).showNoteMorePreview = async (lang: string) => {
+  await unmount(); await i18n.changeLanguage(lang); note = { ...baseNote }; noteError = 0;
+  root.render(<MemoryRouter initialEntries={['/note/' + note.id]}><Routes><Route path="/note/:noteId" element={<NoteView />} /></Routes></MemoryRouter>);
+  await until(() => document.querySelector('[aria-label="' + i18n.t('note.more') + '"]'));
+  await wait(100); document.querySelector<HTMLButtonElement>('[aria-label="' + i18n.t('note.more') + '"]')!.click(); await wait();
+  const menu = document.querySelector<HTMLElement>('.sticky-note__menu--more')!;
+  const r = menu.getBoundingClientRect();
+  check(r.top >= 0 && r.left >= 0 && r.right <= innerWidth && r.bottom <= innerHeight, 'More menu fits minimum window: ' + lang);
+  check(menu.scrollHeight > menu.clientHeight, 'Long More menu scrolls');
+};
+
+(window as any).showExportMenuPreview = async (lang: string, first: boolean) => {
+  await unmount(); await i18n.changeLanguage(lang); note = { ...baseNote }; noteError = 0;
+  menuToolbarOrder = first ? ['export', ...TOOLBAR_BUTTON_DEFAULT_ORDER.filter(id => id !== 'export')] : [...TOOLBAR_BUTTON_DEFAULT_ORDER];
+  root.render(<MemoryRouter initialEntries={['/note/' + note.id]}><Routes><Route path="/note/:noteId" element={<NoteView />} /></Routes></MemoryRouter>);
+  await until(() => document.querySelector('[aria-label="' + i18n.t('note.exportImage') + '"]'));
+  document.querySelector('.sticky-note')!.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+  await wait(200);
+  const button = document.querySelector<HTMLButtonElement>('[aria-label="' + i18n.t('note.exportImage') + '"]')!;
+  button.click(); await until(() => document.querySelector('.sticky-note__menu--export')); await wait();
+  const r = document.querySelector('.sticky-note__menu--export')!.getBoundingClientRect(); const b = button.getBoundingClientRect();
+  check(r.width > 0 && r.height > 0 && r.left >= 8 && r.top >= 8 && r.right <= innerWidth && r.bottom <= innerHeight, 'Export fits viewport: ' + lang);
+  check(Math.abs(r.left - Math.max(8, Math.min(b.left, innerWidth - r.width - 8))) < 1, 'Export follows anchor: ' + lang);
+};
+(window as any).checkHiddenExportMenu = async () => {
+  await wait(200);
+  check(!document.querySelector('.sticky-note__menu--export'), 'Resize closes export popup');
+  check(!document.querySelector('[aria-label="' + i18n.t('note.exportImage') + '"]'), 'Narrow toolbar hides trailing export');
+  document.querySelector<HTMLButtonElement>('[aria-label="' + i18n.t('note.more') + '"]')!.click(); await wait();
+  const items = document.querySelector('.sticky-note__menu--more')!.textContent!;
+  check(items.includes(i18n.t('note.exportCopy')) && items.includes(i18n.t('note.exportSave')), 'Both export actions remain in More');
+  menuToolbarOrder = [];
 };

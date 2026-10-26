@@ -39,6 +39,18 @@
   "error": {
     "serviceDown": "Lokaler Dienst nicht erreichbar: {{message}}"
   },
+  "copyFormat": {
+    "choose": "Kopierformat wählen",
+    "asMarkdown": "Als Markdown kopieren",
+    "asPlain": "Als Klartext kopieren",
+    "markdown": "Markdown",
+    "plain": "Klartext",
+    "tip": "Alles kopieren ({{format}}) · Rechtsklick für Formate",
+    "failed": "Kopieren fehlgeschlagen. Bitte erneut versuchen.",
+    "defaultLabel": "Standardformat beim Kopieren",
+    "defaultHint": "Gilt für „Alles kopieren“ im Manager und in Notizen. Rechtsklick gilt einmalig. Strg+C bleibt unverändert.",
+    "settingFailed": "Speichern fehlgeschlagen. Die bisherige Einstellung bleibt erhalten."
+  },
   "dialog": {
     "noteSaveFailed": "Notizen konnten nicht gespeichert werden. Schließen wurde abgebrochen.",
     "noteSaveFailedDetail": "Fenster und Inhalte bleiben erhalten. Prüfen Sie Ihre Notizen und versuchen Sie es erneut. Speichern Sie einen Konfliktlösungsentwurf zuerst ausdrücklich.",

@@ -39,6 +39,18 @@
   "error": {
     "serviceDown": "ローカルサービスに接続できません：{{message}}"
   },
+  "copyFormat": {
+    "choose": "コピー形式を選択",
+    "asMarkdown": "Markdown としてコピー",
+    "asPlain": "プレーンテキストとしてコピー",
+    "markdown": "Markdown",
+    "plain": "プレーンテキスト",
+    "tip": "すべてコピー（{{format}}）・右クリックで形式を選択",
+    "failed": "コピーできませんでした。再試行してください。",
+    "defaultLabel": "既定のコピー形式",
+    "defaultHint": "管理画面とノートの「すべてコピー」に適用します。右クリックは今回のみ。Ctrl+C は従来どおりです。",
+    "settingFailed": "保存できませんでした。元の設定を保持しています。再試行してください。"
+  },
   "dialog": {
     "noteSaveFailed": "ノートを保存できなかったため、終了を中止しました",
     "noteSaveFailedDetail": "ウィンドウと内容は保持されています。確認して再試行してください。競合の解決中は、先に解決内容を保存してください。",

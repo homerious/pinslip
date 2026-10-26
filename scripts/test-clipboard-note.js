@@ -59,12 +59,17 @@ async function main() {
     'node:fs': { readFileSync: () => json, writeFileSync: (_, value) => { if (failWrite) throw new Error('disk full'); json = value; } },
     '../shared/toolbar': toolbar });
   assert.equal(settings.getAdvanced().blankNoteClipboard, false);
+  assert.equal(settings.getAdvanced().copyAllFormat, 'markdown');
+  settings.setAdvanced({ copyAllFormat: 'plain' });
+  failWrite = true; assert.throws(() => settings.setAdvanced({ copyAllFormat: 'markdown' }), /disk full/);
+  assert.equal(settings.getAdvanced().copyAllFormat, 'plain'); failWrite = false;
   settings.setAdvanced({ blankNoteClipboard: true }); assert.equal(settings.getAdvanced().blankNoteClipboard, true);
   failWrite = true; assert.throws(() => settings.setAdvanced({ blankNoteClipboard: false }), /disk full/);
   assert.equal(settings.getAdvanced().blankNoteClipboard, true, 'Disk failure rolls back memory too'); failWrite = false;
   const tampered = load('main/settings.ts', { electron: { app: { getPath: () => '/isolated' } },
-    'node:fs': { readFileSync: () => '{"advanced":{"blankNoteClipboard":"true"}}' }, '../shared/toolbar': toolbar });
+    'node:fs': { readFileSync: () => '{"advanced":{"blankNoteClipboard":"true","copyAllFormat":"invalid"}}' }, '../shared/toolbar': toolbar });
   assert.equal(tampered.getAdvanced().blankNoteClipboard, false);
+  assert.equal(tampered.getAdvanced().copyAllFormat, 'markdown');
   const handlers = new Map(); const rebinds = []; let failRebind = false;
   const ipc = load('main/ipc/index.ts', { electron: { ipcMain: { handle: (key, cb) => handlers.set(key, cb), on() {} },
     BrowserWindow: { getAllWindows: () => [] } }, '../../shared/ipc-channels': { IPC }, '../../shared/shortcuts': shared,
@@ -73,6 +78,9 @@ async function main() {
     '../shortcuts': { rebindBlankNoteShortcut: key => { if (failRebind) throw new Error('register failed'); rebinds.push(key); } } });
   ipc.registerIpcHandlers({ windowManager: { takeInitialNoteContent: id => id }, goProcess: {} });
   const set = handlers.get(IPC.SettingsSetAdvanced);
+  assert.throws(() => set({}, { copyAllFormat: 'invalid' }), /Invalid copyAllFormat/);
+  assert.throws(() => set({}, { copyAllFormat: true }), /Invalid copyAllFormat/);
+  assert.equal(set({}, { copyAllFormat: 'markdown' }).copyAllFormat, 'markdown');
   assert.throws(() => set({}, { blankNoteClipboard: 'true' }), /must be boolean/);
   assert.throws(() => set({}, { blankNoteClipboard: true }), /Enable the new note shortcut/);
   assert.throws(() => set({}, { blankNoteShortcut: 'invalid', blankNoteClipboard: true }), /Enable the new note shortcut/);

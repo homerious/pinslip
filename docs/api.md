@@ -224,6 +224,10 @@ token 不出现在任何接口响应与日志中。
 
 ## Electron 内部窗口初始化
 
+- 应用高级设置 `copyAllFormat` 接受 `markdown`（默认）或 `plain`，控制主界面与便签的「复制全部」。
+  缺失或非法磁盘值回退 Markdown，IPC 拒绝非法写入，磁盘写入失败保留旧值并回报错误；通过既有高级设置广播即时同步。
+  右键/更多菜单临时选择不修改偏好，不影响 Ctrl+C，也不改笔记文件。
+
 - 关闭保存握手：渲染层通过 `onNoteFlushRequested(save, resume)` 订阅后报告 `note:save-ready`；
   主进程发送带请求号的 `note:flush`，preload 等待 save 完成后回复 `note:flush-result`。
   主进程同时校验发送方窗口与当前请求号，8 秒未完成视为失败，保留窗口并通过

@@ -39,6 +39,18 @@
   "error": {
     "serviceDown": "无法连接本地服务：{{message}}"
   },
+  "copyFormat": {
+    "choose": "选择复制格式",
+    "asMarkdown": "复制为 Markdown",
+    "asPlain": "复制为纯文本",
+    "markdown": "Markdown",
+    "plain": "纯文本",
+    "tip": "复制全部（{{format}}）· 右键选择格式",
+    "failed": "复制失败，请重试",
+    "defaultLabel": "默认复制格式",
+    "defaultHint": "用于主界面和便签的复制全部。右键可临时选择；Ctrl+C 保持原行为。",
+    "settingFailed": "保存失败，已保留原设置，请重试。"
+  },
   "dialog": {
     "noteSaveFailed": "便签尚未保存，已取消关闭操作",
     "noteSaveFailedDetail": "窗口和内容已保留。请检查便签后重试；如有冲突解决草稿，请先点击「保存解决」。",
