@@ -188,6 +188,9 @@ export default function MainView() {
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [trayIcon, setTrayIcon] = useState(true);
   const [taskbarIcon, setTaskbarIcon] = useState(true);
+  const [rememberManagerLayout, setRememberManagerLayout] = useState(false);
+  const [managerLayoutBusy, setManagerLayoutBusy] = useState(false);
+  const [managerLayoutError, setManagerLayoutError] = useState(false);
   /** 新便签落点（缺省 cascade 固定级联；beside-manager = 跟随主窗口） */
   const [notePlacement, setNotePlacement] = useState<'cascade' | 'beside-manager'>('cascade');
   /** 管理器主题偏好（缺省 light 浅色现状；system = 跟随 OS 深色模式）；
@@ -201,6 +204,10 @@ export default function MainView() {
   /** 空白便签全局快捷键（缺省 off 不注册）+ 注册失败提示态（新键被他应用占用时回滚选项） */
   const [blankNoteShortcut, setBlankNoteShortcut] = useState<GlobalShortcutKey>('off');
   const [blankNoteShortcutError, setBlankNoteShortcutError] = useState(false);
+  const [blankNoteShortcutBusy, setBlankNoteShortcutBusy] = useState(false);
+  const [blankNoteClipboard, setBlankNoteClipboard] = useState(false);
+  const [blankNoteClipboardBusy, setBlankNoteClipboardBusy] = useState(false);
+  const [blankNoteClipboardError, setBlankNoteClipboardError] = useState(false);
   /** 速记全局快捷键（缺省 ctrl+shift+n 保持现状）+ 注册失败提示态（同空白便签模式） */
   const [quickCaptureShortcut, setQuickCaptureShortcut] = useState<GlobalShortcutKey>('ctrl+shift+n');
   const [quickCaptureShortcutError, setQuickCaptureShortcutError] = useState(false);
@@ -548,17 +555,25 @@ export default function MainView() {
         setTrayIcon(a.trayIcon);
         setAutoStartHidden(a.autoStartHidden);
         setTaskbarIcon(a.taskbarIcon);
+        setRememberManagerLayout(a.rememberManagerLayout);
         setNotePlacement(a.notePlacement);
         setManagerTheme(a.managerTheme);
         setBlankNoteShortcut(a.blankNoteShortcut);
+        setBlankNoteClipboard(a.blankNoteClipboard);
         setQuickCaptureShortcut(a.quickCaptureShortcut);
         setToolbarButtons(sanitizeToolbarButtons(a.toolbarButtons));
       })
       .catch(() => {});
   }, [setToolbarButtons]);
 
-  // OS 深色模式事实：挂载读取一次 + 订阅 main 的 nativeTheme 变更广播
-  // （managerTheme='system' 时即时跟进，无需重启）
+  // 其他窗口修改偏好时同步布局记忆与新建便签的父子设置。
+  useEffect(() => window.api.onAdvancedChanged((a) => {
+    setRememberManagerLayout(a.rememberManagerLayout);
+    setBlankNoteShortcut(a.blankNoteShortcut);
+    setBlankNoteClipboard(a.blankNoteClipboard);
+  }), []);
+
+  // OS 深色模式事实：挂载读取一次 + 订阅 main 的 nativeTheme 变更广播。
   useEffect(() => {
     window.api
       .getOsDark()
@@ -581,9 +596,11 @@ export default function MainView() {
         setTrayIcon(a.trayIcon);
         setAutoStartHidden(a.autoStartHidden);
         setTaskbarIcon(a.taskbarIcon);
+        setRememberManagerLayout(a.rememberManagerLayout);
         setNotePlacement(a.notePlacement);
         setManagerTheme(a.managerTheme);
         setBlankNoteShortcut(a.blankNoteShortcut);
+        setBlankNoteClipboard(a.blankNoteClipboard);
         setQuickCaptureShortcut(a.quickCaptureShortcut);
         setToolbarButtons(sanitizeToolbarButtons(a.toolbarButtons));
       })
@@ -733,7 +750,28 @@ export default function MainView() {
     window.api.setAdvanced({ taskbarIcon: next }).catch(() => setTaskbarIcon(!next));
   }, [taskbarIcon]);
 
-  // 新便签落点（高级设置）：乐观切换，失败回滚旧值
+  // 布局开关/重置等待主进程完成，失败时保留原值并提示。
+  const toggleRememberManagerLayout = async () => {
+    if (managerLayoutBusy) return;
+    setManagerLayoutBusy(true);
+    setManagerLayoutError(false);
+    try {
+      const next = await window.api.setAdvanced({ rememberManagerLayout: !rememberManagerLayout });
+      setRememberManagerLayout(next.rememberManagerLayout);
+    } catch { setManagerLayoutError(true); }
+    finally { setManagerLayoutBusy(false); }
+  };
+
+  const resetManagerLayout = async () => {
+    if (managerLayoutBusy) return;
+    setManagerLayoutBusy(true);
+    setManagerLayoutError(false);
+    try { await window.api.resetManagerLayout(); }
+    catch { setManagerLayoutError(true); }
+    finally { setManagerLayoutBusy(false); }
+  };
+
+  // 新便签落点（高级设置）：乐观切换，失败回滚旧值。
   const changeNotePlacement = useCallback(
     (next: 'cascade' | 'beside-manager') => {
       const prev = notePlacement;
@@ -757,16 +795,29 @@ export default function MainView() {
   // main 抛错——回滚选项并提示（设置未持久化、旧绑定保持有效）
   const changeBlankNoteShortcut = useCallback(
     (next: GlobalShortcutKey) => {
+      if (blankNoteShortcutBusy || blankNoteClipboardBusy) return;
       const prev = blankNoteShortcut;
       setBlankNoteShortcut(next);
+      setBlankNoteShortcutBusy(true);
       setBlankNoteShortcutError(false);
       window.api.setAdvanced({ blankNoteShortcut: next }).catch(() => {
         setBlankNoteShortcut(prev);
         setBlankNoteShortcutError(true);
-      });
+      }).finally(() => setBlankNoteShortcutBusy(false));
     },
-    [blankNoteShortcut],
+    [blankNoteShortcut, blankNoteShortcutBusy, blankNoteClipboardBusy],
   );
+
+  const toggleBlankNoteClipboard = async () => {
+    if (blankNoteShortcut === 'off' || blankNoteShortcutBusy || blankNoteClipboardBusy) return;
+    setBlankNoteClipboardBusy(true);
+    setBlankNoteClipboardError(false);
+    try {
+      const next = await window.api.setAdvanced({ blankNoteClipboard: !blankNoteClipboard });
+      setBlankNoteClipboard(next.blankNoteClipboard);
+    } catch { setBlankNoteClipboardError(true); }
+    finally { setBlankNoteClipboardBusy(false); }
+  };
 
   // 速记快捷键（高级设置）：同空白便签的乐观切换 + 失败回滚提示模式
   const changeQuickCaptureShortcut = useCallback(
@@ -1184,6 +1235,10 @@ export default function MainView() {
       )}
       <span className="note-list__meta">
         {formatTime(note.updatedAt)} · {t('note.words', { count: note.wordCount })}
+        {' · '}
+        <span className="note-list__id" title={`id：${note.id}`}>
+          {note.id.slice(0, 8)}
+        </span>
         {showFolder && note.folder && !note.inbox && (
           <span className="note-list__folder" title={note.folder}>
             <FolderFillIcon />
@@ -1974,6 +2029,28 @@ export default function MainView() {
                 </div>
                 <div className="settings-panel__hint">{t('settings.taskbarIconHint')}</div>
                 <div className="settings-panel__row">
+                  <AppWindowIcon className="settings-panel__row-icon" />
+                  <span className="settings-panel__label" id="manager-layout-label">{t('settings.rememberManagerLayout')}</span>
+                  <button
+                    className="settings-toggle"
+                    role="switch"
+                    aria-labelledby="manager-layout-label"
+                    aria-checked={rememberManagerLayout}
+                    data-on={rememberManagerLayout}
+                    disabled={managerLayoutBusy}
+                    onClick={() => void toggleRememberManagerLayout()}
+                  >
+                    <span className="settings-toggle__thumb" />
+                  </button>
+                </div>
+                <div className="settings-panel__hint">{t('settings.rememberManagerLayoutHint')}</div>
+                <div className="settings-panel__row">
+                  <button className="settings-panel__btn" disabled={managerLayoutBusy} onClick={() => void resetManagerLayout()}>
+                    {t('settings.resetManagerLayout')}
+                  </button>
+                </div>
+                {managerLayoutError && <div className="settings-panel__error">{t('settings.managerLayoutError')}</div>}
+                <div className="settings-panel__row">
                   <NoteIcon className="settings-panel__row-icon" />
                   <span className="settings-panel__label">{t('settings.notePlacement')}</span>
                   <select
@@ -2012,6 +2089,8 @@ export default function MainView() {
                   <select
                     className="settings-panel__select"
                     value={blankNoteShortcut}
+                    aria-label={t('settings.blankNoteShortcut')}
+                    disabled={blankNoteShortcutBusy || blankNoteClipboardBusy}
                     onChange={(e) => changeBlankNoteShortcut(e.target.value as GlobalShortcutKey)}
                   >
                     {GLOBAL_SHORTCUT_KEYS.map((key) => (
@@ -2032,6 +2111,27 @@ export default function MainView() {
                     {t('settings.blankNoteShortcutRegisterFailed')}
                   </div>
                 )}
+                <div className="settings-panel__dependent">
+                  <div className="settings-panel__row">
+                    <span className="settings-panel__label" id="note-clipboard-label">{t('settings.blankNoteClipboard')}</span>
+                    <button
+                      className="settings-toggle"
+                      role="switch"
+                      aria-labelledby="note-clipboard-label"
+                      aria-describedby="note-clipboard-hint"
+                      aria-checked={blankNoteClipboard}
+                      data-on={blankNoteClipboard}
+                      disabled={blankNoteShortcut === 'off' || blankNoteShortcutBusy || blankNoteClipboardBusy}
+                      onClick={() => void toggleBlankNoteClipboard()}
+                    >
+                      <span className="settings-toggle__thumb" />
+                    </button>
+                  </div>
+                  <div className="settings-panel__hint" id="note-clipboard-hint">
+                    {t(blankNoteShortcut === 'off' ? 'settings.blankNoteClipboardDisabledHint' : 'settings.blankNoteClipboardHint')}
+                  </div>
+                  {blankNoteClipboardError && <div className="settings-panel__error" role="alert">{t('settings.blankNoteClipboardError')}</div>}
+                </div>
                 {/* 工具栏按钮排序：指针拖拽换位（便签组同款模式，不用 HTML5 DnD），
                     前 8 位直接显示在便签工具栏，超出位次进 ⋯ 菜单找回；
                     即改即存即生效（主进程广播，便签窗口即时重排） */}

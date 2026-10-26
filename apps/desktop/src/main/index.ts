@@ -125,6 +125,7 @@ app.on('before-quit', () => {
   if (windowManager) windowManager.quitting = true; // 放行主窗口的 close 拦截，确保能真正退出
   unregisterShortcuts();
   stopVaultWatch();
+  windowManager?.flushManagerLayout();
   flushWindowState(); // 窗口状态保存有 500ms 防抖，退出前立即落盘避免丢最后一笔
   goProcess.stop();
 });

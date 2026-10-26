@@ -21,12 +21,14 @@ interface AppSettings {
 
 /** 高级设置各字段缺省值（= 简洁模型现状）；新增选项必须在此登记缺省 */
 const ADVANCED_DEFAULTS: ResolvedAdvancedSettings = {
+  rememberManagerLayout: false,
   autoStartHidden: false,
   trayIcon: true,
   taskbarIcon: true,
   notePlacement: 'cascade',
   managerTheme: 'light',
   blankNoteShortcut: 'off',
+  blankNoteClipboard: false,
   quickCaptureShortcut: 'ctrl+shift+n',
   toolbarButtons: [...TOOLBAR_BUTTON_DEFAULT_ORDER],
 };
@@ -47,10 +49,11 @@ function load(): AppSettings {
   return cache;
 }
 
-function persist(): void {
+function persist(strict = false): void {
   try {
     fs.writeFileSync(settingsPath(), JSON.stringify(load(), null, 2));
-  } catch {
+  } catch (error) {
+    if (strict) throw error;
     /* 设置写失败仅本次不记忆 */
   }
 }
@@ -87,6 +90,8 @@ export function setLanguage(lang: string): void {
  *  过滤未知 id/去重/缺项补末尾，旧配置遇到新版本新增按钮自动衔接） */
 export function getAdvanced(): ResolvedAdvancedSettings {
   const merged = { ...ADVANCED_DEFAULTS, ...(load().advanced ?? {}) };
+  merged.rememberManagerLayout = merged.rememberManagerLayout === true;
+  merged.blankNoteClipboard = merged.blankNoteClipboard === true;
   merged.toolbarButtons = sanitizeToolbarButtons(merged.toolbarButtons);
   return merged;
 }
@@ -98,6 +103,13 @@ export function setAdvanced(patch: AdvancedSettings): void {
   if (patch.toolbarButtons !== undefined) {
     clean.toolbarButtons = sanitizeToolbarButtons(patch.toolbarButtons);
   }
-  load().advanced = { ...(load().advanced ?? {}), ...clean };
-  persist();
+  const previous = load().advanced;
+  load().advanced = { ...(previous ?? {}), ...clean };
+  try {
+    // 剪贴板子选项保存失败必须可回报 UI，不能显示已保存却在重启后丢失。
+    persist(patch.blankNoteClipboard !== undefined);
+  } catch (error) {
+    load().advanced = previous;
+    throw error;
+  }
 }

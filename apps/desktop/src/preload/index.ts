@@ -7,6 +7,7 @@ import type { ElectronAPI, ExportImagePayload, GroupState, ResolvedAdvancedSetti
 const api: ElectronAPI = {
   getRuntimeInfo: () => ipcRenderer.invoke(IPC.RuntimeInfo),
   createNote: (noteId, folder) => ipcRenderer.invoke(IPC.WindowCreate, noteId, folder),
+  takeInitialNoteContent: () => ipcRenderer.invoke(IPC.NoteTakeInitialContent),
   closeNote: (noteId) => ipcRenderer.invoke(IPC.WindowClose, noteId),
   isDevToolsOpen: () => ipcRenderer.invoke(IPC.WindowDevToolsOpen),
   setNotePin: (noteId, pinned) => ipcRenderer.invoke(IPC.WindowSetPin, noteId, pinned),
@@ -14,6 +15,7 @@ const api: ElectronAPI = {
     ipcRenderer.invoke(IPC.NoteSetCollapsed, noteId, collapsed),
   listWindows: () => ipcRenderer.invoke(IPC.WindowList),
   showMainWindow: () => ipcRenderer.invoke(IPC.MainWindowShow),
+  resetManagerLayout: () => ipcRenderer.invoke(IPC.MainWindowResetLayout),
   noteResizeBegin: (noteId) => ipcRenderer.invoke(IPC.NoteResizeBegin, noteId),
   noteResize: (noteId, dx, dy, edge) => ipcRenderer.invoke(IPC.NoteResize, noteId, dx, dy, edge),
   noteResizeEnd: (noteId) => ipcRenderer.invoke(IPC.NoteResizeEnd, noteId),

@@ -14,6 +14,7 @@ import { resolveSystemLanguage } from '../../shared/languages';
 import { startVaultWatch } from '../services/vault-watch';
 import { checkForUpdate, getUpdateState, quitAndInstall } from '../updater';
 import { rebindBlankNoteShortcut, rebindQuickCaptureShortcut } from '../shortcuts';
+import { GLOBAL_SHORTCUT_KEYS } from '../../shared/shortcuts';
 
 interface IpcContext {
   windowManager: WindowManager;
@@ -42,6 +43,9 @@ export function registerIpcHandlers({ windowManager, goProcess }: IpcContext): v
   ipcMain.handle(IPC.WindowCreate, async (_event, noteId?: string, folder?: string) => {
     await windowManager.createNoteWindow(noteId, folder);
   });
+  ipcMain.handle(IPC.NoteTakeInitialContent, (event) =>
+    windowManager.takeInitialNoteContent(event.sender.id),
+  );
 
   ipcMain.handle(IPC.WindowClose, (_event, noteId: string) => {
     windowManager.closeNoteWindow(noteId);
@@ -194,7 +198,18 @@ export function registerIpcHandlers({ windowManager, goProcess }: IpcContext): v
   // 返回补齐后的完整对象
   ipcMain.handle(IPC.SettingsGetAdvanced, () => getAdvanced());
   ipcMain.handle(IPC.SettingsSetAdvanced, (_event, patch: AdvancedSettings) => {
+    if (patch.rememberManagerLayout !== undefined && typeof patch.rememberManagerLayout !== 'boolean') {
+      throw new TypeError('rememberManagerLayout must be boolean');
+    }
     const before = getAdvanced();
+    if (patch.blankNoteClipboard !== undefined && typeof patch.blankNoteClipboard !== 'boolean') {
+      throw new TypeError('blankNoteClipboard must be boolean');
+    }
+    const nextNoteShortcut = patch.blankNoteShortcut ?? before.blankNoteShortcut;
+    if (patch.blankNoteClipboard === true &&
+      (nextNoteShortcut === 'off' || !GLOBAL_SHORTCUT_KEYS.includes(nextNoteShortcut))) {
+      throw new Error('Enable the new note shortcut before clipboard prefill');
+    }
     // 空白便签/速记快捷键：原子重绑先行——新键注册失败则整体不生效（不持久化、不丢旧绑定）
     if (patch.blankNoteShortcut !== undefined && patch.blankNoteShortcut !== before.blankNoteShortcut) {
       rebindBlankNoteShortcut(patch.blankNoteShortcut);
@@ -208,9 +223,19 @@ export function registerIpcHandlers({ windowManager, goProcess }: IpcContext): v
       refreshTrayMenu();
     }
     const autoStartEnabled = patch.autoStartHidden !== undefined ? getAutoStart() : false;
-    setAdvanced(patch);
+    try {
+      setAdvanced(patch);
+    } catch (error) {
+      // 组合更新包含剪贴板偏好时，磁盘失败同样回滚已重绑的键位。
+      if (patch.blankNoteShortcut !== undefined) rebindBlankNoteShortcut(before.blankNoteShortcut);
+      if (patch.quickCaptureShortcut !== undefined) rebindQuickCaptureShortcut(before.quickCaptureShortcut);
+      throw error;
+    }
     if (patch.autoStartHidden !== undefined && autoStartEnabled) setAutoStart(true);
     const after = getAdvanced();
+    if (before.rememberManagerLayout !== after.rememberManagerLayout) {
+      windowManager.setRememberManagerLayout(after.rememberManagerLayout);
+    }
     if (before.trayIcon !== after.trayIcon) {
       if (after.trayIcon) createTray(windowManager);
       else destroyTray();
@@ -225,6 +250,7 @@ export function registerIpcHandlers({ windowManager, goProcess }: IpcContext): v
     }
     return after;
   });
+  ipcMain.handle(IPC.MainWindowResetLayout, () => windowManager.resetManagerLayout());
 
   // 笔记变更广播：任一渲染进程上报 → 转发主窗口刷新列表
   ipcMain.on(IPC.NotesChanged, () => {

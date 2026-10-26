@@ -969,6 +969,84 @@ input.sticky-note__title-input {
 }
 
 /* ===== ⋯ 菜单（底部工具栏向上弹出） ===== */
+.note-info {
+  position: fixed;
+  inset: 0;
+  width: calc(100% - 48px);
+  max-width: 520px;
+  height: calc(100% - 64px);
+  max-height: 540px;
+  margin: auto;
+  padding: 0;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+  background: #fffdf8;
+  color: #333;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+  -webkit-app-region: no-drag;
+  user-select: text;
+}
+.note-info::backdrop {
+  background: rgba(30, 25, 15, 0.22);
+  -webkit-app-region: no-drag;
+}
+.note-info__panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.note-info__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-shrink: 0;
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+.note-info__header h2 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+.note-info__button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  padding: 3px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #555;
+  cursor: pointer;
+}
+.note-info__button:hover,
+.note-info__refresh:hover { background: rgba(0, 0, 0, 0.06); }
+.note-info__button svg,
+.note-info__refresh svg { width: 16px; height: 16px; flex-shrink: 0; }
+.note-info__body { min-height: 0; padding: 12px; overflow-y: auto; }
+.note-info__fields { margin: 0; padding: 0; }
+.note-info__row { margin: 0 0 12px; font-size: 12px; line-height: 1.5; }
+.note-info__row dt { margin: 0 0 2px; color: #777; }
+.note-info__row dd { margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+.note-info__hint { margin: 0 0 10px; color: #777; font-size: 11px; line-height: 1.5; }
+.note-info__refresh {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 8px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 5px;
+  background: transparent;
+  color: #555;
+  font-size: 12px;
+  cursor: pointer;
+}
+
 .sticky-note__menu {
   position: absolute;
   right: 6px; /* ⋯ 按钮在分类区最右，菜单右缘与标签/文件夹面板对齐 */
@@ -1833,6 +1911,10 @@ input.sticky-note__title-input {
   flex: none;
 }
 
+.settings-panel__dependent {
+  padding-left: 23px;
+}
+
 .settings-panel__label {
   font-size: 12px;
   color: var(--mv-label);
@@ -2444,6 +2526,12 @@ input.sticky-note__title-input {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.note-list__id {
+  font-family: Consolas, 'SFMono-Regular', monospace;
+  font-size: 11px;
+  white-space: nowrap;
 }
 
 /* 便签列表项：flex 列布局，meta（时间/字数）钉在内容区底部——

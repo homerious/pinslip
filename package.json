@@ -15,7 +15,10 @@
     "typecheck": "pnpm --filter @pinslip/desktop typecheck",
     "test:note-window": "node scripts/test-note-window.js",
     "test:startup": "node scripts/test-startup.js",
-    "test:editor-paste": "node scripts/test-editor-paste.js"
+    "test:editor-paste": "node scripts/test-editor-paste.js",
+    "test:note-info": "node scripts/test-note-info.js",
+    "test:clipboard-note": "node scripts/test-clipboard-note.js",
+    "test:manager-layout": "node scripts/test-manager-layout.js"
   },
   "engines": {
     "node": ">=18.0.0"

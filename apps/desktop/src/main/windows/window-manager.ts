@@ -1,7 +1,7 @@
 import { BrowserWindow } from 'electron';
 import { createNoteWindow, NOTE_COLLAPSED_HEIGHT, setNoteWindowCollapsed } from './note-window';
 import { createQuickCaptureWindow } from './quick-capture';
-import { createMainWindow } from './main-window';
+import { createMainWindow, flushMainWindowLayout, resetMainWindowLayout, setMainWindowLayoutEnabled } from './main-window';
 import { GroupManager } from './group-manager';
 import { getOpenNotes, setOpenNotes, getAdvanced } from '../settings';
 import { IPC } from '../../shared/ipc-channels';
@@ -13,6 +13,8 @@ import type { GoProcess } from '../services/go-process';
  */
 export class WindowManager {
   private noteWindows = new Map<string, BrowserWindow>();
+  /** 只保存快捷键新建窗口的初始化快照，领取或关窗即清理，不进入 URL/设置。 */
+  private initialNoteContents = new Map<string, string>();
   private quickCaptureWindow: BrowserWindow | null = null;
   private mainWindow: BrowserWindow | null = null;
   /** 应用退出中：before-quit 置位，主窗口的 close 不再拦截为隐藏 */
@@ -37,7 +39,7 @@ export class WindowManager {
 
   /** 新建便签窗口；已有同 id 窗口则聚焦。noteId 为空时创建新 id。
    *  folder 仅新建时有效：随窗口路由下发，首次保存落盘到该文件夹 */
-  async createNoteWindow(noteId?: string, folder?: string, restoreInactive = false): Promise<string> {
+  async createNoteWindow(noteId?: string, folder?: string, restoreInactive = false, initialContent?: string): Promise<string> {
     const id = noteId ?? crypto.randomUUID().replaceAll('-', '').slice(0, 16);
 
     const existing = this.noteWindows.get(id);
@@ -113,6 +115,7 @@ export class WindowManager {
       },
     });
     this.noteWindows.set(id, win);
+    if (!noteId && initialContent?.trim()) this.initialNoteContents.set(id, initialContent);
     this.syncOpenNotes();
     // 新窗创建/show 可能把其他置顶便签踢出置顶带（见 reassertPinnedNotes）
     win.once('show', () => this.reassertPinnedNotes());
@@ -133,6 +136,7 @@ export class WindowManager {
     win.on('restore', () => this.groupManager.restackOf(id));
     win.on('closed', () => {
       this.noteWindows.delete(id);
+      this.initialNoteContents.delete(id);
       // 成组预告残影清理：拖动方中途关窗，目标的高亮要收掉
       const hoverTarget = this.stackHoverTargets.get(id);
       if (hoverTarget) this.groupManager.pushHover(hoverTarget, false);
@@ -146,6 +150,18 @@ export class WindowManager {
       if (!this.quitting) this.syncOpenNotes();
     });
     return id;
+  }
+
+  /** 根据 IPC 发送方识别所属便签，不能用外部传入的 noteId 领取别窗内容。 */
+  takeInitialNoteContent(webContentsId: number): string | null {
+    for (const [id, win] of this.noteWindows) {
+      if (!win.isDestroyed() && win.webContents.id === webContentsId) {
+        const content = this.initialNoteContents.get(id) ?? null;
+        this.initialNoteContents.delete(id);
+        return content;
+      }
+    }
+    return null;
   }
 
   /** 成组预告点亮/熄灭：目标在组内时整组一起亮（加入预览 = 你将成为这个
@@ -347,6 +363,18 @@ export class WindowManager {
     this.quickCaptureWindow.on('closed', () => {
       this.quickCaptureWindow = null;
     });
+  }
+
+  setRememberManagerLayout(enabled: boolean): void {
+    setMainWindowLayoutEnabled(this.mainWindow, enabled);
+  }
+
+  flushManagerLayout(): void {
+    flushMainWindowLayout(this.mainWindow);
+  }
+
+  resetManagerLayout(): Promise<void> {
+    return resetMainWindowLayout(this.mainWindow);
   }
 
   /** 显示主窗口（单例；已存在则显示并聚焦）。 */

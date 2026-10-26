@@ -221,3 +221,12 @@ token 不出现在任何接口响应与日志中。
   附件文件命名 `att-<时间戳>-<随机4位hex><ext>`。
 - 本地文件是唯一事实来源（`notes/` 与 `inbox/` 下），SQLite 只是索引；
   服务启动时全量重建索引。
+
+## Electron 内部窗口初始化
+
+- `note:take-initial-content`（`window.api.takeInitialNoteContent()`）无参数，返回 `string | null`。
+  仅新建便签快捷键可为新窗口提供剪贴板纯文本快照；主进程根据 IPC 发送方识别窗口，
+  领取一次即清理，非对应窗口、已领取或没有初始内容时返回 `null`，关闭窗口也会清理。
+  文本不放入路由 URL，不提供任意笔记 ID 查询。渲染层初始化后通过既有 `PUT /api/notes/{id}` 自动保存。
+- 应用高级设置 `blankNoteClipboard` 是默认 `false` 的严格布尔值，仅 `blankNoteShortcut` 启用时
+  可启用并生效。父快捷键关闭时保留子偏好；与服务端速记剪贴板设置互相独立。

@@ -5,7 +5,7 @@ import path from 'node:path';
 
 /**
  * 窗口位置/尺寸记忆：JSON 存 userData/window-state.json。
- * key 规则：便签 `note:<id>`，主窗口 `main`。保存防抖 500ms。
+ * key 规则：便签 `note:<id>`（旧 `main` 不再使用）。保存防抖 500ms。
  *
  * 存储单位说明（高分屏多显示器的血泪教训）：
  * Windows 混合 DPI（如主屏 100% + 副屏 150%）下，窗口跨屏显示时 OS 会按
@@ -14,7 +14,7 @@ import path from 'node:path';
  * 每轮 保存→恢复 都会缩小一级，滚雪球。
  * 因此便签窗口使用「自校准」：建窗后量出 期望尺寸/报告尺寸 的比值 K 与
  * 位置偏移 C，之后保存一律按 K 还原为构造单位（约等于物理像素）。
- * 单屏 100% 时 K=1、C=0，无感知。主窗口固定尺寸走原 DIP 路径。
+ * 单屏 100% 时 K=1、C=0，无感知。管理器使用 main-window-layout.ts 独立记录。
  */
 export interface WindowState {
   x: number;

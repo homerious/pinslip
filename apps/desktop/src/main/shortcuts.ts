@@ -1,4 +1,4 @@
-import { globalShortcut } from 'electron';
+import { clipboard, globalShortcut } from 'electron';
 import type { WindowManager } from './windows/window-manager';
 import { getAdvanced } from './settings';
 import type { GlobalShortcutKey } from '../shared/types';
@@ -74,11 +74,23 @@ export function registerShortcuts(windowManager: WindowManager): void {
     console.error('[shortcut] quick capture shortcut register failed at startup:', err);
   }
 
-  // 空白便签快捷键（缺省 off 不注册）：按下在根目录新建空白便签并聚焦——
+  // 新建便签快捷键（缺省 off 不注册）：可选带入触发时的剪贴板纯文本。
   // 仅快捷键路径 focus，会话恢复/列表打开等建窗路径不抢焦点
   blankNoteRebinder = createShortcutRebinder('blank note', GLOBAL_SHORTCUT_ACCELERATORS, () => {
+    const advanced = getAdvanced();
+    // 关闭后已排队的回调不再建窗；无效设置与 off 一致。
+    if (advanced.blankNoteShortcut === 'off' || !Object.hasOwn(GLOBAL_SHORTCUT_ACCELERATORS, advanced.blankNoteShortcut)) return;
+    let initialContent: string | undefined;
+    if (advanced.blankNoteClipboard) {
+      try {
+        const text = clipboard.readText();
+        if (text.trim()) initialContent = text;
+      } catch {
+        console.warn('[shortcut] clipboard text unavailable; creating empty note');
+      }
+    }
     windowManager
-      .createNoteWindow()
+      .createNoteWindow(undefined, undefined, false, initialContent)
       .then((id) => windowManager.focusNoteWindow(id))
       .catch((err) => console.error('[shortcut] blank note create failed:', err));
   });

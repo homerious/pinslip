@@ -14,3 +14,10 @@ export function shortenFolder(path: string, max = 14): string {
   if (first !== last) return `${first}/…/${last}`;
   return [...path].slice(0, max - 1).join('') + '…';
 }
+
+/** 仅组合笔记所在目录；文件名以服务端实际文件为准，不在前端复刻 slug 算法。 */
+export function noteDirectory(vault: string, platform: string, inbox: boolean, folder: string): string {
+  const sep = platform === 'win32' ? '\\' : '/';
+  const relative = inbox ? ['inbox'] : ['notes', ...folder.split('/').filter(Boolean)];
+  return vault.replace(/[\\/]+$/, '') + sep + relative.join(sep);
+}

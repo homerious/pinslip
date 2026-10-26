@@ -169,6 +169,8 @@ export type GlobalShortcutKey =
 /** 高级设置选项（应用设置 settings.json 的 advanced 对象，main/渲染共用）。
  *  全部字段可选且有缺省值（缺省 = 简洁模型现状），新增选项 = 加字段，零新增 IPC */
 export interface AdvancedSettings {
+  /** 记住管理器尺寸和位置（缺省 false），关闭清除记忆但不移动当前窗口 */
+  rememberManagerLayout?: boolean;
   /** 开机启动时隐藏管理器（缺省 false；手动启动不受影响） */
   autoStartHidden?: boolean;
   /** 系统托盘图标显隐（缺省 true）；关闭后全部窗口关闭时应用退出 */
@@ -181,8 +183,10 @@ export interface AdvancedSettings {
   /** 管理器主题（缺省 'light' 浅色现状；'system' = 跟随 OS 深色模式）；
    *  仅作用于主窗口与设置抽屉，便签窗口/速记窗口不受影响，列表卡片六色不主题化 */
   managerTheme?: 'light' | 'dark' | 'system';
-  /** 空白便签全局快捷键（缺省 'off' 不注册）：按下在根目录新建空白便签并聚焦 */
+  /** 新建便签全局快捷键（缺省 'off' 不注册）：按下在根目录新建并聚焦 */
   blankNoteShortcut?: GlobalShortcutKey;
+  /** 新建便签快捷键带入剪贴板纯文本（缺省 false，仅父快捷键启用时生效） */
+  blankNoteClipboard?: boolean;
   /** 速记浮窗全局快捷键（缺省 'ctrl+shift+n' 保持现状）：按下呼出速记浮窗，'off' = 不注册 */
   quickCaptureShortcut?: GlobalShortcutKey;
   /** 便签底部工具栏左区（编辑辅助区）按钮顺序：有序 id 列表，缺省 = 现状顺序。
@@ -229,6 +233,8 @@ export interface ElectronAPI {
   getRuntimeInfo(): Promise<RuntimeInfo>;
   /** 打开/新建便签窗口；folder 仅新建时有效：首次保存落盘到该文件夹（notes/ 相对路径） */
   createNote(noteId?: string, folder?: string): Promise<void>;
+  /** 仅领取调用方新便签的一次性初始文本；其他窗口或已消费返回 null */
+  takeInitialNoteContent(): Promise<string | null>;
   closeNote(noteId: string): Promise<void>;
   /** 查询当前窗口 DevTools 是否打开（速记窗失焦自动关闭的豁免判定） */
   isDevToolsOpen(): Promise<boolean>;
@@ -237,6 +243,8 @@ export interface ElectronAPI {
   setNoteCollapsed(noteId: string, collapsed: boolean): Promise<void>;
   listWindows(): Promise<string[]>;
   showMainWindow(): Promise<void>;
+  /** 将现有管理器恢复至默认布局，保留记忆开关 */
+  resetManagerLayout(): Promise<void>;
   /** 便签角落拖拽缩放：开始时记录尺寸 */
   noteResizeBegin(noteId: string): Promise<void>;
   /** 便签角落拖拽缩放：按累计位移调整；edge='left' 时左缘拖拽、右缘锚定 */

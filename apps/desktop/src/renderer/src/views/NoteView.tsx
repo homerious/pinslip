@@ -32,11 +32,13 @@ import WarningCircleFillIcon from '~icons/ph/warning-circle-fill';
 import TableIcon from '~icons/ph/table';
 import PencilSimpleIcon from '~icons/ph/pencil-simple';
 import ArrowCounterClockwiseIcon from '~icons/ph/arrow-counter-clockwise';
+import InfoIcon from '~icons/ph/info';
 import PinIcon from '../components/icons/PinIcon';
 import Editor from '../components/editor/Editor';
 import type { EditorHandle } from '../components/editor/Editor';
 import FindBar from '../components/editor/FindBar';
 import ConflictResolver from '../components/ConflictResolver';
+import NoteInfo from '../components/NoteInfo';
 import { toMarkdownImageSrc } from '../components/editor/image-support';
 import { attachmentsApi, SUPPORTED_IMAGE_MIME_TYPES } from '../api/attachments';
 import { foldersApi, notesApi } from '../api/notes';
@@ -162,6 +164,8 @@ export default function NoteView() {
   const [toast, setToast] = useState<string | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [infoOpen, setInfoOpen] = useState(false);
+  const moreButtonRef = useRef<HTMLButtonElement>(null);
   /** 便签内搜索条：Ctrl+F 打开；findReplaceOpen = 替换行展开（Ctrl+H 直接展开） */
   const [findOpen, setFindOpen] = useState(false);
   const [findReplaceOpen, setFindReplaceOpen] = useState(false);
@@ -210,6 +214,8 @@ export default function NoteView() {
   const imageInputRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<EditorHandle>(null);
   const loadedRef = useRef(false);
+  // StrictMode 重放 effect 时共用同一次领取，避免第二次 null 清空初始化文本。
+  const initialContentRef = useRef<Promise<string | null> | null>(null);
   const existsRef = useRef(false); // 是否已存在于服务端（新便签写了内容才落盘）
   const lastSavedRef = useRef(''); // 上次保存的内容，避免加载后多余回写
   const folderRef = useRef(''); // 笔记所在子文件夹（图片 ../ 前缀深度）
@@ -329,6 +335,7 @@ export default function NoteView() {
     };
     const onBlur = () => {
       setActive(false);
+      setInfoOpen(false);
       setPaletteOpen(false);
       setMenuOpen(false);
       setNewMenuOpen(false);
@@ -451,48 +458,64 @@ export default function NoteView() {
     };
   }, [noteId]);
 
-  // 加载笔记；404（首次创建的新便签）视为空白笔记
+  // 先领取快捷键新便签的一次性内容；普通窗口继续加载笔记，404 视为空白。
   useEffect(() => {
-    notesApi
-      .get(noteId)
-      .then((note) => {
-        existsRef.current = true;
-        lastSavedRef.current = note.content;
-        contentRef.current = note.content;
-        setTitle(note.title);
-        setTitleManual(note.titleManual ?? false);
-        setContent(note.content);
-        setPinned(note.pin);
-        setCollapsed(note.collapsed ?? false);
-        // 自愈重放：frontmatter 是折叠状态的真相源，winstate 只记几何。
-        // 两边脱钩时（外部改 .md / 历史脏数据）按笔记数据矫正窗口；
-        // 主进程有幂等保护，状态一致时是 no-op
-        void window.api.setNoteCollapsed(noteId, note.collapsed ?? false);
-        setColor(note.color || 'yellow');
-        setTags(note.tags ?? []);
-        // 内容缩放：frontmatter zoom 倍率 → 整数百分比（范围外收敛；缺省 = 100%）
-        if (note.zoom && note.zoom > 0) {
-          setZoomPct(Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(note.zoom * 100))));
-        }
-        folderRef.current = note.folder ?? '';
-        setFolder(note.folder ?? '');
-      })
-      .catch(() => {
-        setTitle('');
-        setTitleManual(false);
-        contentRef.current = '';
-        setContent('');
-        // 新建便签：落盘文件夹来自窗口路由 query（主界面文件夹视图/便签＋菜单传入）；
-        // 同步 folderRef——粘贴图片的 ../ 前缀深度从第一次粘贴起就是对的
+    initialContentRef.current ??= window.api.takeInitialNoteContent().catch(() => null);
+    let cancelled = false;
+    initialContentRef.current.then(async (initialContent) => {
+      if (cancelled) return;
+      if (typeof initialContent === 'string' && initialContent.trim()) {
+        contentRef.current = initialContent;
+        dirtyRef.current = true;
+        lastEditAtRef.current = Date.now();
         folderRef.current = initialFolder;
         setFolder(initialFolder);
-      })
-      .finally(() => {
-        loadedRef.current = true;
-        setSaveState('idle');
-        // 加载完成后编辑器就绪即聚焦（窗口打开即可直接输入，内部带重试）
-        focusEditorIfIdle();
-      });
+        setContent(initialContent);
+        return;
+      }
+      return notesApi.get(noteId)
+        .then((note) => {
+          if (cancelled) return;
+          existsRef.current = true;
+          lastSavedRef.current = note.content;
+          contentRef.current = note.content;
+          setTitle(note.title);
+          setTitleManual(note.titleManual ?? false);
+          setContent(note.content);
+          setPinned(note.pin);
+          setCollapsed(note.collapsed ?? false);
+          // 自愈重放：frontmatter 是折叠状态的真相源，winstate 只记几何。
+          // 两边脱钩时（外部改 .md / 历史脏数据）按笔记数据矫正窗口；
+          // 主进程有幂等保护，状态一致时是 no-op
+          void window.api.setNoteCollapsed(noteId, note.collapsed ?? false);
+          setColor(note.color || 'yellow');
+          setTags(note.tags ?? []);
+          // 内容缩放：frontmatter zoom 倍率 → 整数百分比（范围外收敛；缺省 = 100%）
+          if (note.zoom && note.zoom > 0) {
+            setZoomPct(Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(note.zoom * 100))));
+          }
+          folderRef.current = note.folder ?? '';
+          setFolder(note.folder ?? '');
+        })
+        .catch(() => {
+          if (cancelled) return;
+          setTitle('');
+          setTitleManual(false);
+          contentRef.current = '';
+          setContent('');
+          // 新建便签：落盘文件夹来自窗口路由 query（主界面文件夹视图/便签＋菜单传入）；
+          // 同步 folderRef——粘贴图片的 ../ 前缀深度从第一次粘贴起就是对的
+          folderRef.current = initialFolder;
+          setFolder(initialFolder);
+        });
+    }).finally(() => {
+      if (cancelled) return;
+      loadedRef.current = true;
+      setSaveState('idle');
+      // 加载完成后编辑器就绪即聚焦（窗口打开即可直接输入，内部带重试）
+      focusEditorIfIdle();
+    });
+    return () => { cancelled = true; };
   }, [noteId, focusEditorIfIdle, initialFolder]);
 
   /** 显示用标题：手动标题取已保存值（不随正文变动）；否则实时跟随内容首行
@@ -1569,6 +1592,7 @@ export default function NoteView() {
             data-tip-place="top"
             data-tip-align="right"
             aria-label={t('note.more')}
+            ref={moreButtonRef}
             onClick={() => {
               setPaletteOpen(false);
               setNewMenuOpen(false);
@@ -1857,6 +1881,17 @@ export default function NoteView() {
             {t('note.noteList')}
           </button>
           <button
+            className="sticky-note__menu-item"
+            onClick={() => {
+              setMenuOpen(false);
+              setConfirmDelete(false);
+              setInfoOpen(true);
+            }}
+          >
+            <InfoIcon />
+            {t('noteInfo.heading')}
+          </button>
+          <button
             className={`sticky-note__menu-item${confirmDelete ? ' is-danger' : ''}`}
             onClick={handleDelete}
           >
@@ -1900,6 +1935,16 @@ export default function NoteView() {
             </button>
           )}
         </div>
+      )}
+      {infoOpen && (
+        <NoteInfo
+          noteId={noteId}
+          title={displayTitle}
+          folder={folder}
+          hasSaved={existsRef.current}
+          returnFocus={moreButtonRef.current}
+          onClose={() => setInfoOpen(false)}
+        />
       )}
       </div>
     </>

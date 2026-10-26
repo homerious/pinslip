@@ -4,6 +4,7 @@ export const IPC = {
   RuntimeInfo: 'runtime:info',
   /** 新建/聚焦便签窗口，参数 noteId? */
   WindowCreate: 'window:create',
+  NoteTakeInitialContent: 'note:take-initial-content',
   /** 关闭指定便签窗口，参数 noteId */
   WindowClose: 'window:close',
   /** 查询调用方窗口的 DevTools 是否打开（速记窗失焦关闭的调试豁免用） */
@@ -16,6 +17,7 @@ export const IPC = {
   WindowList: 'window:list',
   /** 显示主窗口 */
   MainWindowShow: 'main-window:show',
+  MainWindowResetLayout: 'main-window:reset-layout',
   /** 便签拖拽缩放开始（主进程记录起始尺寸），参数 noteId */
   NoteResizeBegin: 'note:resize-begin',
   /** 便签拖拽缩放中，参数 (noteId, dx, dy)——相对起始位置的累计位移 */
