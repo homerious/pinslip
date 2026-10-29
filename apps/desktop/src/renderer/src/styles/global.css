@@ -988,6 +988,9 @@ input.sticky-note__title-input {
   user-select: text;
 }
 .note-info::backdrop {
+  /* 原生遮罩默认铺满窗口；仅覆盖卡片，保留透明阴影边距及圆角。 */
+  inset: var(--note-margin, 16px);
+  border-radius: var(--note-radius, 8px);
   background: rgba(30, 25, 15, 0.22);
   -webkit-app-region: no-drag;
 }
