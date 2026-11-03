@@ -62,6 +62,8 @@ import { shortenFolder } from '../utils/path';
 import { COLORS, readLastNoteColor } from '../utils/colors';
 import { formatRelativeTime } from '../utils/time';
 import { copyText } from '../utils/copy-text';
+import { useWritingDirection } from '../hooks/use-writing-direction';
+import type { WritingDirection } from '@shared/types';
 import { useCopyFormat } from '../hooks/use-copy-format';
 import CopyFormatMenu, { type CopyMenuAnchor } from '../components/CopyFormatMenu';
 import type { CopyAllFormat } from '@shared/types';
@@ -243,6 +245,9 @@ export default function MainView() {
   /** 列表项「复制全部」的 ✓ 反馈：最近复制成功的便签 id（1.2s 后复位） */
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [copyErrorId, setCopyErrorId] = useState<string | null>(null);
+  const [writingDirection, changeWritingDirection] = useWritingDirection();
+  const [directionBusy, setDirectionBusy] = useState(false);
+  const [directionError, setDirectionError] = useState(false);
   const [copyFormat, changeCopyFormat] = useCopyFormat();
   const [copyFormatBusy, setCopyFormatBusy] = useState(false);
   const [copyFormatError, setCopyFormatError] = useState(false);
@@ -2122,6 +2127,24 @@ export default function MainView() {
                 </div>
                 <div className="settings-panel__hint">{t('copyFormat.defaultHint')}</div>
                 {copyFormatError && <div className="settings-panel__error" role="alert">{t('copyFormat.settingFailed')}</div>}
+                <div className="settings-panel__row">
+                  <label className="settings-panel__label" htmlFor="writing-direction">{t('writingDirection.defaultLabel')}</label>
+                  <select id="writing-direction" className="settings-panel__select"
+                    value={writingDirection} disabled={directionBusy}
+                    onChange={async event => {
+                      const next = event.target.value as WritingDirection;
+                      setDirectionBusy(true); setDirectionError(false);
+                      try { await changeWritingDirection(next); }
+                      catch { setDirectionError(true); }
+                      finally { setDirectionBusy(false); }
+                    }}>
+                    {(['auto', 'ltr', 'rtl'] as const).map(value =>
+                      <option key={value} value={value}>{t('writingDirection.' + value)}</option>)}
+                  </select>
+                </div>
+                <div className="settings-panel__hint">{t('writingDirection.hint')}</div>
+                {directionError && <div className="settings-panel__error" role="alert">{t('writingDirection.settingFailed')}</div>}
+
                 <div className="settings-panel__row">
                   <KeyboardIcon className="settings-panel__row-icon" />
                   <span className="settings-panel__label">{t('settings.blankNoteShortcut')}</span>

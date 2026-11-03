@@ -399,5 +399,15 @@
     "SYNC_PULL_FAILED": "Échec de la récupération depuis le distant",
     "SYNC_PUSH_FAILED": "Échec de l'envoi vers le distant",
     "NOTE_NOT_FOUND": "La note n'existe pas ou a été supprimée"
+  },
+  "writingDirection": {
+    "label": "Sens d’écriture",
+    "defaultLabel": "Sens d’écriture par défaut",
+    "auto": "Détection automatique",
+    "ltr": "De gauche à droite",
+    "rtl": "De droite à gauche",
+    "inherit": "Suivre le réglage par défaut",
+    "hint": "Ctrl droit + Maj : note entière de droite à gauche ; Ctrl gauche + Maj : de gauche à droite. Le choix manuel de la note est prioritaire.",
+    "settingFailed": "Impossible d’enregistrer le sens d’écriture. Veuillez réessayer."
   }
 }

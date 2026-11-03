@@ -35,6 +35,9 @@ import ArrowCounterClockwiseIcon from '~icons/ph/arrow-counter-clockwise';
 import InfoIcon from '~icons/ph/info';
 import PinIcon from '../components/icons/PinIcon';
 import Editor from '../components/editor/Editor';
+import type { NoteDirection } from '@shared/types';
+import { useWritingDirection } from '../hooks/use-writing-direction';
+import { bindDirectionShortcut } from '../utils/direction-shortcut';
 import type { EditorHandle } from '../components/editor/Editor';
 import FindBar from '../components/editor/FindBar';
 import ConflictResolver from '../components/ConflictResolver';
@@ -145,6 +148,10 @@ export default function NoteView() {
   const [newNoteColor, setNewNoteColor] = useState<NoteColor>(() => readLastNoteColor());
   /** 内容缩放（整数百分比）；只作用于标题文字与编辑器正文，标题栏/工具栏按钮不缩 */
   const [zoomPct, setZoomPct] = useState(ZOOM_DEFAULT);
+  const [defaultDirection] = useWritingDirection();
+  const [direction, setDirection] = useState<NoteDirection>('');
+  const directionRef = useRef<NoteDirection>('');
+  const directionRevisionRef = useRef(0);
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
   const [tagPanelOpen, setTagPanelOpen] = useState(false);
@@ -232,6 +239,19 @@ export default function NoteView() {
   const flushRef = useRef<() => Promise<void>>(async () => {});
   const saveNote = useCallback((patch: Parameters<typeof notesApi.save>[1]) =>
     saveQueueRef.current.run(() => notesApi.save(noteId, patch)), [noteId]);
+  const changeDirection = useCallback((next: NoteDirection) => {
+    if (!loadedRef.current || closingRef.current) return;
+    directionRevisionRef.current++;
+    directionRef.current = next;
+    setDirection(next);
+    if (!existsRef.current) return;
+    setSaveState('saving');
+    void saveNote({ direction: next }).then(() => {
+      setSaveState('saved');
+      window.api.notifyNotesChanged();
+    }).catch(() => setSaveState('error'));
+  }, [saveNote]);
+  useEffect(() => bindDirectionShortcut(window, changeDirection), [changeDirection]);
   // StrictMode 重放 effect 时共用同一次领取，避免第二次 null 清空初始化文本。
   const initialContentRef = useRef<Promise<string | null> | null>(null);
   const existsRef = useRef(false); // 是否已存在于服务端（新便签写了内容才落盘）
@@ -398,7 +418,7 @@ export default function NoteView() {
   const saveResolution = useCallback(
     (text: string) => {
       setSaveState('saving');
-      saveNote({ content: text, source: 'sticky', pin: pinned, color, tags, collapsed, folder: folderRef.current, zoom: zoomPct === ZOOM_DEFAULT ? 1 : zoomPct / 100 })
+      saveNote({ content: text, source: 'sticky', pin: pinned, color, tags, collapsed, folder: folderRef.current, zoom: zoomPct === ZOOM_DEFAULT ? 1 : zoomPct / 100, direction: directionRef.current })
         .then((note) => {
           existsRef.current = true;
           lastSavedRef.current = note.content;
@@ -438,9 +458,13 @@ export default function NoteView() {
   useEffect(() => {
     const off = window.api.onNotesChanged(() => {
       if (!existsRef.current) return; // 未落盘的新便签没有文件可被删/改
-      notesApi
-        .get(noteId)
+      const revision = directionRevisionRef.current;
+      saveQueueRef.current.idle().then(() => notesApi.get(noteId))
         .then((note) => {
+          if (revision === directionRevisionRef.current && !saveQueueRef.current.failed) {
+            directionRef.current = note.direction === 'ltr' || note.direction === 'rtl' ? note.direction : '';
+            setDirection(directionRef.current);
+          }
           const disk = note.content;
           // disk === contentRef：自己保存的广播先于回包到达（磁盘即编辑器现值），同样无操作
           if (disk === lastSavedRef.current || disk === contentRef.current) return;
@@ -499,6 +523,8 @@ export default function NoteView() {
           setTitle(note.title);
           setTitleManual(note.titleManual ?? false);
           setContent(note.content);
+          directionRef.current = note.direction === 'ltr' || note.direction === 'rtl' ? note.direction : '';
+          setDirection(directionRef.current);
           setPinned(note.pin);
           setCollapsed(note.collapsed ?? false);
           // 自愈重放：frontmatter 是折叠状态的真相源，winstate 只记几何。
@@ -587,7 +613,7 @@ export default function NoteView() {
       if (closingRef.current) return;
       // folder 随保存带上：仅新建便签首次落盘生效（已存在便签服务端忽略，移动走 move）；
       // collapsed 一并带上（全量快照式 upsert，与 pin/color 同模式），折叠的新便签首次落盘不丢状态
-      saveNote({ content, source: 'sticky', pin: pinned, color, tags, collapsed, folder: folderRef.current, zoom: zoomPct === ZOOM_DEFAULT ? 1 : zoomPct / 100 })
+      saveNote({ content, source: 'sticky', pin: pinned, color, tags, collapsed, folder: folderRef.current, zoom: zoomPct === ZOOM_DEFAULT ? 1 : zoomPct / 100, direction: directionRef.current })
         .then((note) => {
           existsRef.current = true;
           lastSavedRef.current = note.content;
@@ -606,8 +632,8 @@ export default function NoteView() {
     return () => { clearTimeout(timer); if (autosaveTimerRef.current === timer) autosaveTimerRef.current = null; };
   }, [content, noteId, pinned, color, tags, collapsed, zoomPct]);
 
-  const saveSnapshotRef = useRef({ pin: pinned, color, tags, collapsed, zoom: zoomPct / 100 });
-  saveSnapshotRef.current = { pin: pinned, color, tags, collapsed, zoom: zoomPct / 100 };
+  const saveSnapshotRef = useRef({ pin: pinned, color, tags, collapsed, zoom: zoomPct / 100, direction });
+  saveSnapshotRef.current = { pin: pinned, color, tags, collapsed, zoom: zoomPct / 100, direction };
   const resumeEditing = useCallback(() => {
     closingRef.current = false;
     if (rootRef.current) rootRef.current.inert = false;
@@ -628,7 +654,7 @@ export default function NoteView() {
       if (!existsRef.current && !latest.trim()) return;
       if (latest === lastSavedRef.current && !saveQueueRef.current.failed) return;
       setSaveState('saving');
-      const saved = await saveNote({ content: latest, source: 'sticky', folder: folderRef.current, ...saveSnapshotRef.current });
+      const saved = await saveNote({ content: latest, source: 'sticky', folder: folderRef.current, ...saveSnapshotRef.current, direction: directionRef.current });
       existsRef.current = true;
       lastSavedRef.current = saved.content;
       dirtyRef.current = false;
@@ -1453,6 +1479,7 @@ export default function NoteView() {
                 content={content}
                 onChange={handleChange}
                 mode="sticky"
+                direction={direction || defaultDirection}
                 folder={folderRef.current}
               />
             )}
@@ -1902,6 +1929,15 @@ export default function NoteView() {
           <button className="sticky-note__menu-item" onClick={() => copyAll('plain')}>
             <CopyIcon />{t('copyFormat.asPlain')}
           </button>
+          <div className="sticky-note__menu-label">{t('writingDirection.label')}</div>
+          {(['', 'ltr', 'rtl'] as const).map(value => (
+            <button key={value || 'inherit'} className="sticky-note__menu-item"
+              role="menuitemradio" aria-checked={direction === value}
+              onClick={() => { setMenuOpen(false); changeDirection(value); }}>
+              {direction === value ? <CheckIcon /> : <span style={{ width: 16 }} />}
+              {t('writingDirection.' + (value || 'inherit'))}
+            </button>
+          ))}
           {overflowEditButtons.map((b) => {
             if (b.key === 'export') {
               return (

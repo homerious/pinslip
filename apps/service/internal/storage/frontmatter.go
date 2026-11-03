@@ -10,6 +10,7 @@ import (
 
 // Frontmatter 是 Markdown 文件头部的 YAML 元数据。
 type Frontmatter struct {
+	Direction   string   `yaml:"direction,omitempty"` // ltr/rtl；缺省跟随应用设置
 	ID          string   `yaml:"id"`
 	Title       string   `yaml:"title,omitempty"`
 	TitleManual bool     `yaml:"title_manual,omitempty"` // 手动标题标志：true = 标题由用户重命名，正文保存不再自动推导
@@ -59,6 +60,9 @@ func ParseNote(data []byte) (*Frontmatter, string, error) {
 	var fm Frontmatter
 	if err := yaml.Unmarshal([]byte(head), &fm); err != nil {
 		return nil, "", err
+	}
+	if fm.Direction != "ltr" && fm.Direction != "rtl" {
+		fm.Direction = ""
 	}
 	return &fm, body, nil
 }

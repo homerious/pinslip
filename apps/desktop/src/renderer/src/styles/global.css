@@ -1392,6 +1392,10 @@ input.sticky-note__title-input {
   margin: 2px 0;
 }
 
+.pinslip-editor .ProseMirror {
+  text-align: start;
+}
+
 /* 编辑器内图片：宽度不超出便签，圆角贴合卡片风格 */
 .pinslip-editor .pinslip-editor-image {
   max-width: 100%;
@@ -1420,11 +1424,11 @@ input.sticky-note__title-input {
   font-size: 14px;
 }
 
-/* 列表：* 重置清掉了 padding-left，outside 的符号被挤出可视区——
-   这是"列表快捷键不生效"的真正原因（输入规则其实触发了） */
+/* 每项自己预留起始侧缩进，outside 符号留在可视区；
+   不在 ul/ol 上固定方向，使自动模式中的 RTL/LTR 列表项可独立换边。 */
 .pinslip-editor .ProseMirror ul,
 .pinslip-editor .ProseMirror ol {
-  padding-left: 1.4em;
+  padding-inline: 0;
   margin: 2px 0;
 }
 
@@ -1438,6 +1442,7 @@ input.sticky-note__title-input {
 
 .pinslip-editor .ProseMirror li {
   margin: 1px 0;
+  margin-inline-start: 1.4em;
 }
 
 .pinslip-editor .ProseMirror li > p {
@@ -1446,17 +1451,17 @@ input.sticky-note__title-input {
 
 /* GFM 任务列表：nodeview（task-item-view.ts）渲染真实可点击的 checkbox。
    li 结构为 [span.pinslip-task-check, div.pinslip-task-content]；
-   checkbox 悬浮在 li 左侧（padding 预留的位置），点击切换 checked */
+   checkbox 悬浮在 li 的起始侧（padding 预留的位置），点击切换 checked */
 .pinslip-editor .ProseMirror li[data-item-type='task'] {
   list-style: none;
-  margin-left: -1.4em;
+  margin-inline-start: 0;
   position: relative;
-  padding-left: 1.45em;
+  padding-inline-start: 1.45em;
 }
 
 .pinslip-editor .ProseMirror .pinslip-task-check {
   position: absolute;
-  left: 0.15em;
+  inset-inline-start: 0.15em;
   top: 0.3em;
   width: 0.78em;
   height: 0.78em;
@@ -1494,7 +1499,7 @@ input.sticky-note__title-input {
 .pinslip-editor .ProseMirror blockquote {
   margin: 4px 0;
   padding: 2px 10px;
-  border-left: 3px solid rgba(0, 0, 0, 0.2);
+  border-inline-start: 3px solid rgba(0, 0, 0, 0.2);
   color: rgba(0, 0, 0, 0.6);
 }
 
@@ -1582,7 +1587,13 @@ input.sticky-note__title-input {
 .pinslip-editor .ProseMirror th {
   background: rgba(0, 0, 0, 0.09);
   font-weight: 600;
-  text-align: left;
+  text-align: start;
+}
+
+.sticky-note__menu-label {
+  padding: 4px 10px;
+  font-size: 11px;
+  color: rgba(0, 0, 0, 0.55);
 }
 
 /* 外圆角 6px 减去 1px 边框：角上的单元格底纹会戳出圆角，补内圆角 */

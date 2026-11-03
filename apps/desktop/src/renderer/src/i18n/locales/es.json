@@ -399,5 +399,15 @@
     "SYNC_PULL_FAILED": "Error al descargar del remoto",
     "SYNC_PUSH_FAILED": "Error al subir al remoto",
     "NOTE_NOT_FOUND": "La nota no existe o ha sido eliminada"
+  },
+  "writingDirection": {
+    "label": "Dirección de escritura",
+    "defaultLabel": "Dirección de escritura predeterminada",
+    "auto": "Detección automática",
+    "ltr": "De izquierda a derecha",
+    "rtl": "De derecha a izquierda",
+    "inherit": "Usar predeterminada",
+    "hint": "Ctrl derecho + Mayús: toda la nota RTL; Ctrl izquierdo + Mayús: LTR. La dirección manual de la nota tiene prioridad.",
+    "settingFailed": "No se pudo guardar la dirección de escritura. Inténtalo de nuevo."
   }
 }

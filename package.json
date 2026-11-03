@@ -15,6 +15,7 @@
     "typecheck": "pnpm --filter @pinslip/desktop typecheck",
     "test:note-window": "node scripts/test-note-window.js",
     "test:startup": "node scripts/test-startup.js",
+    "test:writing-direction": "node scripts/test-writing-direction.js",
     "test:editor-paste": "node scripts/test-editor-paste.js",
     "test:note-info": "node scripts/test-note-info.js",
     "test:clipboard-note": "node scripts/test-clipboard-note.js",

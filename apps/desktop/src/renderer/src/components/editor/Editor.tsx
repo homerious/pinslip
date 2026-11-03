@@ -1,4 +1,6 @@
-import { forwardRef, useImperativeHandle } from 'react';
+import { forwardRef, useEffect, useImperativeHandle } from 'react';
+import type { WritingDirection } from '@shared/types';
+import { writingDirectionKey, writingDirectionPlugin } from './writing-direction';
 import {
   commandsCtx,
   defaultValueCtx,
@@ -71,6 +73,7 @@ const pasteClearMarksPlugin = $prose(
 );
 
 export interface EditorProps {
+  direction?: WritingDirection;
   /** 初始 Markdown 内容（仅初始化时使用一次） */
   content: string;
   /** 内容变化回调（Markdown 文本） */
@@ -199,10 +202,18 @@ export interface EditorHandle {
 }
 
 const MilkdownEditor = forwardRef<EditorHandle, EditorProps>(function MilkdownEditor(
-  { content, onChange, folder = '' },
+  { content, onChange, folder = '', direction = 'auto' },
   ref,
 ) {
   const [loading, getEditor] = useInstance();
+
+  useEffect(() => {
+    if (loading) return;
+    getEditor().action(ctx => {
+      const view = ctx.get(editorViewCtx);
+      view.dispatch(view.state.tr.setMeta(writingDirectionKey, direction));
+    });
+  }, [loading, getEditor, direction]);
 
   useImperativeHandle(
     ref,
@@ -525,6 +536,7 @@ const MilkdownEditor = forwardRef<EditorHandle, EditorProps>(function MilkdownEd
       .use(history)
       .use(listener)
       .use(pmSearchPlugin)
+      .use(writingDirectionPlugin)
       .use(pasteClearMarksPlugin),
   []);
 

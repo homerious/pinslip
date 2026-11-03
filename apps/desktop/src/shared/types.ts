@@ -3,6 +3,9 @@
 /** 便签颜色（空字符串 = 默认黄） */
 export type NoteColor = 'yellow' | 'pink' | 'green' | 'blue' | 'purple' | 'orange' | '';
 
+export type WritingDirection = 'auto' | 'ltr' | 'rtl';
+export type NoteDirection = 'ltr' | 'rtl' | '';
+
 /** 完整笔记 */
 export interface Note {
   id: string;
@@ -18,6 +21,8 @@ export interface Note {
   collapsed: boolean;
   /** 内容缩放倍率（1.3 = 130%；缺省 = 100%） */
   zoom?: number;
+  /** 整张便签的书写方向覆盖，缺省跟随应用设置。 */
+  direction?: NoteDirection;
   /** 所属便签组 id（"" = 不属于任何组） */
   group: string;
   inbox: boolean;
@@ -52,6 +57,7 @@ export interface NoteMeta {
 
 /** PUT /api/notes/{id} 请求体（部分更新：未提供的字段保留原值） */
 export interface SaveNoteInput {
+  direction?: NoteDirection;
   content?: string;
   title?: string;
   /** 手动标题标志：不传 = 保留；true = 手动标题；false = 恢复自动（服务端立即按正文重推导） */
@@ -171,6 +177,7 @@ export type CopyAllFormat = 'markdown' | 'plain';
 /** 高级设置选项（应用设置 settings.json 的 advanced 对象，main/渲染共用）。
  *  全部字段可选且有缺省值（缺省 = 简洁模型现状），新增选项 = 加字段，零新增 IPC */
 export interface AdvancedSettings {
+  writingDirection?: WritingDirection;
   /** 全文复制的默认格式，缺省 markdown；不影响选区 Ctrl+C。 */
   copyAllFormat?: CopyAllFormat;
   /** 记住管理器尺寸和位置（缺省 false），关闭清除记忆但不移动当前窗口 */

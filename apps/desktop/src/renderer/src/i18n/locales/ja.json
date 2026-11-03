@@ -399,5 +399,15 @@
     "SYNC_PULL_FAILED": "リモートからのプルに失敗しました",
     "SYNC_PUSH_FAILED": "リモートへのプッシュに失敗しました",
     "NOTE_NOT_FOUND": "メモが存在しないか、削除されました"
+  },
+  "writingDirection": {
+    "label": "書字方向",
+    "defaultLabel": "既定の書字方向",
+    "auto": "自動判定",
+    "ltr": "左から右",
+    "rtl": "右から左",
+    "inherit": "既定に従う",
+    "hint": "右 Ctrl + Shift：ノート全体を右から左へ。左 Ctrl + Shift：左から右へ。ノートの手動設定が優先されます。",
+    "settingFailed": "書字方向を保存できませんでした。再試行してください。"
   }
 }

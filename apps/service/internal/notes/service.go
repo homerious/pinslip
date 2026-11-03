@@ -13,6 +13,9 @@ import (
 	"pinslip/service/internal/storage"
 )
 
+// ErrInvalidDirection 表示传入了不支持的便签方向。
+var ErrInvalidDirection = errors.New("direction must be ltr, rtl or empty")
+
 // Service 协调文件引擎与索引引擎。handler 与未来的 MCP 层都只依赖它。
 type Service struct {
 	store *storage.Engine
@@ -49,6 +52,9 @@ func (s *Service) Get(id string) (*Note, error) {
 // 支持部分更新：Content 为 nil 保留原文，Tags 为 nil 保留原标签。
 // Folder 仅新建时生效（决定落盘目录）；已存在便签忽略——移动走 Move。
 func (s *Service) Save(id string, in SaveInput) (*Note, error) {
+	if in.Direction != nil && *in.Direction != "" && *in.Direction != "ltr" && *in.Direction != "rtl" {
+		return nil, ErrInvalidDirection
+	}
 	now := time.Now()
 
 	// 已存在则保留创建时间、正文与位置（notes/inbox），不存在则新建到 notes/
@@ -90,6 +96,9 @@ func (s *Service) Save(id string, in SaveInput) (*Note, error) {
 	}
 	if in.Pin != nil {
 		fm.Pin = *in.Pin
+	}
+	if in.Direction != nil {
+		fm.Direction = *in.Direction
 	}
 	if in.Collapsed != nil {
 		fm.Collapsed = *in.Collapsed
@@ -429,6 +438,7 @@ func toNote(fm *storage.Frontmatter, body string, inbox bool, folder string) *No
 		tags = []string{}
 	}
 	return &Note{
+		Direction:   fm.Direction,
 		ID:          fm.ID,
 		Title:       fm.Title,
 		TitleManual: fm.TitleManual,

@@ -399,5 +399,15 @@
     "SYNC_PULL_FAILED": "원격에서 가져오기에 실패했습니다",
     "SYNC_PUSH_FAILED": "원격으로 푸시에 실패했습니다",
     "NOTE_NOT_FOUND": "메모가 없거나 삭제되었습니다"
+  },
+  "writingDirection": {
+    "label": "쓰기 방향",
+    "defaultLabel": "기본 쓰기 방향",
+    "auto": "자동 감지",
+    "ltr": "왼쪽에서 오른쪽",
+    "rtl": "오른쪽에서 왼쪽",
+    "inherit": "기본 설정 따르기",
+    "hint": "오른쪽 Ctrl + Shift: 메모 전체 RTL. 왼쪽 Ctrl + Shift: LTR. 메모별 수동 방향이 기본 설정보다 우선합니다.",
+    "settingFailed": "쓰기 방향을 저장하지 못했습니다. 다시 시도하세요."
   }
 }

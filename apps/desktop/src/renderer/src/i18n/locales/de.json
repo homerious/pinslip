@@ -399,5 +399,15 @@
     "SYNC_PULL_FAILED": "Abrufen vom Remote fehlgeschlagen",
     "SYNC_PUSH_FAILED": "Pushen zum Remote fehlgeschlagen",
     "NOTE_NOT_FOUND": "Die Notiz existiert nicht oder wurde gelöscht"
+  },
+  "writingDirection": {
+    "label": "Schreibrichtung",
+    "defaultLabel": "Standard-Schreibrichtung",
+    "auto": "Automatisch erkennen",
+    "ltr": "Von links nach rechts",
+    "rtl": "Von rechts nach links",
+    "inherit": "Standard verwenden",
+    "hint": "Rechte Strg + Umschalt: ganze Notiz RTL; linke Strg + Umschalt: LTR. Die manuelle Notizrichtung hat Vorrang.",
+    "settingFailed": "Schreibrichtung konnte nicht gespeichert werden. Bitte erneut versuchen."
   }
 }

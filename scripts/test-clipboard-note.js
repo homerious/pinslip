@@ -60,6 +60,10 @@ async function main() {
     '../shared/toolbar': toolbar });
   assert.equal(settings.getAdvanced().blankNoteClipboard, false);
   assert.equal(settings.getAdvanced().copyAllFormat, 'markdown');
+  assert.equal(settings.getAdvanced().writingDirection, 'auto');
+  settings.setAdvanced({ writingDirection: 'rtl' });
+  failWrite = true; assert.throws(() => settings.setAdvanced({ writingDirection: 'ltr' }), /disk full/);
+  assert.equal(settings.getAdvanced().writingDirection, 'rtl'); failWrite = false;
   settings.setAdvanced({ copyAllFormat: 'plain' });
   failWrite = true; assert.throws(() => settings.setAdvanced({ copyAllFormat: 'markdown' }), /disk full/);
   assert.equal(settings.getAdvanced().copyAllFormat, 'plain'); failWrite = false;
@@ -67,9 +71,10 @@ async function main() {
   failWrite = true; assert.throws(() => settings.setAdvanced({ blankNoteClipboard: false }), /disk full/);
   assert.equal(settings.getAdvanced().blankNoteClipboard, true, 'Disk failure rolls back memory too'); failWrite = false;
   const tampered = load('main/settings.ts', { electron: { app: { getPath: () => '/isolated' } },
-    'node:fs': { readFileSync: () => '{"advanced":{"blankNoteClipboard":"true","copyAllFormat":"invalid"}}' }, '../shared/toolbar': toolbar });
+    'node:fs': { readFileSync: () => '{"advanced":{"blankNoteClipboard":"true","copyAllFormat":"invalid","writingDirection":"invalid"}}' }, '../shared/toolbar': toolbar });
   assert.equal(tampered.getAdvanced().blankNoteClipboard, false);
   assert.equal(tampered.getAdvanced().copyAllFormat, 'markdown');
+  assert.equal(tampered.getAdvanced().writingDirection, 'auto');
   const handlers = new Map(); const rebinds = []; let failRebind = false;
   const ipc = load('main/ipc/index.ts', { electron: { ipcMain: { handle: (key, cb) => handlers.set(key, cb), on() {} },
     BrowserWindow: { getAllWindows: () => [] } }, '../../shared/ipc-channels': { IPC }, '../../shared/shortcuts': shared,
@@ -78,6 +83,10 @@ async function main() {
     '../shortcuts': { rebindBlankNoteShortcut: key => { if (failRebind) throw new Error('register failed'); rebinds.push(key); } } });
   ipc.registerIpcHandlers({ windowManager: { takeInitialNoteContent: id => id }, goProcess: {} });
   const set = handlers.get(IPC.SettingsSetAdvanced);
+  for (const invalid of ['RTL', '', false, {}, null]) {
+    assert.throws(() => set({}, { writingDirection: invalid }), /Invalid writingDirection/);
+  }
+  assert.equal(set({}, { writingDirection: 'auto' }).writingDirection, 'auto');
   assert.throws(() => set({}, { copyAllFormat: 'invalid' }), /Invalid copyAllFormat/);
   assert.throws(() => set({}, { copyAllFormat: true }), /Invalid copyAllFormat/);
   assert.equal(set({}, { copyAllFormat: 'markdown' }).copyAllFormat, 'markdown');

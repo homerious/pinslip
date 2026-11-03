@@ -399,5 +399,15 @@
     "SYNC_PULL_FAILED": "Failed to pull from remote",
     "SYNC_PUSH_FAILED": "Failed to push to remote",
     "NOTE_NOT_FOUND": "The note does not exist or has been deleted"
+  },
+  "writingDirection": {
+    "label": "Writing direction",
+    "defaultLabel": "Default writing direction",
+    "auto": "Auto-detect",
+    "ltr": "Left-to-right",
+    "rtl": "Right-to-left",
+    "inherit": "Follow default",
+    "hint": "Right Ctrl + Shift: whole note RTL; Left Ctrl + Shift: LTR. A note’s manual direction overrides this default.",
+    "settingFailed": "Failed to save writing direction. Please try again."
   }
 }

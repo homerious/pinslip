@@ -46,8 +46,10 @@ async function run() {
   app.setPath('userData', path.join(temp, 'profile'));
   app.disableHardwareAcceleration();
   await app.whenReady();
+  // 隐藏窗口也要推进渲染帧；否则 resize 后 ResizeObserver 不运行，工具栏收敛会误报。
+  // 不能只在截图模式启用：最小窗口布局断言本身就依赖渲染帧。
   const win = new BrowserWindow({ show: false, width: 640, height: 420, frame: false,
-    webPreferences: { backgroundThrottling: false, offscreen: !!process.env.PINSLIP_INFO_SCREENSHOTS } });
+    webPreferences: { backgroundThrottling: false, offscreen: true } });
   try {
     await win.loadFile(path.join(temp, 'dist', path.basename(temp), 'index.html'));
     const results = await win.webContents.executeJavaScript('window.runNoteInfoTests()');

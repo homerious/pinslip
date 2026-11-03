@@ -23,6 +23,7 @@ HTTP 层允许任意来源跨域，并响应 Chrome 私有网络访问（PNA）�
   "pin": false,
   "color": "yellow",         // yellow / pink / green / blue / purple / orange，缺省 yellow
   "collapsed": false,        // true = 折叠成标题条（窗口只显示标题栏，主进程按此恢复窗口高度）
+  "direction": "rtl",        // 可选 ltr/rtl：整张便签方向；缺省跟随应用设置
   "zoom": 1.3,               // 内容缩放倍率（1.3 = 130%；缺省/omitted = 100%）
   "group": "g-a1b2",         // 所属便签组 id（"" = 不属于任何组；组定义见 .pinslip/groups.json）
   "inbox": false,            // true = 收件箱（速记产生），由文件位置推导
@@ -60,7 +61,7 @@ HTTP 层允许任意来源跨域，并响应 Chrome 私有网络访问（PNA）�
 | GET | `/api/health` | 身份握手（浏览器插件探测用） | — | `{ "app": "pinslip", "version": "1.0.1" }` |
 | GET | `/api/notes` | 列出全部笔记元数据（含 inbox） | — | `NoteMeta[]` |
 | GET | `/api/notes/{id}` | 读取单条笔记 | — | `Note`，404 + `NOTE_NOT_FOUND` = 不存在 |
-| PUT | `/api/notes/{id}` | 创建或更新（upsert + 部分更新，id 由客户端生成） | `{ content?, title?, titleManual?, tags?, pin?, source?, color?, collapsed?, zoom?, group?, folder?, inbox? }` | `Note` |
+| PUT | `/api/notes/{id}` | 创建或更新（upsert + 部分更新，id 由客户端生成） | `{ content?, title?, titleManual?, tags?, pin?, source?, color?, collapsed?, zoom?, direction?, group?, folder?, inbox? }` | `Note` |
 | DELETE | `/api/notes/{id}` | 删除笔记：移入回收区（可找回）并清出索引 | — | `{ "status": "ok" }` |
 | GET | `/api/notes/search?q=...&limit=N` | 全文搜索（FTS5，CJK bigram；bm25 列权重 标题10>标签5>正文1；limit <=0 或缺省 = 50） | — | `SearchHit[]` |
 | POST | `/api/notes/quick` | 速记：写入 inbox（落点模式见「速记」节） | `{ "content": "..." }` | `Note` |
@@ -240,3 +241,10 @@ token 不出现在任何接口响应与日志中。
   文本不放入路由 URL，不提供任意笔记 ID 查询。渲染层初始化后通过既有 `PUT /api/notes/{id}` 自动保存。
 - 应用高级设置 `blankNoteClipboard` 是默认 `false` 的严格布尔值，仅 `blankNoteShortcut` 启用时
   可启用并生效。父快捷键关闭时保留子偏好；与服务端速记剪贴板设置互相独立。
+
+### 书写方向
+
+- 完整 Note 返回可选 `direction: "ltr" | "rtl"`；列表项不增加该字段。
+- PUT 未传 `direction` 保留原值，传 `""` 清除 frontmatter 覆盖，传 `ltr`/`rtl` 保存；其他值返回 400，文件不变。旧文件或外部非法值按跟随设置读取。
+- 应用高级设置 `writingDirection` 为 `auto`（默认）/`ltr`/`rtl`，通过既有高级设置 IPC 保存并广播。缺省或非法磁盘值回退 auto，IPC 拒绝非法写入，写失败回滚并回报。
+- 便签覆盖优先于默认设置；右 Ctrl+Shift 设置整张 RTL，左 Ctrl+Shift 设置整张 LTR，仅正文纯修饰键手势生效。更多菜单可恢复跟随设置。方向只影响排版，不改正文或表格列序。

@@ -399,5 +399,15 @@
     "SYNC_PULL_FAILED": "从远端拉取失败",
     "SYNC_PUSH_FAILED": "推送到远端失败",
     "NOTE_NOT_FOUND": "便签不存在或已被删除"
+  },
+  "writingDirection": {
+    "label": "书写方向",
+    "defaultLabel": "默认书写方向",
+    "auto": "自动识别",
+    "ltr": "从左到右",
+    "rtl": "从右到左",
+    "inherit": "跟随设置",
+    "hint": "右 Ctrl + Shift：整张便签从右到左；左 Ctrl + Shift：从左到右。便签手动方向优先于默认设置。",
+    "settingFailed": "书写方向保存失败，请重试"
   }
 }

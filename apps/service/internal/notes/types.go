@@ -5,6 +5,7 @@ import "time"
 
 // Note 是完整笔记（对应 docs/api.md 的 Note）。
 type Note struct {
+	Direction   string    `json:"direction,omitempty"`
 	ID          string    `json:"id"`
 	Title       string    `json:"title"`
 	TitleManual bool      `json:"titleManual,omitempty"` // 手动标题标志（true = 用户重命名，正文保存不再自动推导）
@@ -55,6 +56,7 @@ type CreateFolderInput struct {
 // 所有字段均可选：未提供的字段保留原值（部分更新）。
 // content 为 nil 时保留原有正文（可用于单独更新 pin/tags 等元数据）。
 type SaveInput struct {
+	Direction   *string  `json:"direction,omitempty"` // nil 保留，空串清除覆盖
 	Content     *string  `json:"content,omitempty"`
 	Title       string   `json:"title,omitempty"`
 	TitleManual *bool    `json:"titleManual,omitempty"` // nil = 不触碰标志；true = 手动标题；false = 恢复自动（立即按正文重推导）

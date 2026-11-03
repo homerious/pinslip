@@ -76,6 +76,10 @@ func (h *Handler) save(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	note, err := h.svc.Save(r.PathValue("id"), in)
+	if errors.Is(err, ErrInvalidDirection) {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
