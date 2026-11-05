@@ -304,6 +304,7 @@
     "genericError": "Erreur de mise à jour"
   },
   "sync": {
+    "recoveryHint": "Les notes, la boîte de réception et les pièces jointes seront sauvegardées dans .pinslip/backups/ avant la restauration. Les fichiers locaux de l’application sont conservés",
     "repoUrl": "URL du dépôt",
     "username": "Nom d'utilisateur",
     "usernamePlaceholder": "nom d'utilisateur git",
@@ -386,6 +387,7 @@
     "quit": "Quitter PinSlip"
   },
   "serverError": {
+    "SYNC_RECOVERY_REQUIRED": "Synchronisation suspendue : le dépôt suit des fichiers locaux de l’application et contient des suppressions indexées. Sauvegardez puis restaurez depuis le dépôt distant",
     "SYNC_URL_REQUIRED": "L'URL du dépôt est requise pour activer la synchronisation",
     "SYNC_LOCAL_NOT_PINSLIP_REPO": "Ce dossier est déjà un dépôt git mais pas un dépôt de synchronisation PinSlip. Veuillez traiter .git manuellement avant de configurer la synchronisation",
     "SYNC_LOCAL_PERMISSION": "Aucune permission de lecture/écriture sur le dossier de synchronisation. Vérifiez les permissions du dossier ou exécutez avec les droits appropriés",

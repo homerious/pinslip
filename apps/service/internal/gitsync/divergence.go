@@ -111,8 +111,11 @@ func (e *Engine) resolveDivergence(strategy string) error {
 	e.mu.RLock()
 	repo, cfg, code := e.repo, e.cfg, e.lastErrorCode
 	e.mu.RUnlock()
-	if cfg == nil || !cfg.Enabled || repo == nil || code != CodeSyncUnrelatedHistories {
+	if cfg == nil || !cfg.Enabled || repo == nil || (code != CodeSyncUnrelatedHistories && code != CodeSyncRecoveryRequired) {
 		return fmt.Errorf("%w: 当前不是分叉状态，无需接管", errResolvePrecondition)
+	}
+	if code == CodeSyncRecoveryRequired && strategy != "remote" {
+		return fmt.Errorf("%w: 恢复保护仅允许备份后从远端恢复", errResolvePrecondition)
 	}
 	// 来历不明的远端（连标记都没有）不给接管：这种仓库更可能是地址填错了，
 	// 给入口等于帮用户把数据推进火坑（决策 1）
@@ -147,10 +150,10 @@ func (e *Engine) resolveDivergence(strategy string) error {
 }
 
 // backupContentDirs 把 notes//inbox//attachments/ 复制到
-// .pinslip/backups/divergence-<yyyymmdd-hhmmss>/（目录不存在跳过；
+// .pinslip/backups/divergence-<yyyymmdd-hhmmss>-<随机后缀>/（目录不存在跳过；
 // 三个都不存在时不建空备份目录）。返回备份目录路径。
 func backupContentDirs(vaultDir string) (string, error) {
-	dst := filepath.Join(vaultDir, ".pinslip", "backups", "divergence-"+time.Now().Format("20060102-150405"))
+	var dst string
 	for _, sub := range contentDirs {
 		src := filepath.Join(vaultDir, sub)
 		if _, err := os.Stat(src); err != nil {
@@ -158,6 +161,17 @@ func backupContentDirs(vaultDir string) (string, error) {
 				continue
 			}
 			return "", localIOErr("检查待备份目录失败", err)
+		}
+		if dst == "" {
+			parent := filepath.Join(vaultDir, ".pinslip", "backups")
+			if err := os.MkdirAll(parent, 0755); err != nil {
+				return "", err
+			}
+			var err error
+			dst, err = os.MkdirTemp(parent, "divergence-"+time.Now().Format("20060102-150405")+"-")
+			if err != nil {
+				return "", err
+			}
 		}
 		if err := copyDir(src, filepath.Join(dst, sub)); err != nil {
 			return "", fmt.Errorf("备份 %s 失败: %w", sub, err)

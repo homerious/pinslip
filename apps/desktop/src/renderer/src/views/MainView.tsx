@@ -1842,7 +1842,8 @@ export default function MainView() {
                   {/* 分叉接管面板：远端有 .pinslip-repo 标记才把单行错误升级为面板
                       （参考信息 + 两个两阶段确认按钮）；来历不明远端维持原单行错误 */}
                   {syncStatus.lastError &&
-                    (syncStatus.lastErrorCode === 'SYNC_UNRELATED_HISTORIES' &&
+                    ((syncStatus.lastErrorCode === 'SYNC_UNRELATED_HISTORIES' ||
+                      syncStatus.lastErrorCode === 'SYNC_RECOVERY_REQUIRED') &&
                     syncStatus.remoteIsPinslip ? (
                       <>
                         <div className="settings-panel__error">
@@ -1856,15 +1857,17 @@ export default function MainView() {
                           })}
                         </div>
                         <div className="settings-panel__actions">
-                          <button
-                            className={`settings-panel__btn${syncResolveConfirm === 'local' ? ' is-danger' : ''}`}
-                            disabled={syncBusy}
-                            onClick={() => resolveDivergence('local')}
-                          >
-                            {syncResolveConfirm === 'local'
-                              ? t('sync.divergenceLocalConfirm')
-                              : t('sync.divergenceLocal')}
-                          </button>
+                          {syncStatus.lastErrorCode !== 'SYNC_RECOVERY_REQUIRED' && (
+                            <button
+                              className={`settings-panel__btn${syncResolveConfirm === 'local' ? ' is-danger' : ''}`}
+                              disabled={syncBusy}
+                              onClick={() => resolveDivergence('local')}
+                            >
+                              {syncResolveConfirm === 'local'
+                                ? t('sync.divergenceLocalConfirm')
+                                : t('sync.divergenceLocal')}
+                            </button>
+                          )}
                           <button
                             className={`settings-panel__btn${syncResolveConfirm === 'remote' ? ' is-danger' : ''}`}
                             disabled={syncBusy}
@@ -1875,7 +1878,10 @@ export default function MainView() {
                               : t('sync.divergenceRemote')}
                           </button>
                         </div>
-                        <div className="settings-panel__hint">{t('sync.divergenceHint')}</div>
+                        <div className="settings-panel__hint">
+                          {t(syncStatus.lastErrorCode === 'SYNC_RECOVERY_REQUIRED'
+                            ? 'sync.recoveryHint' : 'sync.divergenceHint')}
+                        </div>
                       </>
                     ) : (
                       <div className="settings-panel__error">

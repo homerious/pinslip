@@ -53,6 +53,9 @@ func (r *Repo) mergeTheirs(local, remote *object.Commit) (*PullOutcome, error) {
 	staged := map[string]bool{} // 避免二进制冲突新增路径重复暂存
 
 	for _, p := range paths {
+		if excludedSyncPath(p) {
+			continue
+		}
 		bHash, bOK := baseFiles[p]
 		oHash, oOK := oursFiles[p]
 		tHash, tOK := theirsFiles[p]
@@ -75,6 +78,9 @@ func (r *Repo) mergeTheirs(local, remote *object.Commit) (*PullOutcome, error) {
 		}
 	}
 
+	if err := r.untrackRuntimeFiles(); err != nil {
+		return nil, err
+	}
 	w, err := r.r.Worktree()
 	if err != nil {
 		return nil, err

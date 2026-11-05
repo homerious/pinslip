@@ -59,7 +59,10 @@ app.whenReady().then(() => {
 
   // 拉起 Go 本地服务（未设置保险库时静默跳过，等用户选择后启动；
   // 其他失败不阻塞 UI，渲染层会提示服务不可用）
-  goProcess.ensureStarted().catch((err) => {
+  goProcess.ensureStarted().then(() => {
+    // Go 就绪后 notes/inbox 才保证存在；提前监听会在空 vault 上永久跳过目录。
+    startVaultWatch(() => windowManager.broadcastNotesChanged());
+  }).catch((err) => {
     if (err.message !== VAULT_NOT_SET) {
       console.error('[main] Go 服务启动失败:', err);
     }
@@ -94,9 +97,6 @@ app.whenReady().then(() => {
   registerShortcuts(windowManager);
   initAutoStart(); // 打包后首次运行默认开启开机自启
   initAutoUpdater(); // 打包后启动 15s 静默检查更新（dev 短路）
-
-  // 外部文件变更监听：同步盘/手动改 vault 时主界面列表自动刷新（未设保险库时为 no-op）
-  startVaultWatch(() => windowManager.broadcastNotesChanged());
 
   const loginHidden = process.platform === 'darwin' &&
     app.getLoginItemSettings().wasOpenedAtLogin && getAdvanced().autoStartHidden;

@@ -304,6 +304,7 @@
     "genericError": "Update error"
   },
   "sync": {
+    "recoveryHint": "Local notes, inbox and attachments will be backed up to .pinslip/backups/ before restoring the remote version. Local app files stay on this device",
     "repoUrl": "Repository URL",
     "username": "Username",
     "usernamePlaceholder": "git username",
@@ -386,6 +387,7 @@
     "quit": "Quit PinSlip"
   },
   "serverError": {
+    "SYNC_RECOVERY_REQUIRED": "Sync is paused because this repository tracks local app files and has staged content deletions. Back up and rebuild local from remote to recover",
     "SYNC_URL_REQUIRED": "A repository URL is required to enable sync",
     "SYNC_LOCAL_NOT_PINSLIP_REPO": "This folder is already a git repository but not a PinSlip sync repository. Please handle .git manually before configuring sync",
     "SYNC_LOCAL_PERMISSION": "No permission to read or write the sync folder. Check the folder permissions or run with appropriate privileges",

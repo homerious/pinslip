@@ -30,6 +30,8 @@ const (
 	CodeSyncConnectFailed = "SYNC_CONNECT_FAILED"
 	// 提交本地变更失败
 	CodeSyncCommitFailed = "SYNC_COMMIT_FAILED"
+	// 历史运行时污染伴随内容暂存删除，必须先确认恢复，避免传播异常删除。
+	CodeSyncRecoveryRequired = "SYNC_RECOVERY_REQUIRED"
 	// 拉取远端失败
 	CodeSyncPullFailed = "SYNC_PULL_FAILED"
 	// 推送失败

@@ -304,6 +304,7 @@
     "genericError": "更新出错"
   },
   "sync": {
+    "recoveryHint": "先将本地便签、收件箱和附件备份到 .pinslip/backups/，再恢复远端版本。本机配置和数据库保持原样",
     "repoUrl": "仓库地址",
     "username": "用户名",
     "usernamePlaceholder": "git 用户名",
@@ -386,6 +387,7 @@
     "quit": "退出 PinSlip"
   },
   "serverError": {
+    "SYNC_RECOVERY_REQUIRED": "仓库历史跟踪了本机文件且内容存在暂存删除，同步已暂停。请备份并从远端重建本地以恢复",
     "SYNC_URL_REQUIRED": "启用同步必须提供仓库地址",
     "SYNC_LOCAL_NOT_PINSLIP_REPO": "当前文件夹已是一个 git 仓库，但不是 PinSlip 同步仓库，请手动处理 .git 后再配置同步",
     "SYNC_LOCAL_PERMISSION": "没有权限读写同步文件夹，请检查文件夹权限或以合适身份运行",

@@ -304,6 +304,7 @@
     "genericError": "Error de actualización"
   },
   "sync": {
+    "recoveryHint": "Se guardará una copia de las notas, la bandeja de entrada y los adjuntos en .pinslip/backups/ antes de restaurar la versión remota. Los archivos locales de la aplicación se conservan",
     "repoUrl": "URL del repositorio",
     "username": "Usuario",
     "usernamePlaceholder": "usuario de git",
@@ -386,6 +387,7 @@
     "quit": "Salir de PinSlip"
   },
   "serverError": {
+    "SYNC_RECOVERY_REQUIRED": "Sincronización pausada: el repositorio registra archivos locales de la aplicación y tiene eliminaciones preparadas. Haz una copia y restaura desde el remoto",
     "SYNC_URL_REQUIRED": "Se requiere la URL del repositorio para activar la sincronización",
     "SYNC_LOCAL_NOT_PINSLIP_REPO": "Esta carpeta ya es un repositorio git pero no un repositorio de sincronización de PinSlip. Gestiona .git manualmente antes de configurar la sincronización",
     "SYNC_LOCAL_PERMISSION": "Sin permiso para leer o escribir la carpeta de sincronización. Comprueba los permisos de la carpeta o ejecútala con los privilegios adecuados",

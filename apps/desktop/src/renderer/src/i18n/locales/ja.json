@@ -304,6 +304,7 @@
     "genericError": "アップデートエラー"
   },
   "sync": {
+    "recoveryHint": "復元前にローカルのメモ、受信トレイ、添付ファイルを .pinslip/backups/ に保存します。ローカルの設定とデータベースは保持されます",
     "repoUrl": "リポジトリ URL",
     "username": "ユーザー名",
     "usernamePlaceholder": "git ユーザー名",
@@ -386,6 +387,7 @@
     "quit": "PinSlip を終了"
   },
   "serverError": {
+    "SYNC_RECOVERY_REQUIRED": "ローカルのアプリファイルが追跡され、削除がステージされているため同期を停止しました。バックアップ後、リモートからローカルを復元してください",
     "SYNC_URL_REQUIRED": "同期を有効にするにはリポジトリ URL が必要です",
     "SYNC_LOCAL_NOT_PINSLIP_REPO": "このフォルダーはすでに git リポジトリですが PinSlip 同期リポジトリではありません。.git を手動で処理してから同期を設定してください",
     "SYNC_LOCAL_PERMISSION": "同期フォルダーの読み書き権限がありません。フォルダーの権限を確認するか、適切な権限で実行してください",

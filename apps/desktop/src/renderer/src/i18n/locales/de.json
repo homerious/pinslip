@@ -304,6 +304,7 @@
     "genericError": "Update-Fehler"
   },
   "sync": {
+    "recoveryHint": "Lokale Notizen, Eingang und Anhänge werden vor der Wiederherstellung unter .pinslip/backups/ gesichert. Lokale App-Dateien bleiben auf diesem Gerät",
     "repoUrl": "Repository-URL",
     "username": "Benutzername",
     "usernamePlaceholder": "git-Benutzername",
@@ -386,6 +387,7 @@
     "quit": "PinSlip beenden"
   },
   "serverError": {
+    "SYNC_RECOVERY_REQUIRED": "Synchronisierung pausiert: Das Repository verfolgt lokale App-Dateien und enthält vorgemerkte Inhaltslöschungen. Lokale Daten sichern und aus dem Remote-Repository wiederherstellen",
     "SYNC_URL_REQUIRED": "Zum Aktivieren der Synchronisierung ist eine Repository-URL erforderlich",
     "SYNC_LOCAL_NOT_PINSLIP_REPO": "Dieser Ordner ist bereits ein Git-Repository, aber kein PinSlip-Sync-Repository. Bitte .git manuell behandeln, bevor die Synchronisierung konfiguriert wird",
     "SYNC_LOCAL_PERMISSION": "Keine Lese-/Schreibberechtigung für den Synchronisierungsordner. Bitte Ordnerberechtigungen prüfen oder mit geeigneten Rechten ausführen",

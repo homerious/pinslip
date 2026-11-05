@@ -268,6 +268,9 @@ func (r *Repo) firstConnect() (*Repo, error) {
 		plumbing.NewBranchReferenceName(r.cfg.Branch), remoteRef.Hash())); err != nil {
 		return nil, err
 	}
+	if err := r.writeMetaFiles(); err != nil {
+		return nil, err
+	}
 	return r, nil
 }
 
@@ -312,6 +315,13 @@ func (r *Repo) applyTreeDiff(from, to *object.Commit, checkDirty bool) error {
 		return err
 	}
 	for _, ch := range changes {
+		path := ch.To.Name
+		if path == "" {
+			path = ch.From.Name
+		}
+		if excludedSyncPath(path) {
+			continue
+		}
 		if ch.To.Name == "" {
 			// 删除（DiffTree 不做 rename 检测：删除即 To 为空）
 			if err := os.Remove(r.absPath(ch.From.Name)); err != nil && !os.IsNotExist(err) {
@@ -357,6 +367,9 @@ func (r *Repo) ensureNoDirtyOverlap(changes object.Changes) error {
 		path := ch.To.Name
 		if path == "" {
 			path = ch.From.Name
+		}
+		if excludedSyncPath(path) {
+			continue
 		}
 		if fs, ok := st[path]; ok && (fs.Staging != git.Unmodified || fs.Worktree != git.Unmodified) {
 			return withCode(CodeSyncDirtyWorktree, fmt.Errorf("本地有未提交/未跟踪的变更会被远端覆盖: %s（请先提交或移开该文件）", path))
@@ -481,6 +494,15 @@ func (r *Repo) CommitAll() (plumbing.Hash, int, error) {
 
 // commitAll 单次提交尝试（CommitAll 去掉自愈重试的主体）。
 func (r *Repo) commitAll() (plumbing.Hash, int, error) {
+	if err := r.checkRecoveryRequired(); err != nil {
+		return plumbing.ZeroHash, 0, err
+	}
+	if err := ensureGitignore(r.dir); err != nil {
+		return plumbing.ZeroHash, 0, err
+	}
+	if err := r.untrackRuntimeFiles(); err != nil {
+		return plumbing.ZeroHash, 0, err
+	}
 	w, err := r.r.Worktree()
 	if err != nil {
 		return plumbing.ZeroHash, 0, err
@@ -498,6 +520,11 @@ func (r *Repo) commitAll() (plumbing.Hash, int, error) {
 	}
 	sort.Strings(paths)
 	for _, p := range paths {
+		// 已暂存删除的文件不在索引内，重复 Add 会报 entry not found。
+		// 排除路径只从索引清理，绝不删除本机文件。
+		if excludedSyncPath(p) || st[p].Worktree == git.Unmodified {
+			continue
+		}
 		if st[p].Worktree == git.Deleted {
 			// w.Remove 容忍工作区文件已不存在（deleteFromFilesystem 忽略 IsNotExist）
 			if _, err := w.Remove(p); err != nil {
@@ -524,10 +551,10 @@ func (r *Repo) commitAll() (plumbing.Hash, int, error) {
 type PullKind int
 
 const (
-	PullUpToDate   PullKind = iota // 本地与远端一致
-	PullLocalAhead                 // 本地领先，无需合并
-	PullFastForward                // 快进到远端
-	PullMerged                     // 非 ff 三方合并（可能有冲突 markers）
+	PullUpToDate    PullKind = iota // 本地与远端一致
+	PullLocalAhead                  // 本地领先，无需合并
+	PullFastForward                 // 快进到远端
+	PullMerged                      // 非 ff 三方合并（可能有冲突 markers）
 )
 
 // PullOutcome 是一次 pull 的结果详情。
@@ -605,7 +632,11 @@ func (r *Repo) Pull() (*PullOutcome, error) {
 		return nil, err
 	}
 	if !st.IsClean() {
-		return nil, withCode(CodeSyncDirtyWorktree, errors.New("工作区有未提交变更，无法合并（请先提交）"))
+		for p := range st {
+			if !excludedSyncPath(p) {
+				return nil, withCode(CodeSyncDirtyWorktree, errors.New("工作区有未提交变更，无法合并（请先提交）"))
+			}
+		}
 	}
 	return r.mergeTheirs(local, remote)
 }
@@ -657,10 +688,8 @@ func (r *Repo) ForcePush() error {
 }
 
 // ResetToRemote 分叉接管「以远端为准」：fetch 后把本地分支重置到
-// origin/<branch>，并按树差异检出（只动差异路径，运行时文件不动——
-// 与 fastForward 同纪律，见 applyTreeDiff 注释）。
-// checkDirty=false：调用方已把 notes//inbox//attachments/ 备份到
-// .pinslip/backups/，覆盖保护由备份兜底，不再拦截脏路径。
+// origin/<branch>，完整校准非运行时受跟踪内容及索引。
+// 调用方已备份 notes//inbox//attachments/；运行时和树外文件不动。
 func (r *Repo) ResetToRemote() error {
 	if err := r.Fetch(); err != nil {
 		return fmt.Errorf("fetch 失败: %w", err)
@@ -672,6 +701,9 @@ func (r *Repo) ResetToRemote() error {
 	remote, err := r.r.CommitObject(remoteRef.Hash())
 	if err != nil {
 		return err
+	}
+	if _, err := remote.File(markerFile); err != nil {
+		return withCode(CodeSyncRemoteNotPinslipRepo, errors.New("远端缺少 .pinslip-repo 标记，不能恢复"))
 	}
 	var from *object.Commit
 	head, err := r.r.Head()
@@ -685,12 +717,15 @@ func (r *Repo) ResetToRemote() error {
 	default:
 		return err
 	}
+	if err := r.restoreRemoteTree(from, remote); err != nil {
+		return fmt.Errorf("检出远端内容失败: %w", err)
+	}
 	if err := r.r.Storer.SetReference(plumbing.NewHashReference(
 		plumbing.NewBranchReferenceName(r.cfg.Branch), remoteRef.Hash())); err != nil {
 		return err
 	}
-	if err := r.applyTreeDiff(from, remote, false); err != nil {
-		return fmt.Errorf("检出远端内容失败: %w", err)
+	if err := os.Remove(filepath.Join(r.dir, ".pinslip", recoveryMarker)); err != nil && !os.IsNotExist(err) {
+		return err
 	}
 	return nil
 }

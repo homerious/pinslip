@@ -304,6 +304,7 @@
     "genericError": "업데이트 오류"
   },
   "sync": {
+    "recoveryHint": "복원 전에 로컬 메모, 받은 편지함 및 첨부 파일을 .pinslip/backups/에 백업합니다. 로컬 설정과 데이터베이스는 유지됩니다",
     "repoUrl": "저장소 주소",
     "username": "사용자 이름",
     "usernamePlaceholder": "git 사용자 이름",
@@ -386,6 +387,7 @@
     "quit": "PinSlip 종료"
   },
   "serverError": {
+    "SYNC_RECOVERY_REQUIRED": "로컬 앱 파일이 추적되고 콘텐츠 삭제가 스테이징되어 동기화가 중지되었습니다. 백업한 후 원격에서 로컬을 복원하세요",
     "SYNC_URL_REQUIRED": "동기화를 사용하려면 저장소 주소가 필요합니다",
     "SYNC_LOCAL_NOT_PINSLIP_REPO": "이 폴더는 이미 git 저장소이지만 PinSlip 동기화 저장소가 아닙니다. .git을 수동으로 처리한 후 동기화를 설정하세요",
     "SYNC_LOCAL_PERMISSION": "동기화 폴더에 대한 읽기/쓰기 권한이 없습니다. 폴더 권한을 확인하거나 적절한 권한으로 실행하세요",

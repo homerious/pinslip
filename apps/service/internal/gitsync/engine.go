@@ -171,11 +171,13 @@ func (e *Engine) Stop() {
 	defer e.opMu.Unlock()
 	if _, n, err := repo.CommitAll(); err != nil {
 		e.logger.Error("退出前提交失败（忽略）", "error", err)
+		return // 提交失败不能继续 pull/push，尤其不能传播恢复保护中的暂存删除。
 	} else if n > 0 {
 		e.logger.Info("退出前已提交", "files", n)
 	}
 	if _, err := repo.Pull(); err != nil {
 		e.logger.Error("退出前拉取失败（忽略）", "error", err)
+		return
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), stopPushWindow)
 	defer cancel()
@@ -274,6 +276,12 @@ func (e *Engine) syncCycle() error {
 
 	_, n, err := repo.CommitAll()
 	if err != nil {
+		if codeOf(err) == CodeSyncRecoveryRequired {
+			// 只 fetch，供恢复面板确认远端身份与快照；绝不提交或推送。
+			if fetchErr := repo.Fetch(); fetchErr != nil {
+				return e.failCycle(CodeSyncPullFailed, "读取恢复参考失败", fetchErr)
+			}
+		}
 		return e.failCycle(CodeSyncCommitFailed, "提交本地变更失败", err)
 	}
 	outcome, err := repo.Pull()
@@ -471,6 +479,10 @@ type Status struct {
 // GetStatus 汇总状态：ahead/behind 现场算（基于最近一次 fetch 的远端位置，
 // 不做网络请求）；conflictedFiles 现场扫 vault 里含 markers 的 .md。
 func (e *Engine) GetStatus() Status {
+	// go-git 的 pack/index 读取与同步操作共享存储；状态轮询也必须串行，
+	// 否则可在首次读取 pack 时出现瞬时 object not found。
+	e.opMu.Lock()
+	defer e.opMu.Unlock()
 	e.mu.RLock()
 	st := Status{
 		Enabled:         e.cfg != nil && e.cfg.Enabled,
@@ -496,8 +508,8 @@ func (e *Engine) GetStatus() Status {
 			st.Ahead, st.Behind = ahead, behind
 		}
 	}
-	// 分叉参考信息只在分叉状态计算（本地读，无网络请求）；正常同步路径零开销
-	if st.LastErrorCode == CodeSyncUnrelatedHistories && repo != nil {
+	// 分叉或恢复保护时提供参考信息（本地读，无网络请求）。
+	if (st.LastErrorCode == CodeSyncUnrelatedHistories || st.LastErrorCode == CodeSyncRecoveryRequired) && repo != nil {
 		st.LocalNotes = countWorktreeNotes(e.vaultDir)
 		fillRemoteDivergenceInfo(repo, &st)
 	}

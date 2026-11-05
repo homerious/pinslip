@@ -397,8 +397,8 @@ func TestEngineAutoCommitAndSyncNow(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	eng.debounce = 50 * time.Millisecond      // 测试提速：防抖 50ms
-	eng.pushInterval = time.Hour              // 关掉定时 push，只测手动路径
+	eng.debounce = 50 * time.Millisecond // 测试提速：防抖 50ms
+	eng.pushInterval = time.Hour         // 关掉定时 push，只测手动路径
 	defer eng.Stop()
 
 	if err := eng.Reconfigure(testConfig(remote)); err != nil {
@@ -689,6 +689,10 @@ func TestEngineSyncOnChange(t *testing.T) {
 			t.Fatalf("Reconfigure 失败: %v", err)
 		}
 		t.Cleanup(eng.Stop)
+		// 确保启动同步已完成，再编辑文件以单独验证防抖路径。
+		if err := eng.SyncNow(); err != nil {
+			t.Fatalf("initial sync: %v", err)
+		}
 		return eng, remote
 	}
 

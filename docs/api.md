@@ -170,7 +170,7 @@ token 不出现在任何接口响应与日志中。
   "branch": "main", "lastSyncAt": "...", "lastError": "", "lastErrorCode": "",
   "ahead": 0, "behind": 0, "conflictedFiles": [], "pushIntervalMin": 10,
   "syncOnChange": false,
-  // 分叉参考信息：仅 lastErrorCode == "SYNC_UNRELATED_HISTORIES" 时出现，
+  // 分叉/恢复参考信息：lastErrorCode 为 SYNC_UNRELATED_HISTORIES 或 SYNC_RECOVERY_REQUIRED 时出现，
   // 全部基于本地数据（worktree + 最近一次 fetch 的 origin 引用），无网络请求；
   // 非分叉状态缺省。本地无 origin 引用时远端三字段同样缺省（容错）
   "remoteIsPinslip": true,             // 远端 head 树是否含 .pinslip-repo 标记
@@ -189,6 +189,15 @@ token 不出现在任何接口响应与日志中。
   按树差异检出（运行时文件不动）。
 - 成功后自动跑一轮同步验证并返回最新 `SyncStatus`；执行失败不返回 5xx
   （同 `POST /api/sync/now`），错误体现在 `lastError` / `lastErrorCode`。
+
+- 恢复保护：历史提交含内置排除路径且 `notes/`、`inbox/`、`attachments/` 存在暂存删除时，
+  `lastErrorCode` 返回 `SYNC_RECOVERY_REQUIRED`，暂停提交/推送，并附带上述远端参考字段。
+  此状态同样可调用 resolve，但仅允许 `remote`，`local` 返回 400。备份后完整恢复远端
+  受跟踪内容和索引（含提交树未变化但本地缺失的文件），成功后恢复同步。
+  `.pinslip/sync-recovery-required` 保留暂停状态直到恢复成功，恢复失败或重启不会绕过保护。
+- 内置排除路径（`.pinslip/`、`.trash/`、旧索引库和系统元数据）即使在历史中被跟踪，
+  也不检出/覆盖/删除本机文件；下一次成功提交会取消其跟踪并保留本机内容。
+  旧 Git 历史不重写。远端恢复检出失败时分支指针不前移，备份保留。
 
 - 冲突采用三方合并（diff3）：文本冲突写 conflict markers 进文件（该笔记
   `conflicted` 置 true，主界面提示），二进制冲突双留；解决标记后自动继续同步。
