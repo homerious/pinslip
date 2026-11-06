@@ -3462,3 +3462,173 @@ input.sticky-note__title-input {
   height: 16px;
   border-radius: 4px;
 }
+
+/* 管理器只读预览：虚拟行和 Markdown 子列表不能继承卡片 li 样式。 */
+.note-list.virtual-note-list {
+  display: block;
+  position: relative;
+  overflow-anchor: none;
+}
+.note-list li.virtual-note-list__row {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  border-radius: 0;
+}
+.note-list li.virtual-note-list__row > .note-list {
+  margin: 0;
+  padding: 0;
+}
+.note-list li.virtual-note-list__group {
+  margin: 0;
+  padding: 2px 0;
+  border: 0;
+  background: transparent;
+  border-radius: 0;
+}
+.virtual-note-list__group .main-view__grouphead {
+  width: 100%;
+  background: none;
+  border: 0;
+  padding: 4px 0;
+  margin: 0;
+  font-size: 12px;
+  text-align: start;
+}
+.note-list .markdown-preview {
+  display: block;
+  white-space: normal;
+  max-height: 50.4px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.note-list .markdown-preview.is-expanded {
+  max-height: 252px;
+  overflow-y: auto;
+}
+.markdown-preview p, .markdown-preview pre, .markdown-preview blockquote,
+.markdown-preview ul, .markdown-preview ol, .markdown-preview h1, .markdown-preview h2,
+.markdown-preview h3, .markdown-preview h4, .markdown-preview h5, .markdown-preview h6 {
+  margin: 3px 0;
+  padding: 0;
+  font-size: 12px;
+  line-height: 1.4;
+}
+.markdown-preview h1, .markdown-preview h2, .markdown-preview h3 {
+  font-size: 13px;
+  font-weight: 650;
+}
+.markdown-preview ul, .markdown-preview ol {
+  display: block;
+  padding-inline-start: 18px;
+}
+.note-list .markdown-preview li {
+  display: list-item;
+  position: static;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  cursor: inherit;
+}
+.markdown-preview ul {
+  list-style: disc;
+}
+.markdown-preview ol {
+  list-style: decimal;
+}
+.markdown-preview li.markdown-preview__task {
+  list-style: none;
+}
+.markdown-preview li > p {
+  display: inline;
+}
+.markdown-preview input[type='checkbox'] {
+  width: 11px;
+  height: 11px;
+  margin: 0 4px 0 0;
+  vertical-align: middle;
+  pointer-events: none;
+  opacity: 1;
+  accent-color: #776515;
+}
+.markdown-preview strong {
+  font-weight: 700;
+}
+.markdown-preview em {
+  font-style: italic;
+}
+.markdown-preview blockquote {
+  padding-inline-start: 7px;
+  border-inline-start: 2px solid #a99d73;
+}
+.markdown-preview code {
+  font: 11px/1.4 Consolas,monospace;
+  background: #0000000a;
+  padding: 1px 2px;
+  border-radius: 3px;
+}
+.markdown-preview pre {
+  overflow-x: auto;
+  padding: 4px;
+  background: #00000008;
+  border-radius: 4px;
+}
+.markdown-preview pre code {
+  padding: 0;
+  background: none;
+}
+.markdown-preview__table {
+  max-width: 100%;
+  overflow-x: auto;
+  margin: 3px 0;
+}
+.markdown-preview table {
+  border-collapse: collapse;
+  font-size: 11px;
+}
+.markdown-preview td {
+  border: 1px solid #00000030;
+  padding: 2px 5px;
+  white-space: nowrap;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.markdown-preview tr:first-child {
+  font-weight: 650;
+  background: #00000008;
+}
+.markdown-preview__link {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.markdown-preview__image {
+  display: block;
+  min-height: 20px;
+}
+.markdown-preview__image img {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  max-height: 180px;
+  object-fit: contain;
+  border-radius: 4px;
+}
+.markdown-preview__placeholder {
+  display: inline-block;
+  font-style: italic;
+}
+.markdown-preview__fallback {
+  white-space: pre-wrap;
+}
+.markdown-preview__truncated {
+  display: block;
+  font-size: 10px;
+  color: #666;
+  margin-top: 3px;
+}

@@ -1,4 +1,5 @@
 {
+  "preview": { "image": "图片", "truncated": "预览已截断" },
   "noteInfo": {
     "heading": "便签信息",
     "id": "ID",
@@ -65,7 +66,7 @@
     "tags": "标签"
   },
   "note": {
-    "words": "{{count}} 字",
+    "words": "{{count}} 字符",
     "conflict": "待解冲突",
     "conflictTip": "此便签有 git 冲突标记，请打开内容解决",
     "openFolder": "打开所在目录",

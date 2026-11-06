@@ -66,6 +66,9 @@ import { useWritingDirection } from '../hooks/use-writing-direction';
 import type { WritingDirection } from '@shared/types';
 import { useCopyFormat } from '../hooks/use-copy-format';
 import CopyFormatMenu, { type CopyMenuAnchor } from '../components/CopyFormatMenu';
+import VirtualNoteList, { type VirtualRow } from '../components/VirtualNoteList';
+import MarkdownPreview from '../components/preview/MarkdownPreview';
+import { previewStore } from '../components/preview/client';
 import type { CopyAllFormat } from '@shared/types';
 import { highlightTerms, windowAroundMatch } from '../components/search-highlight';
 import {
@@ -335,6 +338,7 @@ export default function MainView() {
   }, [currentFolder]);
 
   const refresh = useCallback(() => {
+    previewStore.invalidate();
     notesApi
       .list()
       .then((list) => {
@@ -1186,12 +1190,64 @@ export default function MainView() {
     </>
   );
 
+  const renderFolderItem = (f: string) => (
+    <li
+      key={`dir:${f}`}
+      className={`note-list__dir${dropTarget === f ? ' is-drop-target' : ''}`}
+      onClick={() => renamingFolder !== f && enterFolder(f)}
+      {...dropTargetHandlers(f)}
+    >
+      {renamingFolder === f ? (
+        /* 行内重命名：Enter 确认 / Esc 取消，失焦等价取消 */
+        <input
+          className="note-list__rename-input"
+          autoFocus
+          value={renameValue}
+          onFocus={(e) => e.target.select()}
+          onChange={(e) => setRenameValue(e.target.value)}
+          onClick={(e) => e.stopPropagation()}
+          onBlur={() => setRenamingFolder(null)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') submitRename();
+            if (e.key === 'Escape') setRenamingFolder(null);
+          }}
+        />
+      ) : (
+        <span className="note-list__title">
+          <FolderOpenIcon className="note-list__dir-icon" />
+          {f.split('/').pop()}
+        </span>
+      )}
+      <button
+        className="note-list__rename"
+        title={t('folders.renameTip')}
+        onClick={(e) => {
+          e.stopPropagation();
+          setRenamingFolder(f);
+          setRenameValue(f.split('/').pop() ?? '');
+        }}
+      >
+        <PencilSimpleIcon />
+      </button>
+      <button
+        className="note-list__delete"
+        title={t('folders.deleteTip')}
+        onClick={(e) => {
+          e.stopPropagation();
+          setDeleteFolderTarget(f);
+        }}
+      >
+        <TrashIcon />
+      </button>
+    </li>
+  );
+
   // 便签列表项（三视图共用）：颜色卡 + 标题/摘要预览/时间/标签 + 打开/打开目录/移动/删除按钮。
-  // 交互反转（add-list-note-preview）：单击切换摘要 3 行 ↔ 10 行（手风琴），
+  // 交互反转（add-list-note-preview）：单击切换摘要 3 行 ↔ 15 行（手风琴），
   // 打开便签走双击 / 中键 / 右侧「打开」按钮；无摘要（空白便签）时单击回退打开。
   // showFolder：列表视图平铺全部便签，需要标注所在文件夹。
   // draggableNote：仅文件夹视图启用拖拽移动（落点 = 子文件夹行/面包屑段）
-  const renderNoteItem = (note: NoteMeta, showFolder = false, draggableNote = false) => (
+  const renderNoteItem = (note: NoteMeta, showFolder = false, draggableNote = false, instance = note.id) => (
     <li
       key={note.id}
       className="note-list__note"
@@ -1219,11 +1275,11 @@ export default function MainView() {
         if (e.detail > 1) return;
         // 拖选文本后也算一次 click——用户只是想选中，不触发展开
         if (window.getSelection()?.toString()) return;
-        if (!note.excerpt) {
+        if (!note.excerpt && note.wordCount === 0) {
           openNote(note.id);
           return;
         }
-        setExpandedId((cur) => (cur === note.id ? null : note.id));
+        setExpandedId((cur) => (cur === instance ? null : instance));
       }}
       onDoubleClick={() => openNote(note.id)}
       onAuxClick={(e) => {
@@ -1242,11 +1298,9 @@ export default function MainView() {
           {note.title}
         </span>
       </span>
-      {/* 摘要预览：折叠 line-clamp 3 行，展开 10 行（内容不足按实际显示）；空白便签不渲染 */}
-      {note.excerpt && (
-        <span className={`note-list__preview${expandedId === note.id ? ' is-expanded' : ''}`}>
-          {note.excerpt}
-        </span>
+      {/* 摘要预览：折叠 line-clamp 3 行，展开 15 行（内容不足按实际显示）；空白便签不渲染 */}
+      {(note.excerpt || note.wordCount > 0) && (
+        <MarkdownPreview id={note.id} excerpt={note.excerpt ?? ''} expanded={expandedId === instance} direction={writingDirection} />
       )}
       <span className="note-list__meta">
         {formatTime(note.updatedAt)} · {t('note.words', { count: note.wordCount })}
@@ -1365,6 +1419,23 @@ export default function MainView() {
         <p className="vault-setup__hint">{t('setup.hint')}</p>
       </div>
     );
+  }
+
+  const tagRows: VirtualRow[] = [];
+  const addTag = (key: string, label: string, members: NoteMeta[]): void => {
+    const collapsed = collapsedTags.has(key);
+    tagRows.push({ key: `header:${key}`, estimate: 32, render: () =>
+      <li className="virtual-note-list__group"><button className="main-view__grouphead"
+        title={collapsed ? t('tags.expand') : t('tags.collapse')} onClick={() => toggleTagGroup(key)}>
+        {collapsed ? <CaretRightIcon /> : <CaretDownIcon />}{label}
+      </button></li> });
+    if (!collapsed) for (const note of members) tagRows.push({ key: `${key}:${note.id}`,
+      render: () => renderNoteItem(note, false, false, `${key}:${note.id}`) });
+  };
+  if (view === 'tags') {
+    for (const group of tagGroups.groups) addTag(group.tag, `#${group.tag}（${group.count}）`, group.notes);
+    if (tagGroups.untagged.length) addTag('__untagged__', t('tags.untagged', { count: tagGroups.untagged.length }), tagGroups.untagged);
+    if (!notes.length && !error) tagRows.push({ key: 'empty', render: () => <li className="note-list__empty">{emptyNoteHint}</li> });
   }
 
   return (
@@ -2422,12 +2493,9 @@ export default function MainView() {
               </button>
             </div>
           </div>
-          <ul className="note-list">
-            {sortedNotes.map((note) => renderNoteItem(note, true))}
-            {notes.length === 0 && !error && (
-              <li className="note-list__empty">{emptyNoteHint}</li>
-            )}
-          </ul>
+          <VirtualNoteList resetKey={`list:${sortKey}:${sortDir}`} rows={sortedNotes.length
+            ? sortedNotes.map(note => ({ key: note.id, render: () => renderNoteItem(note, true) }))
+            : [{ key: 'empty', render: () => <li className="note-list__empty">{!error && emptyNoteHint}</li> }]} />
         </section>
       ) : view === 'folders' ? (
         /* 文件夹视图：本层子文件夹 + 本层便签 */
@@ -2437,113 +2505,17 @@ export default function MainView() {
               ? t('folders.current', { name: shortenFolder(currentFolder, 18), count: layerNotes.length })
               : t('folders.root', { count: layerNotes.length })}
           </h2>
-          <ul className="note-list">
-            {childFolders.map((f) => (
-              <li
-                key={`dir:${f}`}
-                className={`note-list__dir${dropTarget === f ? ' is-drop-target' : ''}`}
-                onClick={() => renamingFolder !== f && enterFolder(f)}
-                {...dropTargetHandlers(f)}
-              >
-                {renamingFolder === f ? (
-                  /* 行内重命名：Enter 确认 / Esc 取消，失焦等价取消 */
-                  <input
-                    className="note-list__rename-input"
-                    autoFocus
-                    value={renameValue}
-                    onFocus={(e) => e.target.select()}
-                    onChange={(e) => setRenameValue(e.target.value)}
-                    onClick={(e) => e.stopPropagation()}
-                    onBlur={() => setRenamingFolder(null)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') submitRename();
-                      if (e.key === 'Escape') setRenamingFolder(null);
-                    }}
-                  />
-                ) : (
-                  <span className="note-list__title">
-                    <FolderOpenIcon className="note-list__dir-icon" />
-                    {f.split('/').pop()}
-                  </span>
-                )}
-                <button
-                  className="note-list__rename"
-                  title={t('folders.renameTip')}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setRenamingFolder(f);
-                    setRenameValue(f.split('/').pop() ?? '');
-                  }}
-                >
-                  <PencilSimpleIcon />
-                </button>
-                <button
-                  className="note-list__delete"
-                  title={t('folders.deleteTip')}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setDeleteFolderTarget(f);
-                  }}
-                >
-                  <TrashIcon />
-                </button>
-              </li>
-            ))}
-            {layerNotes.map((note) => renderNoteItem(note, false, true))}
-            {layerNotes.length === 0 && childFolders.length === 0 && !error && (
-              <li className="note-list__empty">
-                {currentFolder ? t('folders.empty') : emptyNoteHint}
-              </li>
-            )}
-          </ul>
+          <VirtualNoteList resetKey={`folders:${currentFolder}`} rows={[
+            ...childFolders.map(f => ({ key: `dir:${f}`, estimate: 42, render: () => renderFolderItem(f) })),
+            ...layerNotes.map(note => ({ key: note.id, render: () => renderNoteItem(note, false, true) })),
+            ...(layerNotes.length === 0 && childFolders.length === 0 && !error
+              ? [{ key: 'empty', render: () => <li className="note-list__empty">{currentFolder ? t('folders.empty') : emptyNoteHint}</li> }] : []),
+          ]} />
         </section>
       ) : (
-        /* 标签视图：按标签分组（频次降序），无标签的归到最后一组；
-           组头可点击收起/展开（会话内记忆） */
-        <>
-          {tagGroups.groups.map((g) => {
-            const collapsed = collapsedTags.has(g.tag);
-            return (
-              <section key={g.tag} className="main-view__section">
-                <h2
-                  className="main-view__grouphead"
-                  title={collapsed ? t('tags.expand') : t('tags.collapse')}
-                  onClick={() => toggleTagGroup(g.tag)}
-                >
-                  {collapsed ? <CaretRightIcon /> : <CaretDownIcon />}
-                  #{g.tag}（{g.count}）
-                </h2>
-                {!collapsed && (
-                  <ul className="note-list">{g.notes.map((note) => renderNoteItem(note))}</ul>
-                )}
-              </section>
-            );
-          })}
-          {tagGroups.untagged.length > 0 && (
-            <section className="main-view__section">
-              <h2
-                className="main-view__grouphead"
-                title={collapsedTags.has('__untagged__') ? t('tags.expand') : t('tags.collapse')}
-                onClick={() => toggleTagGroup('__untagged__')}
-              >
-                {collapsedTags.has('__untagged__') ? <CaretRightIcon /> : <CaretDownIcon />}
-                {t('tags.untagged', { count: tagGroups.untagged.length })}
-              </h2>
-              {!collapsedTags.has('__untagged__') && (
-                <ul className="note-list">
-                  {tagGroups.untagged.map((note) => renderNoteItem(note))}
-                </ul>
-              )}
-            </section>
-          )}
-          {notes.length === 0 && !error && (
-            <section className="main-view__section">
-              <ul className="note-list">
-                <li className="note-list__empty">{emptyNoteHint}</li>
-              </ul>
-            </section>
-          )}
-        </>
+        <section className="main-view__section">
+          <VirtualNoteList resetKey="tags" rows={tagRows} />
+        </section>
       )}
 
       {/* 移动到文件夹弹层 */}

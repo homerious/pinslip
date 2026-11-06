@@ -1,4 +1,5 @@
 {
+  "preview": { "image": "画像", "truncated": "プレビューを省略しました" },
   "noteInfo": {
     "heading": "ノート情報",
     "id": "ID",

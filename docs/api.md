@@ -60,6 +60,7 @@ HTTP 层允许任意来源跨域，并响应 Chrome 私有网络访问（PNA）�
 | GET | `/health` | 健康检查 | — | `{ "status": "ok", "version": "1.0.1" }` |
 | GET | `/api/health` | 身份握手（浏览器插件探测用） | — | `{ "app": "pinslip", "version": "1.0.1" }` |
 | GET | `/api/notes` | 列出全部笔记元数据（含 inbox） | — | `NoteMeta[]` |
+| POST | `/api/notes/previews` | 按需批量读取只读预览（最多 8 个唯一 id） | `{ "ids": ["..."], "expanded": false }` | `NotePreview[]`（见下） |
 | GET | `/api/notes/{id}` | 读取单条笔记 | — | `Note`，404 + `NOTE_NOT_FOUND` = 不存在 |
 | PUT | `/api/notes/{id}` | 创建或更新（upsert + 部分更新，id 由客户端生成） | `{ content?, title?, titleManual?, tags?, pin?, source?, color?, collapsed?, zoom?, direction?, group?, folder?, inbox? }` | `Note` |
 | DELETE | `/api/notes/{id}` | 删除笔记：移入回收区（可找回）并清出索引 | — | `{ "status": "ok" }` |
@@ -83,6 +84,16 @@ HTTP 层允许任意来源跨域，并响应 Chrome 私有网络访问（PNA）�
 | POST | `/api/sync/now` | 立即同步一轮（commit+pull+push） | — | `SyncStatus` |
 | POST | `/api/sync/resolve` | 分叉人工接管（`{strategy:"local"\|"remote"}`，前置校验失败 400） | `{strategy}` | `SyncStatus` |
 | * | `/mcp` | MCP 端点（Streamable HTTP，供 AI agent 接入；可用 `mcpEnabled` 关闭） | MCP 协议 | 见 `skills/pinslip/SKILL.md` |
+
+### 便签预览
+
+- `POST /api/notes/previews` 仅用于管理器按可见范围读取；列表 `NoteMeta` 仍不含完整正文。
+- 每项 `{ id, markdown, revision, direction?, truncated, error? }`，revision 为正文/位置/方向的版本摘要。
+- `expanded=false` 源文本最多 8192 字节，true 最多 32768 字节；不会拆分 UTF-8 字符，超限置 truncated。
+- ids 必须为 1～8 个唯一 id（每项不超过 128 字节，拒绝路径分隔符和空 id）；非法请求返回 400。
+- 缺失或不可读取的便签仅在该项返回 `error: "preview unavailable"`，其他项仍可用。
+- 预览不写回文件。原始 HTML 不执行，解析/节点裁剪由客户端负责；打开和复制全文继续使用单条 GET。
+- 既有 `wordCount` 是 Markdown 正文 Unicode 字符数（含语法与空白），不是自然语言单词数；英文界面使用 characters。
 
 ### 文件夹约定
 

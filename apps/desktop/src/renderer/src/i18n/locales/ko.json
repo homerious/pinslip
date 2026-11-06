@@ -1,4 +1,5 @@
 {
+  "preview": { "image": "이미지", "truncated": "미리보기가 잘렸습니다" },
   "noteInfo": {
     "heading": "노트 정보",
     "id": "ID",

@@ -2,6 +2,9 @@ import { defineConfig } from 'electron-vite';
 import react from '@vitejs/plugin-react';
 import Icons from 'unplugin-icons/vite';
 import { resolve } from 'node:path';
+import { createRequire } from 'node:module';
+
+const rendererRequire = createRequire(resolve(__dirname, 'package.json'));
 
 // 约定入口：main → src/main/index.ts，preload → src/preload/index.ts，
 // renderer 根 → src/renderer/index.html；产物统一输出到 out/
@@ -28,6 +31,8 @@ export default defineConfig({
       alias: {
         '@': resolve('src/renderer/src'),
         '@shared': resolve('src/shared'),
+        // remark 的浏览器解码器依赖 document；预览 Worker 使用同包的无 DOM 实现。
+        'decode-named-character-reference': rendererRequire.resolve('decode-named-character-reference'),
       },
     },
   },

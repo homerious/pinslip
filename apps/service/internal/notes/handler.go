@@ -28,6 +28,7 @@ func NewHandler(svc *Service) *Handler {
 // Go 1.22+ ServeMux 中字面量段（search/quick）优先于通配段（{id}）。
 func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/notes", h.list)
+	mux.HandleFunc("POST /api/notes/previews", h.previews)
 	mux.HandleFunc("GET /api/notes/search", h.search)
 	mux.HandleFunc("POST /api/notes/quick", h.quick)
 	mux.HandleFunc("GET /api/notes/{id}", h.get)

@@ -1,4 +1,5 @@
 {
+  "preview": { "image": "Imagen", "truncated": "Vista previa truncada" },
   "noteInfo": {
     "heading": "Información de la nota",
     "id": "ID",
@@ -65,7 +66,7 @@
     "tags": "Etiquetas"
   },
   "note": {
-    "words": "{{count}} palabras",
+    "words": "{{count}} caracteres",
     "conflict": "Conflicto pendiente",
     "conflictTip": "Esta nota tiene marcadores de conflicto de git. Ábrela para resolverlos",
     "openFolder": "Abrir carpeta contenedora",

@@ -1,4 +1,5 @@
 {
+  "preview": { "image": "Bild", "truncated": "Vorschau gekürzt" },
   "noteInfo": {
     "heading": "Notizinformationen",
     "id": "ID",
@@ -65,7 +66,7 @@
     "tags": "Tags"
   },
   "note": {
-    "words": "{{count}} Wörter",
+    "words": "{{count}} Zeichen",
     "conflict": "Konflikt offen",
     "conflictTip": "Diese Notiz enthält git-Konfliktmarker. Zum Auflösen öffnen",
     "openFolder": "Ordner öffnen",
