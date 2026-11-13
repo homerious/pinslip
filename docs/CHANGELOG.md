@@ -4,6 +4,10 @@
 
 ## [Unreleased]
 
+### 修复
+
+- **路径和 URL 粘贴变形**：普通粘贴独立 Windows 路径、UNC 路径或 HTTP/HTTPS URL（含多行地址）时保留反斜杠、下划线与查询参数，URL 仍可点击，保存重开及单独选中地址后 Ctrl+C 保留原地址；其他 Markdown、富文本及图片粘贴保持原行为（[#26](https://github.com/homerious/pinslip/issues/26)）。
+
 ## [1.1.1] - 2026-10-29
 
 ### 新增

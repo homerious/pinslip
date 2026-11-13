@@ -118,6 +118,19 @@ function singleTableCellText(doc: PMNodeLike): string | null {
   return block.textContent;
 }
 
+/** 独立地址不是 Markdown 源码：反斜杠、下划线和 URL 查询参数必须按字面插入。
+ * 仅匹配整行；混合 Markdown、显式链接和代码继续交给原 parser。 */
+function literalAddressKind(line: string): 'path' | 'url' | null {
+  const value = line.trim();
+  if (/^[a-z]:[\\/]/i.test(value) || /^\\\\[^\\/\s]+[\\/]\S/.test(value)) return 'path';
+  if (!/^https?:\/\/[^\s<>]+$/i.test(value)) return null;
+  try {
+    return new URL(value).hostname ? 'url' : null;
+  } catch {
+    return null;
+  }
+}
+
 /** 搜索状态快照：total = 命中总数；active = 当前命中序号（1 起；0 = 无当前命中） */
 export interface FindStatus {
   total: number;
@@ -455,7 +468,11 @@ const MilkdownEditor = forwardRef<EditorHandle, EditorProps>(function MilkdownEd
         ctx.set(defaultValueCtx, content);
         // 序列化无序列表统一用 "-"：mdast 默认输出 "*"，Obsidian 只认 "-" 的任务列表
         // （"*" 的任务在 Obsidian 里显示为普通符号 + 字面 [x]）
-        ctx.update(remarkStringifyOptionsCtx, (options) => ({ ...options, bullet: '-' as const }));
+        // 使用显式链接 [文字](目标)：自动链接 <URL> 内不解释反斜杠转义，
+        // remark 为 URL 加的转义会在重开时变成字面字符。
+        ctx.update(remarkStringifyOptionsCtx, (options) => ({
+          ...options, bullet: '-' as const, resourceLink: true,
+        }));
         // 任务列表可点击 checkbox：直接向 nodeViewCtx 注册 nodeview。
         // 不走 $view——它的定时器注册在我们的插件链里没有触发（工厂函数从未执行）；
         // config 阶段早于 editorView 创建，写入即生效。
@@ -478,7 +495,10 @@ const MilkdownEditor = forwardRef<EditorHandle, EditorProps>(function MilkdownEd
           handlePaste: handleImagePaste(folder),
           // 仅纯文本普通粘贴会走这里；HTML 富文本与代码块由 PM 原有流程处理。
           clipboardTextParser: (text, context, plain, view) => {
-            if (!plain) {
+            const lines = text.split(/(?:\r\n?|\n)+/);
+            const nonEmptyLines = lines.filter((line) => line.trim());
+            const literalAddresses = nonEmptyLines.length > 0 && nonEmptyLines.every(literalAddressKind);
+            if (!plain && !literalAddresses) {
               try {
                 return Slice.maxOpen(ctx.get(parserCtx)(text).content);
               } catch {
@@ -488,10 +508,18 @@ const MilkdownEditor = forwardRef<EditorHandle, EditorProps>(function MilkdownEd
             // 对齐 PM 默认文本粘贴：分行成段，保留当前位置的行内样式。
             const dom = document.createElement('div');
             const serializer = DOMSerializer.fromSchema(view.state.schema);
-            for (const line of text.split(/(?:\r\n?|\n)+/)) {
+            for (const line of lines) {
               const paragraph = dom.appendChild(document.createElement('p'));
               if (line) {
-                paragraph.appendChild(serializer.serializeNode(view.state.schema.text(line, context.marks())));
+                const node = serializer.serializeNode(view.state.schema.text(line, context.marks()));
+                if (!plain && literalAddresses && literalAddressKind(line) === 'url') {
+                  const link = document.createElement('a');
+                  link.setAttribute('href', line.trim());
+                  link.appendChild(node);
+                  paragraph.appendChild(link);
+                } else {
+                  paragraph.appendChild(node);
+                }
               }
             }
             return DOMParser.fromSchema(view.state.schema).parseSlice(dom, {
@@ -511,6 +539,11 @@ const MilkdownEditor = forwardRef<EditorHandle, EditorProps>(function MilkdownEd
               // 表格骨架 markdown 对复制单号等场景是噪音
               const cellText = singleTableCellText(doc as unknown as PMNodeLike);
               if (cellText !== null) return cellText;
+              // 单独复制地址是为了直接使用；Markdown 转义不能带进资源管理器或浏览器。
+              const block = doc.childCount === 1 ? doc.firstChild : null;
+              if (block?.type.name === 'paragraph' && literalAddressKind(block.textContent)) {
+                return block.textContent;
+              }
               return toCompactMarkdown(serializer(doc));
             } catch {
               // slice 包不进文档节点（理论不会：PM 复制切片总是块级）——退回纯文本，保证复制不空

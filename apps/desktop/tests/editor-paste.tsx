@@ -6,6 +6,7 @@ import { undo } from '@milkdown/prose/history';
 import { Editor as MilkdownCore, editorViewCtx, parserCtx } from '@milkdown/core';
 import Editor, { type EditorHandle } from '../src/renderer/src/components/editor/Editor';
 import { toCompactMarkdown } from '../src/renderer/src/utils/compact-markdown';
+import { toPlainText } from '../src/renderer/src/utils/copy-text';
 
 const root = createRoot(document.getElementById('root')!);
 let activeEditor: MilkdownCore | undefined;
@@ -75,6 +76,76 @@ async function runPasteTests() {
       check(dom.querySelector(selector), `${selector} missing: ${dom.innerHTML}`);
     });
   }
+  const addresses = [
+    ['issue 26 Windows path', String.raw`D:\Temp\_Hermes_\PageIndex`],
+    ['Windows path with spaces', String.raw`C:\Program Files\_工具_\a[b](c).txt`],
+    ['UNC path', String.raw`\\server\_share_\Team Files\a[b].md`],
+    ['forward slash path', 'D:/Temp/_Hermes_/PageIndex'],
+    ['URL punctuation and entity', 'https://example.com/_Hermes_/a_(b)?q=*x*&copy;=two#_part_'],
+    ['URL brackets and backslash', String.raw`https://example.com/a\_b?q=[value]&x=1`],
+    ['HTTP URL', 'http://localhost:17639/_test_?a=1&b=2'],
+  ];
+  for (const [name, text] of addresses) {
+    await test(`${name} paste/save/reopen/plain-copy`, async () => {
+      const { view, dom, markdown } = await mount();
+      paste(view, text);
+      check(dom.textContent === text, `paste: ${dom.textContent}`);
+      check(!dom.querySelector('em,strong,code'), dom.innerHTML);
+      if (/^https?:/.test(text)) {
+        check(dom.querySelector('a')?.getAttribute('href') === text, dom.innerHTML);
+      }
+      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, 1, view.state.doc.content.size - 1)));
+      const copied = new DataTransfer();
+      view.dom.dispatchEvent(new ClipboardEvent('copy', { clipboardData: copied, bubbles: true, cancelable: true }));
+      check(copied.getData('text/plain') === text, `Ctrl+C: ${copied.getData('text/plain')}`);
+      await wait(300);
+      const saved = markdown();
+      check(toPlainText(saved) === text, `plain copy: ${toPlainText(saved)}`);
+      const reopened = await mount(saved);
+      check(reopened.dom.textContent === text, `reopened: ${reopened.dom.innerHTML}`);
+      if (/^https?:/.test(text)) {
+        check(reopened.dom.querySelector('a')?.getAttribute('href') === text, reopened.dom.innerHTML);
+      }
+    });
+  }
+  await test('multiple literal addresses preserve lines', async () => {
+    const { view, dom } = await mount();
+    const lines = [addresses[0][1], addresses[2][1], addresses[4][1]];
+    paste(view, lines.join('\r\n'));
+    check(Array.from(dom.querySelectorAll('p')).map(p => p.textContent).join('\n') === lines.join('\n'), dom.innerHTML);
+  });
+  await test('literal path selection replacement and undo', async () => {
+    const { view, dom } = await mount('前文旧文后文');
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, 3, 5)));
+    const before = view.state.doc.toJSON();
+    paste(view, addresses[0][1]);
+    check(dom.textContent === `前文${addresses[0][1]}后文`, dom.innerHTML);
+    check(undo(view.state, view.dispatch), 'undo failed');
+    check(JSON.stringify(view.state.doc.toJSON()) === JSON.stringify(before), dom.innerHTML);
+  });
+  await test('URL plain paste remains unformatted', async () => {
+    const { view, dom } = await mount();
+    paste(view, addresses[4][1], { plain: true });
+    check(dom.textContent === addresses[4][1] && !dom.querySelector('a,em,strong'), dom.innerHTML);
+  });
+  await test('address clipboard HTML still takes precedence', async () => {
+    const { view, dom } = await mount();
+    paste(view, addresses[0][1], { html: '<p><strong>富文本优先</strong></p>' });
+    check(dom.querySelector('strong')?.textContent === '富文本优先', dom.innerHTML);
+  });
+  await test('Markdown link containing URL punctuation stays Markdown', async () => {
+    const { view, dom } = await mount();
+    paste(view, '[文档](https://example.com/_Hermes_?a=1&b=2)');
+    check(dom.querySelector('a')?.textContent === '文档', dom.innerHTML);
+    check(dom.querySelector('a')?.getAttribute('href') === 'https://example.com/_Hermes_?a=1&b=2', dom.innerHTML);
+  });
+  await test('formatted selection still copies Markdown', async () => {
+    const { view } = await mount('# 标题\n\n**重点**');
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, 1, view.state.doc.content.size - 1)));
+    const copied = new DataTransfer();
+    view.dom.dispatchEvent(new ClipboardEvent('copy', { clipboardData: copied, bubbles: true, cancelable: true }));
+    check(copied.getData('text/plain') === '# 标题\n**重点**', copied.getData('text/plain'));
+  });
   await test('copy-all Markdown and save round trip', async () => {
     const source = '# 标题\n\n**重点**\n\n- [x] 完成\n- [ ] 待办';
     const { view, dom, markdown } = await mount();
