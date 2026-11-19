@@ -127,6 +127,14 @@ const ZOOM_MAX = 200;
 const ZOOM_STEP = 10;
 const ZOOM_DEFAULT = 100;
 
+const TOOLBAR_MAX_HIDDEN_EDIT = 3;
+const TOOLBAR_RESTORE_SPACE = 30;
+
+function toolbarOuterWidth(element: HTMLElement): number {
+  const style = getComputedStyle(element);
+  return element.getBoundingClientRect().width + parseFloat(style.marginLeft) + parseFloat(style.marginRight);
+}
+
 /** 六色定义已迁至 utils/colors.ts（主窗口新建按钮也要读色板与上次用色） */
 
 /** 便签窗口视图：无边框窗内的编辑界面；
@@ -192,15 +200,15 @@ export default function NoteView() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   /** 窗口是否激活（跟随 OS 焦点，比 :focus-within 可靠——点面板任意处都算） */
   const [active, setActive] = useState(() => document.hasFocus());
-  /** 工具栏优先级隐藏：编辑区从低优先级藏起的按钮数（0..3，保底留区首） */
-  const [hiddenEdit, setHiddenEdit] = useState(0);
+  /** 工具栏收起档位：依次隐藏 3 个编辑按钮、复制全部、保存与同步状态。 */
+  const [toolbarHidden, setToolbarHidden] = useState(0);
+  const hiddenEdit = Math.min(toolbarHidden, TOOLBAR_MAX_HIDDEN_EDIT);
+  const hiddenAux = toolbarHidden - hiddenEdit;
   /** 工具栏左区按钮的用户自定义顺序（有序 id 列表；缺省 = 现状顺序）。
    *  挂载读 getAdvanced + 订阅 advanced:changed 广播即时重排 */
   const [toolbarOrder, setToolbarOrder] = useState<string[]>(() => [
     ...TOOLBAR_BUTTON_DEFAULT_ORDER,
   ]);
-  /** 分类区隐藏级别：0=全显，1=藏复制全部，2=再藏保存状态（保底留 标签/文件夹/⋯） */
-  const [hiddenAux, setHiddenAux] = useState(0);
   /** 复制全部成功反馈（图标短暂变 ✓） */
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState(false);
@@ -229,6 +237,9 @@ export default function NoteView() {
   const titleRenameCancelRef = useRef(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
+  const toolbarTagRef = useRef<HTMLButtonElement>(null);
+  const toolbarDividerRef = useRef<HTMLSpanElement>(null);
+  const toolbarStatusRef = useRef<HTMLSpanElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<EditorHandle>(null);
   const loadedRef = useRef(false);
@@ -281,44 +292,6 @@ export default function NoteView() {
     setFindReplaceOpen(false);
     editorRef.current?.closeFind();
   }, []);
-
-  /** 工具栏宽度自适应：溢出时按优先级从低到高逐级藏（先编辑区按钮，再分类区的
-   *  复制全部/保存状态）；富余超过一个按钮位（≈30px，迟滞防抖）时按相反顺序逐级放回。
-   *  每次渲染后由 useLayoutEffect 驱动，setState 触发重渲染直到收敛。
-   *  血泪教训：宽度测量必须用「已渲染子元素 offsetWidth 之和」——右区
-   *  margin-left:auto 会把内容顶满全宽，scrollWidth 恒等于 clientWidth，
-   *  靠 clientWidth-scrollWidth 判定富余是死代码（单向棘轮只藏不放：
-   *  挂载瞬态一旦溢出，按钮永久消失，2026-07-21 新便签工具栏事故） */
-  const reflowToolbar = useCallback(() => {
-    const el = toolbarRef.current;
-    if (!el || el.clientWidth === 0) return; // 未布局（挂载瞬态）不判定
-    const cs = getComputedStyle(el);
-    const avail = el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
-    const natural = Array.from(el.children).reduce(
-      (sum, c) => sum + (c as HTMLElement).offsetWidth,
-      0,
-    );
-    if (natural > avail + 1) {
-      if (hiddenEdit < 3) setHiddenEdit((v) => v + 1);
-      else if (hiddenAux < 2) setHiddenAux((v) => v + 1);
-    } else if ((hiddenAux > 0 || hiddenEdit > 0) && avail - natural > 30) {
-      if (hiddenAux > 0) setHiddenAux((v) => v - 1);
-      else setHiddenEdit((v) => v - 1);
-    }
-  }, [hiddenEdit, hiddenAux]);
-
-  useLayoutEffect(() => {
-    reflowToolbar();
-  });
-
-  // 窗口缩放（含拖边缘缩便签）时重排工具栏
-  useEffect(() => {
-    const el = toolbarRef.current;
-    if (!el) return;
-    const ro = new ResizeObserver(() => reflowToolbar());
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [reflowToolbar]);
 
   // 工具栏按钮自定义顺序：挂载读取 + 订阅主进程广播（主窗口高级设置改序后
   // 即时重排，无需重开）；广播载荷是补齐后的完整对象，渲染层再过一遍
@@ -1103,6 +1076,7 @@ export default function NoteView() {
     saved: t('note.stateSaved'),
     error: t('note.stateError'),
   };
+  const saveStatusText = stateText[saveState];
 
   /** 同步按钮派生态：仅「已配置且启用」时显示（未配置不渲染，不占工具栏宽度） */
   const syncConfigured = !!(syncStatus?.configured && syncStatus.enabled);
@@ -1216,7 +1190,49 @@ export default function NoteView() {
     .map((id) => editButtonDefs[id])
     .filter((b): b is EditButtonDef => !!b);
   const displayedEditButtons = orderedEditButtons.slice(0, TOOLBAR_DISPLAY_LIMIT);
-  const visibleEditButtons = displayedEditButtons.slice(0, displayedEditButtons.length - hiddenEdit);
+  const displayedEditCount = displayedEditButtons.length;
+  const visibleEditButtons = displayedEditButtons.slice(0, displayedEditCount - hiddenEdit);
+
+  useLayoutEffect(() => {
+    const toolbar = toolbarRef.current;
+    const tag = toolbarTagRef.current;
+    const divider = toolbarDividerRef.current;
+    const status = toolbarStatusRef.current;
+    const more = moreButtonRef.current;
+    if (collapsed || !toolbar || !tag || !divider || !status || !more) return;
+
+    const reflow = () => {
+      if (toolbar.clientWidth === 0) return;
+      const style = getComputedStyle(toolbar);
+      const available = toolbar.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+      // 编辑、文件夹、复制、同步按钮和 ⋯ 使用相同的工具栏按钮宽度。
+      const buttonWidth = more.getBoundingClientRect().width;
+      const fixedWidth = toolbarOuterWidth(tag) + toolbarOuterWidth(divider) + 2 * buttonWidth;
+      const statusWidth = status.getBoundingClientRect().width + (syncConfigured ? buttonWidth : 0);
+      const withCopy = fixedWidth + statusWidth + buttonWidth;
+      const widths = Array.from({ length: TOOLBAR_MAX_HIDDEN_EDIT + 1 }, (_, hidden) =>
+        withCopy + (displayedEditCount - hidden) * buttonWidth,
+      );
+      const compact = fixedWidth + (displayedEditCount - TOOLBAR_MAX_HIDDEN_EDIT) * buttonWidth;
+      widths.push(compact + statusWidth, compact);
+
+      // 用各档实际所需宽度直接算出结果。恢复时保留迟滞，并确认恢复后的档位也能放下。
+      const firstFit = widths.findIndex((width) => width <= available);
+      const minimumHidden = firstFit === -1 ? widths.length - 1 : firstFit;
+      setToolbarHidden((current) => {
+        let next = Math.max(current, minimumHidden);
+        while (next > minimumHidden && available - widths[next] > TOOLBAR_RESTORE_SPACE) next--;
+        return next;
+      });
+    };
+
+    reflow();
+    const observer = new ResizeObserver(reflow);
+    observer.observe(toolbar);
+    observer.observe(status);
+    return () => observer.disconnect();
+  }, [collapsed, displayedEditCount, saveStatusText, syncConfigured]);
+
   const exportButtonVisible = !collapsed && visibleEditButtons.some(button => button.key === 'export');
   useLayoutEffect(() => {
     if (!exportButtonVisible) setExportMenuOpen(false);
@@ -1593,9 +1609,10 @@ export default function NoteView() {
             </button>
           ))}
         </div>
-        <span className="sticky-note__toolbar-divider" />
+        <span className="sticky-note__toolbar-divider" ref={toolbarDividerRef} />
         <div className="sticky-note__toolbar-zone sticky-note__toolbar-zone--right">
           <button
+            ref={toolbarTagRef}
             className="sticky-note__btn sticky-note__tagbtn"
             data-tip={t('note.tags')}
             data-tip-place="top"
@@ -1661,9 +1678,14 @@ export default function NoteView() {
               {syncFailed ? <WarningCircleFillIcon /> : <ArrowsClockwiseIcon />}
             </button>
           )}
-          {hiddenAux < 2 && (
-            <span className="sticky-note__toolbar-state">{stateText[saveState]}</span>
-          )}
+          {/* 收起时脱离布局并隐藏，保留文字的自然宽度供恢复档位计算。 */}
+          <span
+            className="sticky-note__toolbar-state"
+            ref={toolbarStatusRef}
+            style={hiddenAux < 2 ? undefined : { position: 'absolute', visibility: 'hidden', width: 'max-content' }}
+          >
+            {saveStatusText}
+          </span>
           {hiddenAux < 1 && (
             <button
               className="sticky-note__btn"
