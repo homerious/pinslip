@@ -6,8 +6,14 @@ Electron 主进程拉起服务后从 stdout 解析 `PINSLIP_PORT=<port>`（该�
 渲染进程经 IPC 获取端口；端口同时写入临时文件作为备用发现途径。
 所有请求/响应均为 JSON（附件上传的请求体除外）；错误统一为 `{ "error": "message" }`，
 需要客户端映射文案的错误附稳定 `code` 字段（`message` 保留原文作兜底展示）。
-HTTP 层允许任意来源跨域，并响应 Chrome 私有网络访问（PNA）预检——浏览器插件
-正是经此从网页上下文直连本地服务。
+服务校验回环 Host 和请求来源，并在业务路由前校验 `Authorization: Bearer <token>`。
+桌面会话凭证经受限 IPC 随端口交给可信窗口，业务数据继续使用 HTTP。
+普通网页来源会被拒绝，通配 CORS 已移除。打包版 Electron 的 CORS/PNA 兼容只用于
+桌面业务传输，业务请求仍需凭证。健康检查继续提供应用标识和版本。
+
+剪藏扩展在桌面「浏览器剪藏」设置中生成短时配对码，再到扩展选项页配对。
+扩展凭证授权下表的剪藏操作，可由桌面端撤销。MCP 的本机客户端保留现有
+`/mcp` 和发现文件，服务在握手前拒绝浏览器跨域来源及非回环 Host。
 
 ## 数据模型
 
@@ -59,6 +65,13 @@ HTTP 层允许任意来源跨域，并响应 Chrome 私有网络访问（PNA）�
 |------|------|------|--------|------|
 | GET | `/health` | 健康检查 | — | `{ "status": "ok", "version": "1.0.1" }` |
 | GET | `/api/health` | 身份握手（浏览器插件探测用） | — | `{ "app": "pinslip", "version": "1.0.1" }` |
+| POST | `/api/clipper/pairing` | 用桌面凭证生成两分钟内有效的一次性配对码 | — | `{ code, expiresAt }` |
+| DELETE | `/api/clipper/pairing` | 撤销本机所有剪藏授权及未使用的配对码 | — | `{ revoked: true }` |
+| POST | `/api/clipper/connect` | 兑换配对码 | `{ code }` | `{ token }` |
+| GET | `/api/clipper/status` | 校验剪藏凭证 | — | `{ authorized: true }` |
+| POST | `/api/clipper/quick` | 已授权的剪藏速记，沿用 vault 的速记模式 | `{ content }` | `{ status: "ok" }` |
+| POST | `/api/clipper/notes` | 已授权的剪藏，服务端生成 ID 并新建收件箱便签 | `{ title, content }` | `{ status: "ok" }` |
+| POST | `/api/clipper/attachments?ext=.png` | 已授权的剪藏附件上传 | 图片原始字节 | `{ path }` |
 | GET | `/api/notes` | 列出全部笔记元数据（含 inbox） | — | `NoteMeta[]` |
 | POST | `/api/notes/previews` | 按需批量读取只读预览（最多 8 个唯一 id） | `{ "ids": ["..."], "expanded": false }` | `NotePreview[]`（见下） |
 | GET | `/api/notes/{id}` | 读取单条笔记 | — | `Note`，404 + `NOTE_NOT_FOUND` = 不存在 |

@@ -1,26 +1,48 @@
 import type { RuntimeInfo } from '@shared/types';
 
 // 渲染进程数据层：直接 HTTP 访问 Go 本地服务（与窗口 IPC 通道分离）。
-// 端口经主进程 IPC 获取一次后缓存；这套 fetch 封装未来 Web 端可直接复用。
+// 端口和令牌经主进程 IPC 获取后缓存，只有 Go 拒绝旧凭证时才重试当前请求。
 
 let runtimePromise: Promise<RuntimeInfo> | null = null;
+let watchingRuntime = false;
 
 function getRuntimeInfo(): Promise<RuntimeInfo> {
+  if (!watchingRuntime) {
+    window.api.onRuntimePortChanged?.(() => { runtimePromise = null; });
+    watchingRuntime = true;
+  }
   if (!runtimePromise) {
     runtimePromise = window.api.getRuntimeInfo();
   }
   return runtimePromise;
 }
 
-async function getBaseUrl(): Promise<string> {
-  const info = await getRuntimeInfo();
-  return `http://127.0.0.1:${info.goPort}`;
+async function localFetch(path: string, init: RequestInit = {}): Promise<Response> {
+  const connection = getRuntimeInfo();
+  const send = async (info: RuntimeInfo) => {
+    const headers = new Headers(init.headers);
+    if (info.goToken) headers.set('Authorization', `Bearer ${info.goToken}`);
+    return fetch(`http://127.0.0.1:${info.goPort}${path}`, { ...init, headers, redirect: 'error' });
+  };
+  try {
+    const initial = await connection;
+    const res = await send(initial);
+    if (res.status !== 401 || res.headers.get('WWW-Authenticate') !== 'Bearer') return res;
+    if (runtimePromise === connection) runtimePromise = null;
+    const refreshed = await getRuntimeInfo();
+    if (refreshed.vaultPath !== initial.vaultPath) return res;
+    if (refreshed.goToken === initial.goToken && refreshed.goPort === initial.goPort) return res;
+    // 401 由本地授权中间件返回时业务尚未执行，可以安全重试。
+    return await send(refreshed);
+  } catch (error) {
+    if (runtimePromise === connection && !init.signal?.aborted) runtimePromise = null;
+    throw error;
+  }
 }
 
 /** 统一 fetch 封装：JSON 编解码 + 错误归一化。 */
 export async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const base = await getBaseUrl();
-  const res = await fetch(`${base}${path}`, {
+  const res = await localFetch(path, {
     headers: { 'Content-Type': 'application/json' },
     ...init,
   });
@@ -33,8 +55,7 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 /** 上传原始字节（附件场景）：不带 JSON Content-Type，body 即文件内容。 */
 export async function postRaw<T>(path: string, body: Blob): Promise<T> {
-  const base = await getBaseUrl();
-  const res = await fetch(`${base}${path}`, { method: 'POST', body });
+  const res = await localFetch(path, { method: 'POST', body });
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`API ${res.status}: ${text}`);

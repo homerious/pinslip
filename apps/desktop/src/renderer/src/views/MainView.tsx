@@ -66,6 +66,7 @@ import { useWritingDirection } from '../hooks/use-writing-direction';
 import type { WritingDirection } from '@shared/types';
 import { useCopyFormat } from '../hooks/use-copy-format';
 import CopyFormatMenu, { type CopyMenuAnchor } from '../components/CopyFormatMenu';
+import ClipperSettings from '../components/ClipperSettings';
 import VirtualNoteList, { type VirtualRow } from '../components/VirtualNoteList';
 import MarkdownPreview from '../components/preview/MarkdownPreview';
 import { previewStore } from '../components/preview/client';
@@ -489,6 +490,7 @@ export default function MainView() {
 
   // 启动检查保险库：已设置 → 列表模式；未设置 → 引导选择
   useEffect(() => {
+    const dispose = window.api.onRuntimePortChanged?.(setGoPort);
     window.api
       .getRuntimeInfo()
       .then((info) => {
@@ -503,6 +505,7 @@ export default function MainView() {
         }
       })
       .catch(() => setStage('setup'));
+    return typeof dispose === 'function' ? dispose : undefined;
   }, []);
 
   // 新建按钮色跟随上次用色：便签窗口换色写 localStorage——storage 事件
@@ -2089,6 +2092,8 @@ export default function MainView() {
               )}
               <div className="settings-panel__hint">{t('mcp.hint')}</div>
             </div>
+
+            <ClipperSettings port={goPort} />
 
             {/* 高级设置：抽屉底部可折叠二级区域（默认收起，视觉降级），
                 承载行为定制选项；全部选项缺省保持现状，即改即存即生效 */}

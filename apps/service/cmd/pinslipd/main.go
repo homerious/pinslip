@@ -28,6 +28,12 @@ const version = "1.0.1"
 func main() {
 	logger := utils.NewLogger()
 
+	access, err := server.NewLocalAccess(
+		os.Getenv("PINSLIP_DESKTOP_TOKEN"), os.Getenv("PINSLIP_DESKTOP_ORIGIN"), os.Getenv("PINSLIP_CLIPPER_CREDENTIALS"),
+	)
+	if err != nil {
+		logger.Fatal("加载本地授权失败", "error", err)
+	}
 	cfg, err := config.Load()
 	if err != nil {
 		logger.Fatal("加载配置失败", "error", err)
@@ -89,7 +95,7 @@ func main() {
 		gitsync.NewHandler(syncEngine),
 		mcpserver.NewHandler(svc, syncEngine, version),
 		version,
-	))
+	), access)
 	port, fallback, err := srv.Start()
 	if err != nil {
 		logger.Fatal("启动 HTTP 服务失败", "error", err)

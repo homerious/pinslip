@@ -68,8 +68,7 @@ export class GroupManager {
 
   /** 本地服务 HTTP 出口：端口随服务启动/重启变化，每次现取（同 fetchPinState 模式） */
   private async api(path: string, init?: RequestInit): Promise<Response> {
-    const port = await this.deps.goProcess.ensureStarted();
-    return fetch(`http://127.0.0.1:${port}${path}`, init);
+    return this.deps.goProcess.request(path, init);
   }
 
   /** 启动加载：拉注册表填充内存，再按 frontmatter reconcile 兜底——

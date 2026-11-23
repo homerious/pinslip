@@ -1,4 +1,13 @@
 {
+  "clipper": {
+    "title": "Browser clipper",
+    "pair": "Generate pairing code",
+    "revoke": "Revoke all access",
+    "code": "Pairing code",
+    "hint": "Enter the code in the extension settings within two minutes.",
+    "revoked": "Browser clipper access revoked.",
+    "error": "Could not update browser clipper access."
+  },
   "preview": { "image": "Image", "truncated": "Preview truncated" },
   "noteInfo": {
     "heading": "Note information",

@@ -14,7 +14,7 @@ func newTestServer() *Server {
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
-	return New(mux)
+	return New(mux, &LocalAccess{})
 }
 
 func stopServer(t *testing.T, s *Server) {

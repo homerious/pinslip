@@ -151,6 +151,8 @@ export interface SaveSyncConfigInput {
 /** 主进程提供给渲染进程的运行时信息 */
 export interface RuntimeInfo {
   goPort: number;
+  /** Go 会话凭证。仅向应用自己的主框架提供。 */
+  goToken?: string;
   platform: string;
   /** 保险库路径；null = 未设置（首次使用，渲染层应引导选择） */
   vaultPath: string | null;
@@ -242,6 +244,7 @@ export interface ExportImageResult {
 /** preload 暴露到 window.api 的接口契约（唯一 IPC 出口） */
 export interface ElectronAPI {
   getRuntimeInfo(): Promise<RuntimeInfo>;
+  onRuntimePortChanged(cb: (port: number) => void): () => void;
   /** 打开/新建便签窗口；folder 仅新建时有效：首次保存落盘到该文件夹（notes/ 相对路径） */
   createNote(noteId?: string, folder?: string): Promise<void>;
   /** 仅领取调用方新便签的一次性初始文本；其他窗口或已消费返回 null */

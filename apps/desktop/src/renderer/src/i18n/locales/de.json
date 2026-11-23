@@ -1,4 +1,13 @@
 {
+  "clipper": {
+    "title": "Browser-Clipper",
+    "pair": "Kopplungscode erstellen",
+    "revoke": "Alle Berechtigungen widerrufen",
+    "code": "Kopplungscode",
+    "hint": "Gib den Code innerhalb von zwei Minuten in den Erweiterungseinstellungen ein.",
+    "revoked": "Clipper-Berechtigungen widerrufen.",
+    "error": "Clipper-Berechtigungen konnten nicht geändert werden."
+  },
   "preview": { "image": "Bild", "truncated": "Vorschau gekürzt" },
   "noteInfo": {
     "heading": "Notizinformationen",

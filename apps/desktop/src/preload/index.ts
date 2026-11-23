@@ -6,6 +6,11 @@ import type { ElectronAPI, ExportImagePayload, GroupState, ResolvedAdvancedSetti
 // 这里实现的 ElectronAPI 就是渲染进程能触达主进程的全部能力白名单。
 const api: ElectronAPI = {
   getRuntimeInfo: () => ipcRenderer.invoke(IPC.RuntimeInfo),
+  onRuntimePortChanged: (cb) => {
+    const listener = (_event: Electron.IpcRendererEvent, port: number) => cb(port);
+    ipcRenderer.on(IPC.RuntimePortChanged, listener);
+    return () => ipcRenderer.removeListener(IPC.RuntimePortChanged, listener);
+  },
   createNote: (noteId, folder) => ipcRenderer.invoke(IPC.WindowCreate, noteId, folder),
   takeInitialNoteContent: () => ipcRenderer.invoke(IPC.NoteTakeInitialContent),
   closeNote: (noteId, discard) => ipcRenderer.invoke(IPC.WindowClose, noteId, discard),

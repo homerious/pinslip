@@ -1,5 +1,5 @@
 // 选项页：连接状态（自动探测 /api/health）+ 端口设置（chrome.storage.sync）+ 重新检测。
-import { DEFAULT_PORT, getPort, health, setPort } from './api';
+import { DEFAULT_PORT, getPort, health, pair, PairingRequiredError, setPort } from './api';
 import { msg } from './i18n';
 
 document.getElementById('title')!.textContent = msg('optionsTitle');
@@ -12,6 +12,12 @@ const status = document.getElementById('status')!;
 const guide = document.getElementById('guide')!;
 const portInput = document.getElementById('port') as HTMLInputElement;
 const retestBtn = document.getElementById('retest') as HTMLButtonElement;
+const pairForm = document.getElementById('pair-form') as HTMLFormElement;
+const pairCode = document.getElementById('pair-code') as HTMLInputElement;
+const pairSubmit = document.getElementById('pair-submit') as HTMLButtonElement;
+document.getElementById('pair-label')!.textContent = msg('pairCode');
+document.getElementById('pair-hint')!.textContent = msg('pairHint');
+pairSubmit.textContent = msg('pairSubmit');
 
 async function probe(): Promise<void> {
   dot.className = 'dot';
@@ -21,11 +27,14 @@ async function probe(): Promise<void> {
     const h = await health();
     dot.classList.add('on');
     status.textContent = msg('connected', { version: h.version });
-  } catch {
+  } catch (error) {
     dot.classList.add('bad');
-    status.textContent = msg('disconnected');
-    guide.textContent = `${msg('cannotConnect')}${msg('connectGuide')}`;
-    guide.classList.add('show');
+    const needsPairing = error instanceof PairingRequiredError;
+    status.textContent = msg(needsPairing ? 'pairRequired' : 'disconnected');
+    if (!needsPairing) {
+      guide.textContent = msg('connectGuide');
+      guide.classList.add('show');
+    }
   }
 }
 
@@ -42,6 +51,22 @@ async function applyPort(): Promise<void> {
 
 portInput.addEventListener('change', () => void applyPort());
 retestBtn.addEventListener('click', () => void probe());
+pairForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const code = pairCode.value.trim();
+  if (!code) return;
+  pairSubmit.disabled = true;
+  try {
+    await pair(code);
+    pairCode.value = '';
+    await probe();
+  } catch {
+    guide.textContent = msg('pairFailed');
+    guide.classList.add('show');
+  } finally {
+    pairSubmit.disabled = false;
+  }
+});
 
 void (async () => {
   portInput.value = String(await getPort());

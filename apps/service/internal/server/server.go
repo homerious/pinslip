@@ -14,9 +14,9 @@ type Server struct {
 	listener   net.Listener
 }
 
-func New(handler http.Handler) *Server {
+func New(handler http.Handler, access *LocalAccess) *Server {
 	return &Server{
-		httpServer: &http.Server{Handler: withCORS(handler)},
+		httpServer: &http.Server{Handler: access.wrap(handler)},
 	}
 }
 
@@ -47,22 +47,4 @@ func (s *Server) Start() (port int, fallback bool, err error) {
 // Shutdown 优雅关闭。
 func (s *Server) Shutdown(ctx context.Context) error {
 	return s.httpServer.Shutdown(ctx)
-}
-
-// withCORS 允许任意来源访问（服务只绑回环，风险可控），
-// 并响应 Chrome 私有网络访问（PNA）预检，避免 file:// 页面请求被拦。
-func withCORS(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-		if r.Header.Get("Access-Control-Request-Private-Network") == "true" {
-			w.Header().Set("Access-Control-Allow-Private-Network", "true")
-		}
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
 }

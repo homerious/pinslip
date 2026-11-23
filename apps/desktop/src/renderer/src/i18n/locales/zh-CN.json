@@ -1,4 +1,13 @@
 {
+  "clipper": {
+    "title": "浏览器剪藏",
+    "pair": "生成配对码",
+    "revoke": "撤销全部授权",
+    "code": "配对码",
+    "hint": "在扩展设置中输入配对码，两分钟内有效。",
+    "revoked": "已撤销剪藏扩展授权。",
+    "error": "无法更新剪藏授权。"
+  },
   "preview": { "image": "图片", "truncated": "预览已截断" },
   "noteInfo": {
     "heading": "便签信息",

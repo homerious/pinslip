@@ -1,4 +1,13 @@
 {
+  "clipper": {
+    "title": "Extension de capture",
+    "pair": "Générer un code d’association",
+    "revoke": "Révoquer tous les accès",
+    "code": "Code d’association",
+    "hint": "Saisissez le code dans les paramètres de l’extension dans les deux minutes.",
+    "revoked": "Accès de l’extension révoqués.",
+    "error": "Impossible de modifier les accès de l’extension."
+  },
   "preview": { "image": "Image", "truncated": "Aperçu tronqué" },
   "noteInfo": {
     "heading": "Informations de la note",

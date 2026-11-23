@@ -1,4 +1,13 @@
 {
+  "clipper": {
+    "title": "Recortador web",
+    "pair": "Generar código de vinculación",
+    "revoke": "Revocar todos los permisos",
+    "code": "Código de vinculación",
+    "hint": "Introduce el código en la extensión en un plazo de dos minutos.",
+    "revoked": "Permisos del recortador revocados.",
+    "error": "No se pudieron cambiar los permisos del recortador."
+  },
   "preview": { "image": "Imagen", "truncated": "Vista previa truncada" },
   "noteInfo": {
     "heading": "Información de la nota",

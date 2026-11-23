@@ -1,6 +1,7 @@
 import { app, BrowserWindow, dialog, ipcMain, nativeTheme, shell } from 'electron';
 import { existsSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { IPC } from '../../shared/ipc-channels';
 import type { AdvancedSettings, ExportImagePayload, RuntimeInfo } from '../../shared/types';
 import type { WindowManager } from '../windows/window-manager';
@@ -24,7 +25,17 @@ interface IpcContext {
 /** 统一注册全部 IPC handler。 */
 export function registerIpcHandlers({ windowManager, goProcess }: IpcContext): void {
   // 运行时信息：未设置保险库时 vaultPath=null（渲染层引导选择，服务不启动）
-  ipcMain.handle(IPC.RuntimeInfo, async (): Promise<RuntimeInfo> => {
+  ipcMain.handle(IPC.RuntimeInfo, async (event): Promise<RuntimeInfo> => {
+    const frame = event.senderFrame;
+    if (!frame || frame !== event.sender.mainFrame || !BrowserWindow.fromWebContents(event.sender)) {
+      throw new Error('Untrusted PinSlip frame');
+    }
+    const url = new URL(frame.url);
+    const devUrl = !app.isPackaged && process.env.ELECTRON_RENDERER_URL;
+    const trusted = devUrl
+      ? url.origin === new URL(devUrl).origin
+      : url.protocol === 'file:' && fileURLToPath(url) === path.join(__dirname, '../renderer/index.html');
+    if (!trusted) throw new Error('Untrusted PinSlip origin');
     const version = app.getVersion();
     const vaultPath = getVaultPath();
     if (!vaultPath) {
@@ -36,8 +47,8 @@ export function registerIpcHandlers({ windowManager, goProcess }: IpcContext): v
         version,
       };
     }
-    const goPort = await goProcess.ensureStarted();
-    return { goPort, platform: process.platform, vaultPath, isPackaged: app.isPackaged, version };
+    const connection = await goProcess.getConnection();
+    return { ...connection, platform: process.platform, vaultPath, isPackaged: app.isPackaged, version };
   });
 
   ipcMain.handle(IPC.WindowCreate, async (_event, noteId?: string, folder?: string) => {

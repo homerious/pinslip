@@ -1,4 +1,5 @@
 import { spawn, type ChildProcess } from 'node:child_process';
+import { randomBytes } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { app } from 'electron';
@@ -10,6 +11,11 @@ const MAX_RESTARTS = 3;
 
 /** 未选择保险库时 ensureStarted 的拒绝原因（调用方据此走设置流程） */
 export const VAULT_NOT_SET = 'VAULT_NOT_SET';
+
+interface GoConnection {
+  goPort: number;
+  goToken: string;
+}
 
 /**
  * Go 本地服务进程管理：
@@ -23,10 +29,16 @@ export class GoProcess {
   private port = 0;
   private restarts = 0;
   private stopping = false;
-  private readyPromise: Promise<number> | null = null;
+  private readyPromise: Promise<GoConnection> | null = null;
+
+  constructor(private readonly onReady?: (port: number) => void) {}
 
   /** 确保服务已启动，返回端口。并发调用共享同一次启动。未设置保险库时拒绝。 */
   ensureStarted(): Promise<number> {
+    return this.getConnection().then(({ goPort }) => goPort);
+  }
+
+  getConnection(): Promise<GoConnection> {
     if (!getVaultPath()) {
       return Promise.reject(new Error(VAULT_NOT_SET));
     }
@@ -34,6 +46,13 @@ export class GoProcess {
       this.readyPromise = this.spawnAndWaitPort();
     }
     return this.readyPromise;
+  }
+
+  async request(path: string, init?: RequestInit): Promise<Response> {
+    const { goPort, goToken } = await this.getConnection();
+    const headers = new Headers(init?.headers);
+    headers.set('Authorization', `Bearer ${goToken}`);
+    return fetch(`http://127.0.0.1:${goPort}${path}`, { ...init, headers, redirect: 'error' });
   }
 
   getPort(): number {
@@ -77,7 +96,7 @@ export class GoProcess {
     return { cmd: goBin, args: ['run', './cmd/pinslipd'], cwd: serviceDir };
   }
 
-  private spawnAndWaitPort(): Promise<number> {
+  private spawnAndWaitPort(): Promise<GoConnection> {
     return new Promise((resolve, reject) => {
       const { cmd, args, cwd } = this.resolveCommand();
       if (cwd && !existsSync(cwd)) {
@@ -87,9 +106,17 @@ export class GoProcess {
       console.log(`[go] spawn: ${cmd} ${args.join(' ')} ${cwd ? `(cwd=${cwd})` : ''}`);
 
       // 数据目录注入：Go 侧 PINSLIP_DATA_DIR 优先于其默认路径
+      const goToken = randomBytes(32).toString('base64url');
+      const devRenderer = app.isPackaged ? undefined : process.env.ELECTRON_RENDERER_URL;
       const child = spawn(cmd, args, {
         cwd,
-        env: { ...process.env, PINSLIP_DATA_DIR: getVaultPath() ?? '' },
+        env: {
+          ...process.env,
+          PINSLIP_DATA_DIR: getVaultPath() ?? '',
+          PINSLIP_DESKTOP_TOKEN: goToken,
+          PINSLIP_DESKTOP_ORIGIN: devRenderer ? new URL(devRenderer).origin : '',
+          PINSLIP_CLIPPER_CREDENTIALS: path.join(app.getPath('userData'), 'clipper-credentials.json'),
+        },
       });
       this.child = child;
 
@@ -97,16 +124,19 @@ export class GoProcess {
         reject(new Error(`等待 Go 服务端口超时（${START_TIMEOUT_MS / 1000}s）`));
       }, START_TIMEOUT_MS);
 
-      let buffer = '';
+      let buffer: string | null = '';
       child.stdout?.on('data', (chunk) => {
         const text = chunk.toString();
-        buffer += text;
         process.stdout.write(`[go] ${text}`);
+        if (this.child !== child || buffer === null) return;
+        buffer += text;
         const m = buffer.match(PORT_LINE);
         if (m) {
           this.port = Number(m[1]);
           clearTimeout(timer);
-          resolve(this.port);
+          buffer = null;
+          resolve({ goPort: this.port, goToken });
+          this.onReady?.(this.port);
         }
       });
       child.stderr?.on('data', (chunk) => {
@@ -114,9 +144,16 @@ export class GoProcess {
       });
       child.on('error', (err) => {
         clearTimeout(timer);
+        if (this.child === child) {
+          this.child = null;
+          this.readyPromise = null;
+        }
         reject(new Error(`Go 服务拉起失败: ${err.message}`));
       });
       child.on('exit', (code) => {
+        clearTimeout(timer);
+        reject(new Error(`Go 服务在就绪前退出 code=${code}`));
+        if (this.child !== child) return;
         this.child = null;
         this.readyPromise = null;
         if (this.stopping) return;

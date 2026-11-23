@@ -16,6 +16,8 @@
       .card { border: 1px solid #d0d7de; border-radius: 8px; padding: 14px 16px; margin-bottom: 14px; }
       .row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
       .row:last-child { margin-bottom: 0; }
+      #pair-form { flex-wrap: wrap; }
+      #pair-code { flex: 1 1 120px; }
       .dot { width: 8px; height: 8px; border-radius: 50%; background: #9aa0a6; flex: none; }
       .dot.on { background: #2da44e; }
       .dot.bad { background: #cf222e; }
@@ -51,6 +53,12 @@
         <button id="retest"></button>
       </div>
       <div id="guide" class="guide"></div>
+      <form id="pair-form" class="row">
+        <label id="pair-label" for="pair-code"></label>
+        <input id="pair-code" type="password" autocomplete="off" spellcheck="false" required />
+        <button id="pair-submit" type="submit"></button>
+      </form>
+      <p class="hint" id="pair-hint"></p>
     </div>
     <p class="hint" id="portHint"></p>
     <script type="module" src="/src/options.ts"></script>

@@ -1,6 +1,7 @@
 package notes
 
 import (
+	"net/http"
 	"net/http/httptest"
 	"regexp"
 	"strings"
@@ -9,6 +10,28 @@ import (
 
 	"pinslip/service/internal/storage"
 )
+
+func TestClipperQuickDoesNotReturnExistingContent(t *testing.T) {
+	svc, _ := newTestService(t)
+	if err := svc.SaveSettings(&storage.Settings{QuickCaptureMode: storage.QuickModeDaily}); err != nil {
+		t.Fatal(err)
+	}
+	daily, err := svc.QuickCapture("existing private note")
+	if err != nil {
+		t.Fatal(err)
+	}
+	mux := http.NewServeMux()
+	NewHandler(svc).Register(mux)
+	reply := httptest.NewRecorder()
+	mux.ServeHTTP(reply, httptest.NewRequest(http.MethodPost, "/api/clipper/quick", strings.NewReader(`{"content":"new clip"}`)))
+	if reply.Code != http.StatusOK || strings.TrimSpace(reply.Body.String()) != `{"status":"ok"}` {
+		t.Fatalf("unexpected clipper reply: %d %s", reply.Code, reply.Body.String())
+	}
+	got, err := svc.Get(daily.ID)
+	if err != nil || !strings.Contains(got.Content, "existing private note") || !strings.Contains(got.Content, "new clip") {
+		t.Fatalf("quick capture did not preserve and append contents: %v", err)
+	}
+}
 
 // 逐条模式（默认）：两次速记 = 两条独立便签，都在收集箱。
 func TestQuickCapturePerNoteMode(t *testing.T) {

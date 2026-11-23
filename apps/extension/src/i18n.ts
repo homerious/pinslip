@@ -6,6 +6,11 @@ export type Lang = 'zh-CN' | 'en' | 'ja' | 'ko' | 'es' | 'de' | 'fr';
 type Dict = Record<string, string>;
 
 const zhCN: Dict = {
+  pairCode: "配对码",
+  pairRequired: "需要配对",
+  pairHint: "请在 PinSlip 桌面端的浏览器剪藏设置中生成配对码。",
+  pairSubmit: "配对",
+  pairFailed: "配对失败，请确认端口和配对码，或生成新码。",
   menuSaveSelection: '保存到 PinSlip',
   menuSaveLink: '保存链接到 PinSlip',
   menuClipPage: '剪藏正文到 PinSlip',
@@ -29,6 +34,11 @@ const zhCN: Dict = {
 };
 
 const en: Dict = {
+  pairCode: "Pairing code",
+  pairRequired: "Pairing required",
+  pairHint: "Generate a code in PinSlip’s Browser clipper settings.",
+  pairSubmit: "Pair",
+  pairFailed: "Pairing failed. Check the port and code, or generate a fresh code.",
   menuSaveSelection: 'Save to PinSlip',
   menuSaveLink: 'Save link to PinSlip',
   menuClipPage: 'Clip article to PinSlip',
@@ -52,6 +62,11 @@ const en: Dict = {
 };
 
 const ja: Dict = {
+  pairCode: "ペアリングコード",
+  pairRequired: "ペアリングが必要です",
+  pairHint: "PinSlip のブラウザークリッパー設定でコードを生成してください。",
+  pairSubmit: "ペアリング",
+  pairFailed: "ペアリングに失敗しました。ポートとコードを確認するか、新しいコードを生成してください。",
   menuSaveSelection: 'PinSlip に保存',
   menuSaveLink: 'リンクを PinSlip に保存',
   menuClipPage: '本文を PinSlip にクリップ',
@@ -75,6 +90,11 @@ const ja: Dict = {
 };
 
 const ko: Dict = {
+  pairCode: "페어링 코드",
+  pairRequired: "페어링 필요",
+  pairHint: "PinSlip의 브라우저 클리퍼 설정에서 코드를 생성하세요.",
+  pairSubmit: "페어링",
+  pairFailed: "페어링에 실패했습니다. 포트와 코드를 확인하거나 새 코드를 생성하세요.",
   menuSaveSelection: 'PinSlip에 저장',
   menuSaveLink: '링크를 PinSlip에 저장',
   menuClipPage: '본문을 PinSlip에 클리핑',
@@ -98,6 +118,11 @@ const ko: Dict = {
 };
 
 const es: Dict = {
+  pairCode: "Código de vinculación",
+  pairRequired: "Vinculación necesaria",
+  pairHint: "Genera un código en los ajustes del recortador de PinSlip.",
+  pairSubmit: "Vincular",
+  pairFailed: "No se pudo vincular. Comprueba el puerto y el código o genera uno nuevo.",
   menuSaveSelection: 'Guardar en PinSlip',
   menuSaveLink: 'Guardar enlace en PinSlip',
   menuClipPage: 'Recortar artículo a PinSlip',
@@ -121,6 +146,11 @@ const es: Dict = {
 };
 
 const de: Dict = {
+  pairCode: "Kopplungscode",
+  pairRequired: "Kopplung erforderlich",
+  pairHint: "Erstelle einen Code in den Clipper-Einstellungen von PinSlip.",
+  pairSubmit: "Koppeln",
+  pairFailed: "Kopplung fehlgeschlagen. Prüfe Port und Code oder erstelle einen neuen Code.",
   menuSaveSelection: 'In PinSlip speichern',
   menuSaveLink: 'Link in PinSlip speichern',
   menuClipPage: 'Artikel nach PinSlip clippen',
@@ -144,6 +174,11 @@ const de: Dict = {
 };
 
 const fr: Dict = {
+  pairCode: "Code d’association",
+  pairRequired: "Association requise",
+  pairHint: "Générez un code dans les paramètres de capture de PinSlip.",
+  pairSubmit: "Associer",
+  pairFailed: "Échec de l’association. Vérifiez le port et le code ou générez un nouveau code.",
   menuSaveSelection: 'Enregistrer dans PinSlip',
   menuSaveLink: 'Enregistrer le lien dans PinSlip',
   menuClipPage: 'Capturer l’article dans PinSlip',

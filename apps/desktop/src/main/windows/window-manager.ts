@@ -209,8 +209,7 @@ export class WindowManager {
   /** 从本地服务读取笔记的 pin 状态（失败时默认置顶，宁可打扰不可丢失） */
   private async fetchPinState(noteId: string): Promise<boolean> {
     try {
-      const port = await this.goProcess.ensureStarted();
-      const res = await fetch(`http://127.0.0.1:${port}/api/notes/${noteId}`);
+      const res = await this.goProcess.request(`/api/notes/${noteId}`);
       if (!res.ok) return true;
       const note = (await res.json()) as { pin?: boolean };
       return note.pin === true;

@@ -17,7 +17,11 @@ import { shouldShowManager } from './startup';
 import { IPC } from '../shared/ipc-channels';
 
 // 只做装配：app 生命周期 + 各模块注册，业务逻辑分散到各模块
-const goProcess = new GoProcess();
+const goProcess = new GoProcess((port) => {
+  for (const win of BrowserWindow.getAllWindows()) {
+    if (!win.isDestroyed()) win.webContents.send(IPC.RuntimePortChanged, port);
+  }
+});
 let windowManager: WindowManager;
 let startupComplete = false;
 let pendingShowManager = false;

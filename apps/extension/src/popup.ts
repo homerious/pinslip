@@ -1,5 +1,5 @@
 // Popup：速记进收集箱（quick 端点）+ 连接状态指示（绿点/灰点）。
-import { health, quick } from './api';
+import { health, PairingRequiredError, quick } from './api';
 import { msg } from './i18n';
 
 const dot = document.getElementById('dot')!;
@@ -18,9 +18,9 @@ async function refreshStatus(): Promise<boolean> {
     dot.classList.add('on');
     status.textContent = msg('connected', { version: h.version });
     return true;
-  } catch {
+  } catch (error) {
     dot.classList.remove('on');
-    status.textContent = msg('disconnected');
+    status.textContent = msg(error instanceof PairingRequiredError ? 'pairRequired' : 'disconnected');
     return false;
   }
 }
@@ -41,8 +41,8 @@ async function save(): Promise<void> {
     saved.style.visibility = 'visible';
     setTimeout(() => (saved.style.visibility = 'hidden'), 1500);
     if (!connected) void refreshStatus().then((ok) => (connected = ok));
-  } catch {
-    status.textContent = msg('cannotConnect');
+  } catch (error) {
+    status.textContent = msg(error instanceof PairingRequiredError ? 'pairRequired' : 'cannotConnect');
     dot.classList.remove('on');
     connected = false;
   } finally {

@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"pinslip/service/internal/storage"
 )
@@ -40,6 +41,11 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/folders/rename", h.renameFolder)
 	mux.HandleFunc("POST /api/folders/delete", h.deleteFolder)
 	mux.HandleFunc("POST /api/attachments", h.uploadAttachment)
+	mux.HandleFunc("POST /api/clipper/quick", func(w http.ResponseWriter, r *http.Request) {
+		h.captureQuick(w, r, false)
+	})
+	mux.HandleFunc("POST /api/clipper/notes", h.clip)
+	mux.HandleFunc("POST /api/clipper/attachments", h.uploadAttachment)
 	mux.HandleFunc("GET /api/trash/stats", h.trashStats)
 	mux.HandleFunc("POST /api/trash/empty", h.emptyTrash)
 	mux.HandleFunc("GET /api/settings", h.getSettings)
@@ -86,6 +92,25 @@ func (h *Handler) save(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, note)
+}
+
+func (h *Handler) clip(w http.ResponseWriter, r *http.Request) {
+	var in struct{ Title, Content string }
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	if strings.TrimSpace(in.Content) == "" {
+		writeError(w, http.StatusBadRequest, errors.New("剪藏内容不能为空"))
+		return
+	}
+	inbox := true
+	_, err := h.svc.Save(NewID(), SaveInput{Title: in.Title, Content: &in.Content, Source: "web-clip", Inbox: &inbox})
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
 func (h *Handler) remove(w http.ResponseWriter, r *http.Request) {
@@ -194,6 +219,10 @@ func (h *Handler) search(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) quick(w http.ResponseWriter, r *http.Request) {
+	h.captureQuick(w, r, true)
+}
+
+func (h *Handler) captureQuick(w http.ResponseWriter, r *http.Request, returnNote bool) {
 	var in QuickInput
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 		writeError(w, http.StatusBadRequest, err)
@@ -208,7 +237,12 @@ func (h *Handler) quick(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, note)
+	if returnNote {
+		writeJSON(w, http.StatusOK, note)
+		return
+	}
+	// 剪藏速记可能追加到当天的既有便签，回执不能包含以前的内容。
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
 // uploadAttachment 接收粘贴的图片（raw body），?ext=.png 指定扩展名（白名单校验）。

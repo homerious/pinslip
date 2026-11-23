@@ -2,6 +2,7 @@
 export const IPC = {
   /** 获取运行时信息（Go 服务端口等） */
   RuntimeInfo: 'runtime:info',
+  RuntimePortChanged: 'runtime:port-changed',
   /** 新建/聚焦便签窗口，参数 noteId? */
   WindowCreate: 'window:create',
   NoteTakeInitialContent: 'note:take-initial-content',
