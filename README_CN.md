@@ -76,13 +76,15 @@ macOS 安装包暂未签名，首次打开如遇「已损坏」提示，右键 �
 
 环境要求：
 
-- Node.js >= 18（推荐 20+）
+- Node.js >= 22.12
 - pnpm >= 8（没装的话所有 `pnpm` 命令可用 `npx pnpm` 代替）
 - Go >= 1.22（需在 PATH 中，或设置环境变量 `PINSLIP_GO` 指向 go 可执行文件）
+- 当前源码构建的 macOS 版本需要 macOS 13 Ventura 或更高版本
 
 ```bash
 # 安装依赖
 pnpm install
+pnpm --filter @pinslip/desktop exec install-electron
 
 # 开发模式：启动 Electron（主进程自动拉起 Go 服务）
 pnpm dev

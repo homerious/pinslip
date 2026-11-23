@@ -76,23 +76,25 @@ export function registerShortcuts(windowManager: WindowManager): void {
 
   // 新建便签快捷键（缺省 off 不注册）：可选带入触发时的剪贴板纯文本。
   // 仅快捷键路径 focus，会话恢复/列表打开等建窗路径不抢焦点
-  blankNoteRebinder = createShortcutRebinder('blank note', GLOBAL_SHORTCUT_ACCELERATORS, () => {
+  blankNoteRebinder = createShortcutRebinder('blank note', GLOBAL_SHORTCUT_ACCELERATORS, async () => {
     const advanced = getAdvanced();
     // 关闭后已排队的回调不再建窗；无效设置与 off 一致。
     if (advanced.blankNoteShortcut === 'off' || !Object.hasOwn(GLOBAL_SHORTCUT_ACCELERATORS, advanced.blankNoteShortcut)) return;
     let initialContent: string | undefined;
     if (advanced.blankNoteClipboard) {
       try {
-        const text = clipboard.readText();
+        const text = await clipboard.readText();
         if (text.trim()) initialContent = text;
       } catch {
         console.warn('[shortcut] clipboard text unavailable; creating empty note');
       }
     }
-    windowManager
-      .createNoteWindow(undefined, undefined, false, initialContent)
-      .then((id) => windowManager.focusNoteWindow(id))
-      .catch((err) => console.error('[shortcut] blank note create failed:', err));
+    try {
+      const id = await windowManager.createNoteWindow(undefined, undefined, false, initialContent);
+      windowManager.focusNoteWindow(id);
+    } catch (err) {
+      console.error('[shortcut] blank note create failed:', err);
+    }
   });
   try {
     blankNoteRebinder.rebind(getAdvanced().blankNoteShortcut);

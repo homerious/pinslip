@@ -16,11 +16,20 @@ function load(file, mocks, processMock = process) {
     process: processMock, console, URL, setTimeout, clearTimeout });
   return exports;
 }
-async function startup({ hidden = false, vault = true, tray = true, early = null, login = false } = {}) {
+async function startup({ hidden = false, vault = true, tray = true, early = null, login = false,
+  platform = login ? 'darwin' : 'win32', env = {}, ozonePlatform, expectedOzonePlatform = ozonePlatform } = {}) {
   const app = new EventEmitter();
   let ready; let shown = 0; let restored = 0; let background = 0;
   Object.assign(app, { requestSingleInstanceLock: () => true, quit() {}, whenReady: () => ({ then: (fn) => { ready = fn; } }),
-    getLoginItemSettings: () => ({ wasOpenedAtLogin: login }) });
+    getLoginItemSettings: () => ({ wasOpenedAtLogin: login }),
+    commandLine: {
+      hasSwitch: (name) => name === 'ozone-platform' && ozonePlatform !== undefined,
+      appendSwitch(name, value) {
+        assert.equal(name, 'ozone-platform');
+        assert.equal(ready, undefined, 'Set the window backend before app readiness');
+        ozonePlatform = value;
+      },
+    } });
   const mocks = {
     electron: { app, BrowserWindow: {}, nativeTheme: new EventEmitter(), protocol: { handle() {} },
       powerMonitor: new EventEmitter(), screen: new EventEmitter() },
@@ -33,7 +42,8 @@ async function startup({ hidden = false, vault = true, tray = true, early = null
     './services/vault-watch': { startVaultWatch() { background++; } }, './updater': { initAutoUpdater() {} },
     './windows/window-state': {}, '../shared/ipc-channels': {}, './startup': load('startup', {}),
   };
-  load('index', mocks, { platform: login ? 'darwin' : 'win32', argv: hidden ? ['PinSlip.exe', '--hidden'] : ['PinSlip.exe'] });
+  load('index', mocks, { platform, env, argv: hidden ? ['PinSlip.exe', '--hidden'] : ['PinSlip.exe'] });
+  assert.equal(ozonePlatform, expectedOzonePlatform);
   if (early) app.emit('second-instance', {}, early);
   await ready();
   const initial = shown;
@@ -62,6 +72,12 @@ function autostart(platform, packaged = true) {
   assert.equal(await startup({ hidden: true, early: ['PinSlip.exe'] }), 1);
   assert.equal(await startup({ hidden: true, early: ['PinSlip.exe', '--hidden'] }), 0);
   assert.equal(await startup({ login: true }), 0);
+  const wayland = { WAYLAND_DISPLAY: 'wayland-0', DISPLAY: ':0' };
+  await startup({ platform: 'linux', env: wayland, expectedOzonePlatform: 'x11' });
+  await startup({ platform: 'linux', env: { XDG_SESSION_TYPE: 'wayland', DISPLAY: ':0' }, expectedOzonePlatform: 'x11' });
+  await startup({ platform: 'linux', env: wayland, ozonePlatform: 'wayland' });
+  await startup({ platform: 'linux', env: { WAYLAND_DISPLAY: 'wayland-0' } });
+  await startup({ platform: 'linux', env: { DISPLAY: ':0' } });
   const win = autostart('win32');
   win.api.initAutoStart(); assert.equal(win.api.getAutoStart(), true);
   win.hide(true); win.api.setAutoStart(true); assert.equal(win.api.getAutoStart(), true);

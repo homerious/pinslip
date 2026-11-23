@@ -304,14 +304,16 @@ async function refresh() {
     document.querySelector<HTMLButtonElement>('[aria-label="' + i18n.t('note.more') + '"]')!.click();
     await wait();
     const entry = Array.from(document.querySelectorAll<HTMLButtonElement>('.sticky-note__menu-item')).find((b) => b.textContent === i18n.t('noteInfo.heading'));
-    check(entry, 'Permanent More entry'); entry.click();
+    check(entry, 'Permanent More entry');
+    const beforeOpening = requests.length;
+    entry.click();
     await until(() => document.querySelector('dialog[open]'));
     check(document.title === note.title, 'System title stays unchanged');
     await wait(70);
     check(field('id') === note.id, 'Correct note ID in integrated modal');
-  });
-  await test('Viewing information never writes notes or starts synchronization', async () => {
-    check(requests.every((r) => r.method === 'GET'), 'Only GET requests are allowed');
+    const infoRequests = requests.slice(beforeOpening);
+    check(infoRequests.some((r) => r.path === '/api/sync/status'), 'Opening details reads sync status');
+    check(infoRequests.every((r) => r.method === 'GET'), 'Opening details never writes notes or starts synchronization');
   });
   await test('Shortcut prefill survives StrictMode, initializes editor and autosaves without typing', async () => {
     await unmount();

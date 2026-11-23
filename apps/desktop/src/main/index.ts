@@ -16,6 +16,16 @@ import { flushWindowState } from './windows/window-state';
 import { shouldShowManager } from './startup';
 import { IPC } from '../shared/ipc-channels';
 
+// Electron 默认在 Wayland 会话走原生后端。优先用 XWayland 保留窗口定位和快捷键。
+if (
+  process.platform === 'linux' &&
+  (process.env.XDG_SESSION_TYPE === 'wayland' || process.env.WAYLAND_DISPLAY) &&
+  process.env.DISPLAY &&
+  !app.commandLine.hasSwitch('ozone-platform')
+) {
+  app.commandLine.appendSwitch('ozone-platform', 'x11');
+}
+
 // 只做装配：app 生命周期 + 各模块注册，业务逻辑分散到各模块
 const goProcess = new GoProcess((port) => {
   for (const win of BrowserWindow.getAllWindows()) {

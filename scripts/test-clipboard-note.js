@@ -24,7 +24,7 @@ async function main() {
   let advanced = { blankNoteShortcut: 'off', blankNoteClipboard: false, quickCaptureShortcut: 'ctrl+shift+n' };
   let text = ''; let clipboardFailure = false; let reads = 0; let quick = 0;
   const shortcuts = load('main/shortcuts.ts', {
-    electron: { clipboard: { readText() { reads++; if (clipboardFailure) throw new Error('unavailable'); return text; } },
+    electron: { clipboard: { async readText() { reads++; if (clipboardFailure) throw new Error('unavailable'); return text; } },
       globalShortcut: { register: (key, cb) => { if (bindings.has(key)) return false; bindings.set(key, cb); return true; },
         unregister: key => bindings.delete(key), unregisterAll: () => bindings.clear() } },
     './settings': { getAdvanced: () => advanced }, '../shared/shortcuts': shared,
@@ -35,16 +35,27 @@ async function main() {
   assert.equal(bindings.size, 1); assert.equal(reads, 0);
   advanced.blankNoteShortcut = 'ctrl+alt+n'; shortcuts.rebindBlankNoteShortcut('ctrl+alt+n');
   const fire = bindings.get(shared.GLOBAL_SHORTCUT_ACCELERATORS['ctrl+alt+n']);
-  text = 'private clipboard'; fire(); await Promise.resolve();
+  text = 'private clipboard'; await fire();
   assert.equal(reads, 0); assert.equal(creations.at(-1)[3], undefined);
-  advanced.blankNoteClipboard = true; text = '  # Clipboard\n\n正文\n'; fire(); text = 'changed later'; await Promise.resolve();
+  advanced.blankNoteClipboard = true; text = '  # Clipboard\n\n正文\n'; const captured = fire(); text = 'changed later'; await captured;
   assert.equal(creations.at(-1)[3], '  # Clipboard\n\n正文\n');
-  for (const empty of ['', ' \n\t']) { text = empty; fire(); assert.equal(creations.at(-1)[3], undefined); }
-  clipboardFailure = true; fire(); assert.equal(creations.at(-1)[3], undefined); clipboardFailure = false;
+  for (const empty of ['', ' \n\t']) {
+    text = empty;
+    const before = creations.length;
+    await fire();
+    assert.equal(creations.length, before + 1);
+    assert.equal(creations.at(-1)[3], undefined);
+  }
+  clipboardFailure = true;
+  const beforeFailure = creations.length;
+  await fire();
+  assert.equal(creations.length, beforeFailure + 1);
+  assert.equal(creations.at(-1)[3], undefined);
+  clipboardFailure = false;
   const previousReads = reads; const previousCreates = creations.length;
-  advanced.blankNoteShortcut = 'off'; fire();
+  advanced.blankNoteShortcut = 'off'; await fire();
   assert.equal(reads, previousReads); assert.equal(creations.length, previousCreates, 'Queued callback after disable is inert');
-  advanced.blankNoteShortcut = 'ctrl+alt+n'; advanced.blankNoteClipboard = false; fire();
+  advanced.blankNoteShortcut = 'ctrl+alt+n'; advanced.blankNoteClipboard = false; await fire();
   assert.equal(reads, previousReads, 'Preference updates apply without rebinding');
   bindings.get(shared.GLOBAL_SHORTCUT_ACCELERATORS['ctrl+shift+n'])(); assert.equal(quick, 1); assert.equal(reads, previousReads);
   bindings.set(shared.GLOBAL_SHORTCUT_ACCELERATORS['ctrl+alt+q'], () => {});

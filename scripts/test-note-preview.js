@@ -67,23 +67,38 @@ async function native() {
   let manager;
   app.on('browser-window-created', (_e, win) => { if (!manager) {
     manager = win;
-    win.webContents.on('console-message', (_event, level, message) => { if (level >= 2) console.error('RENDERER', message); });
+    win.webContents.on('console-message', ({ level, message }) => {
+      if (level === 'warning' || level === 'error') console.error('RENDERER', message);
+    });
   } });
   require(path.join(desktop, 'out/main/index.js'));
   const check = async (expression, name, timeout = 45000) => {
     const deadline = Date.now() + timeout;
     while (Date.now() < deadline) {
-      if (manager && !manager.isDestroyed()) try { if (await manager.webContents.executeJavaScript(expression)) { console.log('PASS ' + name); return; } } catch {}
+      // Electron 45 要求 executeJavaScript 的返回值可序列化，DOM 查询在渲染端转换成布尔值。
+      if (manager && !manager.isDestroyed()) {
+        try {
+          if (await manager.webContents.executeJavaScript(`Boolean(${expression})`)) {
+            console.log('PASS ' + name);
+            return;
+          }
+        } catch {}
+      }
       await sleep(100);
     }
     console.error(await manager.webContents.executeJavaScript(`JSON.stringify({url:location.href,text:document.body.textContent.slice(0,500),rows:document.querySelectorAll('[data-index]').length,list:document.querySelector('.virtual-note-list')?.getBoundingClientRect().toJSON(),parent:document.querySelector('.main-view')?.getBoundingClientRect().toJSON()})`));
     throw new Error('Timed out: ' + name);
   };
   const js = code => manager.webContents.executeJavaScript(code);
+  const middleCards = `[...document.querySelectorAll('li.note-list__note')].filter(e => {
+    const viewport = document.querySelector('.main-view').getBoundingClientRect();
+    const row = e.getBoundingClientRect();
+    return row.top > viewport.top + 40 && row.bottom <= viewport.bottom;
+  })`;
   const stableExpand = async (middle = false) => {
     const expansionFrames = await js(`new Promise(resolve => {
       const parent = document.querySelector('.main-view');
-      const card = ${middle ? `[...document.querySelectorAll('li.note-list__note')].find(e => e.getBoundingClientRect().top > parent.getBoundingClientRect().top + 40)` : `document.querySelector('li.note-list__note')`};
+      const card = ${middle ? middleCards + '[0]' : `document.querySelector('li.note-list__note')`};
       const fetchBefore = window.fetch;
       window.fetch = async (...args) => {
         if (String(args[0]).endsWith('/api/notes/previews') && JSON.parse(args[1]?.body || '{}').expanded) await new Promise(r => setTimeout(r, 250));
@@ -113,7 +128,10 @@ async function native() {
     assert(await js(`document.querySelectorAll('.markdown-preview.is-expanded img').length <= 3 && [...document.querySelectorAll('.markdown-preview input')].every(e => e.disabled) && !document.querySelector('.markdown-preview a[href]')`));
     fs.writeFileSync(path.join(root, 'expanded-preview.png'), (await manager.webContents.capturePage()).toPNG());
     await js(`document.querySelector('.main-view').scrollTop = 1400`);
-    await check(`document.querySelector('.main-view').scrollTop > 1000 && [...document.querySelectorAll('li.note-list__note')].filter(e => e.getBoundingClientRect().top > 40 && e.getBoundingClientRect().top < 400).every(e => e.querySelector('table'))`, 'middle rows finish loading before expansion');
+    await check(`(() => {
+      const cards = ${middleCards};
+      return document.querySelector('.main-view').scrollTop > 1000 && cards.length > 0 && cards.every(e => e.querySelector('table'));
+    })()`, 'middle rows finish loading before expansion');
     await stableExpand(true);
     console.log('PASS delayed expansion preserves Markdown, selected card position and scroll offset');
     await js(`document.querySelector('.main-view').scrollTop = 1000000`);

@@ -4,9 +4,31 @@
 
 ## [Unreleased]
 
+### 兼容性
+
+- 桌面端升级至 Electron 45.4.1。macOS 客户端最低要求为 macOS 13 Ventura，继续提供 Intel 和 Apple Silicon 安装包。
+
+### 安全
+
+- **收紧本地 API 访问**。移除通配 CORS，在处理请求前校验主机、来源和客户端凭证。桌面端继续通过本地 HTTP 读写便签，现有本机 MCP 客户端沿用原接入地址。浏览器剪藏扩展升级后需在 PinSlip 设置中配对一次，凭证只允许速记、剪藏和上传附件，并可随时撤销。 [#28](https://github.com/homerious/pinslip/issues/28)
+
+### 新增
+
+- **便签支持从右向左书写**。可自动识别方向、设置应用默认方向，或为单张便签单独设置。右侧 `Ctrl+Shift` 切到从右向左，左侧 `Ctrl+Shift` 切回从左向右。列表、任务框和引用会随方向调整。 [#24](https://github.com/homerious/pinslip/issues/24)
+
+### 改进
+
+- **管理器 Markdown 预览**。列表、文件夹和标签视图按需显示格式化的正文预览，包括表格和图片。首次展开时保留折叠预览，展开版就绪后再切换，避免内容闪动和列表跳动。 [预览提交](https://github.com/homerious/pinslip/commit/94e8194)
+
 ### 修复
 
+- **Git 同步恢复**。检测到可能误推删除的异常暂存状态时暂停同步。从远端恢复前会自动备份本地便签和附件，随后恢复缺失文件并重建索引。恢复后管理器自动刷新。 [同步提交](https://github.com/homerious/pinslip/commit/019a70f)
 - **路径和 URL 粘贴变形**：普通粘贴独立 Windows 路径、UNC 路径或 HTTP/HTTPS URL（含多行地址）时保留反斜杠、下划线与查询参数，URL 仍可点击，保存重开及单独选中地址后 Ctrl+C 保留原地址；其他 Markdown、富文本及图片粘贴保持原行为（[#26](https://github.com/homerious/pinslip/issues/26)）。
+- **便签缩窄后消失**。修复缩到特定宽度时，便签界面消失、透明窗口仍挡住点击并导致无法正常关闭的问题。重新打开记住了该宽度的便签也能正常显示。 [#27](https://github.com/homerious/pinslip/issues/27)
+
+### 开发与发布
+
+- 公开镜像导出排除 `release-*` 测试打包目录。新增书写方向、Markdown 预览、粘贴、Git 恢复和本地 API 授权的回归覆盖。
 
 ## [1.1.1] - 2026-10-29
 

@@ -87,13 +87,15 @@ Español — switch anytime in settings.
 
 Requirements:
 
-- Node.js >= 18 (20+ recommended)
+- Node.js >= 22.12
 - pnpm >= 8 (or substitute `npx pnpm` for every `pnpm` command)
 - Go >= 1.22 (on PATH, or point the `PINSLIP_GO` env var at the go binary)
+- macOS 13 Ventura or later when running the macOS build from this source
 
 ```bash
 # Install dependencies
 pnpm install
+pnpm --filter @pinslip/desktop exec install-electron
 
 # Dev mode: launch Electron (the main process spawns the Go service)
 pnpm dev

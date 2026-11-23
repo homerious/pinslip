@@ -1,4 +1,4 @@
-import { BrowserWindow, clipboard, dialog, ipcMain } from 'electron';
+import { BrowserWindow, ClipboardItem, clipboard, dialog, ipcMain } from 'electron';
 import { writeFile } from 'node:fs/promises';
 import { IPC } from '../../shared/ipc-channels';
 import type { ExportImagePayload, ExportImageResult } from '../../shared/types';
@@ -119,7 +119,8 @@ export async function runExport(
       const image = await contents.capturePage();
 
       if (payload.action === 'copy') {
-        clipboard.writeImage(image);
+        const png = new Blob([new Uint8Array(image.toPNG())], { type: 'image/png' });
+        await clipboard.write([new ClipboardItem({ 'image/png': png })]);
         return { ok: true };
       }
       const res = await dialog.showSaveDialog(caller ?? win, {
