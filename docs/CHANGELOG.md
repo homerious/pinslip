@@ -6,7 +6,8 @@
 
 ### 兼容性
 
-- 桌面端升级至 Electron 45.4.1。macOS 客户端最低要求为 macOS 13 Ventura，继续提供 Intel 和 Apple Silicon 安装包。
+- **桌面端升级至 Electron 45.4.1**。macOS 版需要 macOS 13 Ventura 或更新版本，继续提供 Intel 和 Apple Silicon 安装包。macOS 12 上的现有客户端会跳过这次自动更新。
+- **Linux Wayland 窗口兼容**。会话提供 XWayland 时默认使用它来保留窗口定位和全局快捷键，显式指定的窗口后端仍然生效。
 
 ### 安全
 
@@ -28,6 +29,7 @@
 
 ### 开发与发布
 
+- 源码构建需要 Node.js 22.12 或更新版本。安装依赖后需单独下载 Electron 运行时，双语 README 已更新，发布流水线会自动执行这一步。
 - 公开镜像导出排除 `release-*` 测试打包目录。新增书写方向、Markdown 预览、粘贴、Git 恢复和本地 API 授权的回归覆盖。
 
 ## [1.1.1] - 2026-10-29
