@@ -182,6 +182,7 @@ pinslip/
 [<img src="https://github.com/Keyhabit.png?size=48" width="48" alt="Keyhabit">](https://github.com/Keyhabit)
 [<img src="https://github.com/onemast.png?size=48" width="48" alt="onemast">](https://github.com/onemast)
 [<img src="https://github.com/BigHairyWookie.png?size=48" width="48" alt="BigHairyWookie">](https://github.com/BigHairyWookie)
+[<img src="https://github.com/ZeroFlagLabs.png?size=48" width="48" alt="ZeroFlagLabs">](https://github.com/ZeroFlagLabs)
 
 ## License
 
