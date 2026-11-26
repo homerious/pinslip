@@ -3,6 +3,7 @@ package storage
 import (
 	"bytes"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -197,23 +198,41 @@ func (e *Engine) save(fm *Frontmatter, body string, inbox bool, folder string) e
 
 // Load 按 id 读取笔记，返回 frontmatter、正文、是否在 inbox、所在子文件夹（相对 notes/）。
 func (e *Engine) Load(id string) (*Frontmatter, string, bool, string, error) {
+	item, _, err := e.load(id, false)
+	return item.FM, item.Body, item.Inbox, item.Folder, err
+}
+
+// LoadVersioned returns a note and a revision computed from the same disk read.
+func (e *Engine) LoadVersioned(id string) (Item, string, error) {
+	return e.load(id, true)
+}
+
+func (e *Engine) load(id string, versioned bool) (Item, string, error) {
 	p, inbox, err := e.Locate(id)
 	if err != nil {
-		return nil, "", false, "", err
+		return Item{}, "", err
 	}
 	data, err := os.ReadFile(p)
 	if err != nil {
-		return nil, "", false, "", err
+		return Item{}, "", err
 	}
 	fm, body, err := ParseNote(data)
 	if err != nil {
-		return nil, "", false, "", fmt.Errorf("解析 %s 失败: %w", p, err)
+		return Item{}, "", fmt.Errorf("解析 %s 失败: %w", p, err)
 	}
 	folder := ""
 	if !inbox {
 		folder = e.folderOf(p)
 	}
-	return fm, body, inbox, folder, nil
+	item := Item{FM: fm, Body: body, Inbox: inbox, Folder: folder}
+	if !versioned {
+		return item, "", nil
+	}
+	hash := sha256.New()
+	hash.Write([]byte(p))
+	hash.Write([]byte{0})
+	hash.Write(data)
+	return item, hex.EncodeToString(hash.Sum(nil)), nil
 }
 
 // Delete 按 id 删除笔记文件。
@@ -319,24 +338,55 @@ func ValidateFolder(path string) error {
 	return nil
 }
 
-// CreateFolder 在 notes/ 下创建（嵌套）文件夹，已存在时为空操作。
-func (e *Engine) CreateFolder(path string) error {
-	if err := ValidateFolder(path); err != nil {
+// folderMutationPath resolves ordinary note directories without traversing links.
+// Missing components are allowed so CreateFolder can make a whole directory tree.
+func (e *Engine) folderMutationPath(folder string) (string, error) {
+	if err := ValidateFolder(folder); err != nil {
+		return "", err
+	}
+	dir := e.notesDir
+	if err := checkDirectoryOrMissing(dir); err != nil {
+		return "", err
+	}
+	for _, segment := range strings.Split(folder, "/") {
+		dir = filepath.Join(dir, segment)
+		if err := checkDirectoryOrMissing(dir); err != nil {
+			return "", err
+		}
+	}
+	return dir, nil
+}
+
+func checkDirectoryOrMissing(path string) error {
+	info, err := os.Lstat(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
 		return err
 	}
+	if !info.IsDir() || info.Mode()&(os.ModeSymlink|os.ModeIrregular) != 0 {
+		return fmt.Errorf("路径必须是普通目录，不能经过目录链接或文件：%q", path)
+	}
+	return nil
+}
+
+// CreateFolder 在 notes/ 下创建（嵌套）文件夹，已存在时为空操作。
+func (e *Engine) CreateFolder(path string) error {
 	if path == "" {
 		return nil
 	}
-	return os.MkdirAll(filepath.Join(e.notesDir, filepath.FromSlash(path)), 0o755)
+	dir, err := e.folderMutationPath(path)
+	if err != nil {
+		return err
+	}
+	return os.MkdirAll(dir, 0o755)
 }
 
 // RenameFolder 重命名文件夹（同级改名，newName 为单段名称，不含层级）。
 // 便签随目录走（文件夹即物理位置），id 不变、索引无需动；
 // 目标名已存在或源不存在时报错。
 func (e *Engine) RenameFolder(path, newName string) error {
-	if err := ValidateFolder(path); err != nil {
-		return err
-	}
 	if path == "" {
 		return errors.New("不能重命名根目录")
 	}
@@ -346,7 +396,10 @@ func (e *Engine) RenameFolder(path, newName string) error {
 	if strings.Contains(newName, "/") {
 		return fmt.Errorf("新名称不能含层级 %q", newName)
 	}
-	old := filepath.Join(e.notesDir, filepath.FromSlash(path))
+	old, err := e.folderMutationPath(path)
+	if err != nil {
+		return err
+	}
 	if info, err := os.Stat(old); err != nil || !info.IsDir() {
 		return fmt.Errorf("文件夹不存在 %q", path)
 	}
@@ -355,8 +408,10 @@ func (e *Engine) RenameFolder(path, newName string) error {
 		newRel = path[:i+1] + newName // 同级目录下改名
 	}
 	dst := filepath.Join(e.notesDir, filepath.FromSlash(newRel))
-	if _, err := os.Stat(dst); err == nil {
+	if _, err := os.Lstat(dst); err == nil {
 		return fmt.Errorf("目标文件夹已存在 %q", newRel)
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return err
 	}
 	return os.Rename(old, dst)
 }
@@ -382,28 +437,35 @@ func noteIDFromFileName(name string) (string, bool) {
 //
 // 返回 trash 模式移除的便签 id；move 模式恒为空（id 不变，索引无需动）。
 func (e *Engine) DeleteFolder(path, mode string) ([]string, error) {
-	if err := ValidateFolder(path); err != nil {
-		return nil, err
-	}
 	if path == "" {
 		return nil, errors.New("不能删除根目录")
 	}
-	dir := filepath.Join(e.notesDir, filepath.FromSlash(path))
+	dir, err := e.folderMutationPath(path)
+	if err != nil {
+		return nil, err
+	}
 	if info, err := os.Stat(dir); err != nil || !info.IsDir() {
 		return nil, fmt.Errorf("文件夹不存在 %q", path)
 	}
 
 	// 收集子树内的便签 id（.md）与非笔记文件
 	var ids []string
-	var foreign []string
+	var notePaths []string
+	var dirs []string
+	foreign := 0
 	if err := filepath.Walk(dir, func(p string, fi os.FileInfo, err error) error {
-		if err != nil || fi.IsDir() {
+		if err != nil {
+			return err
+		}
+		if fi.IsDir() {
+			dirs = append(dirs, p)
 			return nil
 		}
-		if id, ok := noteIDFromFileName(fi.Name()); ok {
+		if id, ok := noteIDFromFileName(fi.Name()); ok && fi.Mode().IsRegular() {
 			ids = append(ids, id)
+			notePaths = append(notePaths, p)
 		} else {
-			foreign = append(foreign, p)
+			foreign++
 		}
 		return nil
 	}); err != nil {
@@ -412,11 +474,19 @@ func (e *Engine) DeleteFolder(path, mode string) ([]string, error) {
 
 	if mode == "trash" {
 		trashDir := e.trashDir()
+		if err := checkDirectoryOrMissing(trashDir); err != nil {
+			return nil, err
+		}
 		if err := os.MkdirAll(trashDir, 0o755); err != nil {
 			return nil, err
 		}
 		dst := filepath.Join(trashDir,
-			time.Now().Format("20060102-150405")+"-"+filepath.Base(dir))
+			time.Now().Format(trashNameLayout)+"-"+filepath.Base(dir))
+		if _, err := os.Lstat(dst); err == nil {
+			return nil, fmt.Errorf("回收区已存在同名条目 %q，请稍后重试", filepath.Base(dst))
+		} else if !errors.Is(err, os.ErrNotExist) {
+			return nil, err
+		}
 		if err := os.Rename(dir, dst); err != nil {
 			return nil, err
 		}
@@ -424,16 +494,28 @@ func (e *Engine) DeleteFolder(path, mode string) ([]string, error) {
 	}
 
 	// move 模式：先拒非笔记文件，再便签上移根目录，最后删空目录
-	if len(foreign) > 0 {
-		return nil, fmt.Errorf("含 %d 个非笔记文件，拒绝删除（请先到文件管理器处理）", len(foreign))
+	if foreign > 0 {
+		return nil, fmt.Errorf("含 %d 个非笔记文件，拒绝删除（请先到文件管理器处理）", foreign)
 	}
-	for _, id := range ids {
-		if err := e.Move(id, ""); err != nil {
+	for _, source := range notePaths {
+		target := filepath.Join(e.notesDir, filepath.Base(source))
+		if _, err := os.Lstat(target); err == nil {
+			return nil, fmt.Errorf("根目录已存在同名便签 %q", filepath.Base(source))
+		} else if !errors.Is(err, os.ErrNotExist) {
+			return nil, err
+		}
+		if err := e.moveFile(source, false, ""); err != nil {
 			return nil, err
 		}
 	}
-	if err := os.RemoveAll(dir); err != nil {
-		return nil, err
+	// 仅删除确认过的空目录。新出现的文件或未移走的内容会阻止删除。
+	for i := len(dirs) - 1; i >= 0; i-- {
+		if err := checkDirectoryOrMissing(dirs[i]); err != nil {
+			return nil, err
+		}
+		if err := os.Remove(dirs[i]); err != nil {
+			return nil, err
+		}
 	}
 	return nil, nil
 }
@@ -482,6 +564,10 @@ func (e *Engine) Move(id, folder string) error {
 	if err != nil {
 		return err
 	}
+	return e.moveFile(p, inbox, folder)
+}
+
+func (e *Engine) moveFile(p string, inbox bool, folder string) error {
 	dstDir := filepath.Join(e.notesDir, filepath.FromSlash(folder))
 	if filepath.Dir(p) == dstDir {
 		return nil

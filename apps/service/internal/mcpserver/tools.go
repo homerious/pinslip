@@ -1,5 +1,4 @@
-// tools.go — 12 个 MCP 工具：数据面 10（搜索/列表/读/建/改/局部替换/追加/删/标签/文件夹）
-// + 同步面 2（立即同步/同步状态）。全部是薄壳：读写走 notes.Service 与
+// tools.go 注册便签和同步工具。读写走 notes.Service 与
 // gitsync.Engine 的现有服务层函数，不直接碰文件与 SQLite——文件名规范、
 // frontmatter、索引重建、回收区行为与界面入口完全一致。
 package mcpserver
@@ -8,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"sort"
 	"strings"
 	"time"
@@ -26,16 +26,17 @@ type toolHandler struct {
 	sync *gitsync.Engine
 }
 
-// registerTools 把 12 个工具注册到 MCP server。
+// registerTools 把通用工具注册到 MCP server。
 func (h *toolHandler) registerTools(s *mcpsdk.MCPServer) {
 	// ---- 数据面 ----
 
 	s.AddTool(mcp.NewTool("search_notes",
-		mcp.WithDescription("全文搜索便签（FTS5，中文子串匹配），返回命中片段；可按文件夹/标签/时间范围过滤"),
+		mcp.WithDescription("全文搜索便签（FTS5，中文子串匹配），返回命中片段；可按文件夹/标签/收件箱/时间范围过滤"),
 		mcp.WithReadOnlyHintAnnotation(true),
 		mcp.WithString("query", mcp.Required(), mcp.Description("搜索词，空格分隔多个词（AND）")),
 		mcp.WithString("folder", mcp.Description("只搜该文件夹（notes/ 相对路径，\"\" = 根目录）；不传 = 不过滤")),
 		mcp.WithString("tag", mcp.Description("只搜含此标签的便签")),
+		mcp.WithBoolean("inbox", mcp.Description("true = 只搜收件箱；false = 排除收件箱；与 folder 条件取交集")),
 		mcp.WithString("since", mcp.Description("起始时间（闭区间）：日期 2026-07-23 或 RFC3339 时间戳；按 timeField 指定的时间字段过滤")),
 		mcp.WithString("until", mcp.Description("截止时间（闭区间）：只给日期时按当天结束计")),
 		mcp.WithString("timeField", mcp.Description("since/until 作用的时间字段"), mcp.Enum("updated", "created"), mcp.DefaultString("updated")),
@@ -45,7 +46,7 @@ func (h *toolHandler) registerTools(s *mcpsdk.MCPServer) {
 	s.AddTool(mcp.NewTool("list_notes",
 		mcp.WithDescription("列出便签元数据（不含正文，每条带 excerpt 摘要预览），支持文件夹/标签/收集箱/时间范围过滤、排序与分页"),
 		mcp.WithReadOnlyHintAnnotation(true),
-		mcp.WithString("folder", mcp.Description("只看该文件夹（notes/ 相对路径，\"\" = 根目录）；不传 = 不过滤")),
+		mcp.WithString("folder", mcp.Description("只看该文件夹（notes/ 相对路径，\"\" = 普通便签根目录）；不传 = 不过滤")),
 		mcp.WithString("tag", mcp.Description("只看含此标签的便签")),
 		mcp.WithBoolean("inbox", mcp.Description("true = 只看收集箱；false = 排除收集箱；不传 = 全部")),
 		mcp.WithString("since", mcp.Description("起始时间（闭区间）：日期 2026-07-23 或 RFC3339 时间戳；按 timeField 指定的时间字段过滤")),
@@ -58,7 +59,7 @@ func (h *toolHandler) registerTools(s *mcpsdk.MCPServer) {
 	), h.listNotes)
 
 	s.AddTool(mcp.NewTool("read_note",
-		mcp.WithDescription("读取单条便签完整内容（Markdown 正文 + 元数据）；update_note / patch_note 修改前建议先读"),
+		mcp.WithDescription("读取单条便签完整内容（Markdown 正文、元数据和 revision）。修改时将 revision 作为 expectedRevision 传入"),
 		mcp.WithReadOnlyHintAnnotation(true),
 		mcp.WithString("id", mcp.Required(), mcp.Description("便签 id（search_notes / list_notes 返回的 id）")),
 	), h.readNote)
@@ -78,6 +79,7 @@ func (h *toolHandler) registerTools(s *mcpsdk.MCPServer) {
 		mcp.WithString("title", mcp.Description("新标题；不传则按新正文重新推导")),
 		mcp.WithArray("tags", mcp.Description("新标签列表（整体替换）；不传 = 保留原标签"), mcp.WithStringItems()),
 		mcp.WithString("folder", mcp.Description("移动到该文件夹（notes/ 相对路径，\"\" = 根目录，不存在自动创建）；正文里的附件相对路径会按新深度自动重写；不传 = 位置不变")),
+		mcp.WithString("expectedRevision", mcp.Description("read_note 返回的版本；传入后拒绝修改已变化的便签")),
 	), h.updateNote)
 
 	s.AddTool(mcp.NewTool("patch_note",
@@ -85,19 +87,44 @@ func (h *toolHandler) registerTools(s *mcpsdk.MCPServer) {
 		mcp.WithString("id", mcp.Required(), mcp.Description("便签 id")),
 		mcp.WithString("oldString", mcp.Required(), mcp.Description("要被替换的原文片段（须与正文完全一致，含空白换行；唯一匹配才执行）")),
 		mcp.WithString("newString", mcp.Required(), mcp.Description("替换后的新内容（传空字符串 = 删除该片段）")),
+		mcp.WithString("expectedRevision", mcp.Description("read_note 返回的版本；传入后拒绝修改已变化的便签")),
 	), h.patchNote)
 
 	s.AddTool(mcp.NewTool("append_note",
-		mcp.WithDescription("把内容追加到便签末尾（速记/收集箱高频操作）；正文其余部分不动"),
+		mcp.WithDescription("把内容追加到便签末尾，保留原有标题和正文"),
 		mcp.WithString("id", mcp.Required(), mcp.Description("便签 id")),
 		mcp.WithString("content", mcp.Required(), mcp.Description("要追加的 Markdown 内容")),
+		mcp.WithString("expectedRevision", mcp.Description("read_note 返回的版本；传入后拒绝修改已变化的便签")),
 	), h.appendNote)
 
 	s.AddTool(mcp.NewTool("delete_note",
 		mcp.WithDescription("删除便签——只进回收区（可在应用内找回），不做物理删除"),
 		mcp.WithDestructiveHintAnnotation(true),
 		mcp.WithString("id", mcp.Required(), mcp.Description("便签 id")),
+		mcp.WithString("expectedRevision", mcp.Description("read_note 返回的版本；传入后拒绝删除已变化的便签")),
 	), h.deleteNote)
+
+	s.AddTool(mcp.NewTool("update_note_metadata",
+		mcp.WithDescription("仅修改已有便签的手动标题或标签，保留正文。先用 read_note 读取当前版本"),
+		mcp.WithString("id", mcp.Required(), mcp.Description("便签 id")),
+		mcp.WithString("expectedRevision", mcp.Required(), mcp.Description("read_note 返回的版本")),
+		mcp.WithString("title", mcp.Description("设置非空手动标题")),
+		mcp.WithBoolean("resetTitle", mcp.Description("true = 恢复自动标题，与 title 互斥")),
+		mcp.WithArray("addTags", mcp.Description("新增的标签"), mcp.WithStringItems()),
+		mcp.WithArray("removeTags", mcp.Description("移除的标签"), mcp.WithStringItems()),
+	), h.updateNoteMetadata)
+
+	s.AddTool(mcp.NewTool("move_note",
+		mcp.WithDescription("移动已有便签并调整附件相对路径。先用 read_note 读取当前版本"),
+		mcp.WithString("id", mcp.Required(), mcp.Description("便签 id")),
+		mcp.WithString("expectedRevision", mcp.Required(), mcp.Description("read_note 返回的版本")),
+		mcp.WithString("folder", mcp.Required(), mcp.Description("notes/ 下目标目录，空字符串表示普通便签根目录")),
+	), h.moveNote)
+
+	s.AddTool(mcp.NewTool("quick_capture",
+		mcp.WithDescription("按 vault 的速记模式保存到收件箱，逐条新建或按日聚合"),
+		mcp.WithString("content", mcp.Required(), mcp.Description("非空 Markdown 正文")),
+	), h.quickCapture)
 
 	s.AddTool(mcp.NewTool("list_tags",
 		mcp.WithDescription("列出全部标签及使用次数（按次数降序）"),
@@ -108,6 +135,26 @@ func (h *toolHandler) registerTools(s *mcpsdk.MCPServer) {
 		mcp.WithDescription("列出 notes/ 下全部子文件夹（相对路径）"),
 		mcp.WithReadOnlyHintAnnotation(true),
 	), h.listFolders)
+
+	s.AddTool(mcp.NewTool("create_folder",
+		mcp.WithDescription("在 notes/ 下创建空文件夹，支持嵌套，已存在视为成功"),
+		mcp.WithIdempotentHintAnnotation(true),
+		mcp.WithDestructiveHintAnnotation(false),
+		mcp.WithString("path", mcp.Required(), mcp.Description("notes/ 下的非空相对路径，用 / 分隔层级")),
+	), h.createFolder)
+
+	s.AddTool(mcp.NewTool("rename_folder",
+		mcp.WithDescription("同级重命名文件夹，子目录和便签随目录移动，便签 ID 保持"),
+		mcp.WithString("path", mcp.Required(), mcp.Description("notes/ 下的非空相对路径")),
+		mcp.WithString("name", mcp.Required(), mcp.Description("新文件夹名称，单段，不含层级")),
+	), h.renameFolder)
+
+	s.AddTool(mcp.NewTool("delete_folder",
+		mcp.WithDescription("删除文件夹前明确选择处置方式。move 保留便签并移到根目录，trash 整棵目录移入 PinSlip 回收区"),
+		mcp.WithDestructiveHintAnnotation(true),
+		mcp.WithString("path", mcp.Required(), mcp.Description("notes/ 下的非空相对路径")),
+		mcp.WithString("mode", mcp.Required(), mcp.Enum("move", "trash"), mcp.Description("move = 保留便签，trash = 整体移入回收区")),
+	), h.deleteFolder)
 
 	// ---- 同步面 ----
 
@@ -183,19 +230,6 @@ func metaToBrief(m notes.Meta) noteBrief {
 	}
 }
 
-// metaByID 拉一次列表建 id → Meta 索引（搜索过滤/补充字段共用）。
-func (h *toolHandler) metaByID() (map[string]notes.Meta, error) {
-	metas, err := h.svc.List()
-	if err != nil {
-		return nil, err
-	}
-	m := make(map[string]notes.Meta, len(metas))
-	for _, meta := range metas {
-		m[meta.ID] = meta
-	}
-	return m, nil
-}
-
 // timeBound 是 since/until/timeField 参数解析后的时间过滤条件。
 type timeBound struct {
 	field string
@@ -254,7 +288,7 @@ func getTimeBound(req mcp.CallToolRequest) (*timeBound, *mcp.CallToolResult) {
 
 // matchFilters 应用 folder/tag/inbox/时间范围过滤（都没传 = 全部通过）。
 func matchFilters(m notes.Meta, folder string, hasFolder bool, tag string, inbox *bool, tf *timeBound) bool {
-	if hasFolder && m.Folder != folder {
+	if hasFolder && (m.Inbox || m.Folder != folder) {
 		return false
 	}
 	if tag != "" {
@@ -278,6 +312,18 @@ func matchFilters(m notes.Meta, folder string, hasFolder bool, tag string, inbox
 	return true
 }
 
+func inboxArgument(req mcp.CallToolRequest) (*bool, error) {
+	value, present := req.GetArguments()["inbox"]
+	if !present {
+		return nil, nil
+	}
+	inbox, ok := value.(bool)
+	if !ok {
+		return nil, errors.New("inbox 必须是布尔值")
+	}
+	return &inbox, nil
+}
+
 func (h *toolHandler) searchNotes(_ context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	query, err := req.RequireString("query")
 	if err != nil || strings.TrimSpace(query) == "" {
@@ -285,6 +331,10 @@ func (h *toolHandler) searchNotes(_ context.Context, req mcp.CallToolRequest) (*
 	}
 	folder, hasFolder := hasArg(req, "folder")
 	tag := req.GetString("tag", "")
+	inbox, err := inboxArgument(req)
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
 	limit := req.GetInt("limit", 20)
 	if limit <= 0 {
 		limit = 20
@@ -294,35 +344,24 @@ func (h *toolHandler) searchNotes(_ context.Context, req mcp.CallToolRequest) (*
 		return errRes, nil
 	}
 
-	// 有过滤条件时多取一些再筛，保证最终条数尽量达到 limit
-	searchLimit := limit
-	if hasFolder || tag != "" || tf.since != nil || tf.until != nil {
-		searchLimit = 200
+	metas, err := h.svc.List()
+	if err != nil {
+		return serviceErr("读取便签列表", err)
 	}
-	hits, err := h.svc.Search(query, searchLimit)
+	eligible := make(map[string]notes.Meta)
+	for _, meta := range metas {
+		if matchFilters(meta, folder, hasFolder, tag, inbox, tf) {
+			eligible[meta.ID] = meta
+		}
+	}
+	hits, err := h.svc.SearchMatching(query, limit, eligible)
 	if err != nil {
 		return serviceErr("搜索", err)
 	}
 
-	var metas map[string]notes.Meta
-	items := make([]noteBrief, 0, limit)
+	items := make([]noteBrief, 0, len(hits))
 	for _, hit := range hits {
-		if len(items) >= limit {
-			break
-		}
-		if metas == nil {
-			if metas, err = h.metaByID(); err != nil {
-				return serviceErr("读取便签列表", err)
-			}
-		}
-		meta, ok := metas[hit.ID]
-		if !ok { // 索引滞后于文件（刚删除），跳过
-			continue
-		}
-		if !matchFilters(meta, folder, hasFolder, tag, nil, tf) {
-			continue
-		}
-		b := metaToBrief(meta)
+		b := metaToBrief(eligible[hit.ID])
 		b.Snippet = hit.Snippet
 		items = append(items, b)
 	}
@@ -332,11 +371,9 @@ func (h *toolHandler) searchNotes(_ context.Context, req mcp.CallToolRequest) (*
 func (h *toolHandler) listNotes(_ context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	folder, hasFolder := hasArg(req, "folder")
 	tag := req.GetString("tag", "")
-	var inbox *bool
-	if v, ok := req.GetArguments()["inbox"]; ok {
-		if b, ok := v.(bool); ok {
-			inbox = &b
-		}
+	inbox, err := inboxArgument(req)
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
 	}
 	sortKey := req.GetString("sort", "updated")
 	order := req.GetString("order", "desc")
@@ -396,14 +433,17 @@ func (h *toolHandler) readNote(_ context.Context, req mcp.CallToolRequest) (*mcp
 	if err != nil {
 		return mcp.NewToolResultError("缺少必填参数 id"), nil
 	}
-	note, err := h.svc.Get(id)
+	note, revision, err := h.svc.GetVersioned(id)
 	if errors.Is(err, storage.ErrNotFound) {
 		return notFoundErr(id), nil
 	}
 	if err != nil {
 		return serviceErr("读取便签", err)
 	}
-	return structured(note)
+	return structured(struct {
+		*notes.Note
+		Revision string `json:"revision"`
+	}{note, revision})
 }
 
 func (h *toolHandler) createNote(_ context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -430,45 +470,42 @@ func (h *toolHandler) createNote(_ context.Context, req mcp.CallToolRequest) (*m
 }
 
 func (h *toolHandler) updateNote(_ context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	id, err := req.RequireString("id")
+	id, revision, err := noteWriteTarget(req, false)
 	if err != nil {
-		return mcp.NewToolResultError("缺少必填参数 id"), nil
+		return mcp.NewToolResultError(err.Error()), nil
 	}
 	content, err := req.RequireString("content")
 	if err != nil {
 		return mcp.NewToolResultError("缺少必填参数 content（update_note 是全量替换，必须给出完整新正文）"), nil
 	}
-	// 先读后写：不存在的 id 不应被 upsert 悄悄新建（与 delete 语义对齐）
-	if _, err := h.svc.Get(id); errors.Is(err, storage.ErrNotFound) {
-		return notFoundErr(id), nil
-	} else if err != nil {
-		return serviceErr("读取便签", err)
-	}
 	in := notes.SaveInput{Content: &content, Title: req.GetString("title", "")}
 	if tags, err := req.RequireStringSlice("tags"); err == nil {
 		in.Tags = tags
 	}
-	note, err := h.svc.Save(id, in)
-	if err != nil {
-		return serviceErr("更新便签", err)
+	var targetFolder *string
+	if _, present := req.GetArguments()["folder"]; present {
+		folder, err := req.RequireString("folder")
+		if err != nil {
+			return mcp.NewToolResultError("folder 必须是字符串"), nil
+		}
+		targetFolder = &folder
 	}
-	// 传入 folder 即移动归属：走 store.Move（深度变化时自动重写正文里的
-	// 附件 ../ 前缀，与便签编辑器移动文件夹的行为一致）
-	if folder, ok := hasArg(req, "folder"); ok {
-		if err := h.svc.Move(id, folder); err != nil {
-			return serviceErr("移动便签", err)
+	note, err := h.svc.EditExisting(id, revision, targetFolder, func(*notes.Note) (notes.SaveInput, error) {
+		return in, nil
+	})
+	if err != nil {
+		if note != nil {
+			return codedToolError("NOTE_PARTIAL_WRITE", fmt.Sprintf("便签已保存，但移动或读取结果失败：%v。请先 read_note 核对实际位置和正文", err), nil)
 		}
-		if note, err = h.svc.Get(id); err != nil {
-			return serviceErr("读取移动后的便签", err)
-		}
+		return noteWriteError("更新便签", id, err)
 	}
 	return structured(note)
 }
 
 func (h *toolHandler) patchNote(_ context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	id, err := req.RequireString("id")
+	id, revision, err := noteWriteTarget(req, false)
 	if err != nil {
-		return mcp.NewToolResultError("缺少必填参数 id"), nil
+		return mcp.NewToolResultError(err.Error()), nil
 	}
 	oldString, err := req.RequireString("oldString")
 	if err != nil || oldString == "" {
@@ -478,68 +515,52 @@ func (h *toolHandler) patchNote(_ context.Context, req mcp.CallToolRequest) (*mc
 	if err != nil {
 		return mcp.NewToolResultError("缺少必填参数 newString（传空字符串表示删除该片段）"), nil
 	}
-	note, err := h.svc.Get(id)
-	if errors.Is(err, storage.ErrNotFound) {
-		return notFoundErr(id), nil
-	}
+	updated, err := h.svc.EditExisting(id, revision, nil, func(note *notes.Note) (notes.SaveInput, error) {
+		switch n := strings.Count(note.Content, oldString); {
+		case n == 0:
+			return notes.SaveInput{}, errors.New("未找到要替换的文本：正文没有与 oldString 完全一致的内容，请先 read_note 查看空白与换行")
+		case n > 1:
+			return notes.SaveInput{}, fmt.Errorf("oldString 在正文中出现 %d 次，请先 read_note 并加长原文片段以唯一匹配", n)
+		}
+		merged := strings.Replace(note.Content, oldString, newString, 1)
+		return notes.SaveInput{Content: &merged, Title: note.Title}, nil
+	})
 	if err != nil {
-		return serviceErr("读取便签", err)
-	}
-	switch n := strings.Count(note.Content, oldString); {
-	case n == 0:
-		return mcp.NewToolResultError(
-			"未找到要替换的文本：正文里没有与 oldString 完全一致的内容（注意空白与换行也要一致）；请先 read_note 查看当前正文再调整"), nil
-	case n > 1:
-		return mcp.NewToolResultErrorf(
-			"oldString 在正文中出现 %d 次，无法确定唯一替换位置；请把 oldString 加长到包含更多上下文使其唯一（可先 read_note 查看）", n), nil
-	}
-	merged := strings.Replace(note.Content, oldString, newString, 1)
-	// 标题显式回写：patch 是局部修改，不应触发标题按正文重新推导
-	updated, err := h.svc.Save(id, notes.SaveInput{Content: &merged, Title: note.Title})
-	if err != nil {
-		return serviceErr("更新便签", err)
+		return noteWriteError("更新便签", id, err)
 	}
 	return structured(updated)
 }
 
 func (h *toolHandler) appendNote(_ context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	id, err := req.RequireString("id")
+	id, revision, err := noteWriteTarget(req, false)
 	if err != nil {
-		return mcp.NewToolResultError("缺少必填参数 id"), nil
+		return mcp.NewToolResultError(err.Error()), nil
 	}
 	content, err := req.RequireString("content")
 	if err != nil || content == "" {
 		return mcp.NewToolResultError("缺少必填参数 content（追加内容不能为空）"), nil
 	}
-	note, err := h.svc.Get(id)
-	if errors.Is(err, storage.ErrNotFound) {
-		return notFoundErr(id), nil
-	}
+	updated, err := h.svc.EditExisting(id, revision, nil, func(note *notes.Note) (notes.SaveInput, error) {
+		merged := note.Content
+		if merged != "" && !strings.HasSuffix(merged, "\n") {
+			merged += "\n"
+		}
+		merged += content
+		return notes.SaveInput{Content: &merged, Title: note.Title}, nil
+	})
 	if err != nil {
-		return serviceErr("读取便签", err)
-	}
-	// 拼接：原文末尾没有换行时补一个，追加内容另起一行
-	merged := note.Content
-	if merged != "" && !strings.HasSuffix(merged, "\n") {
-		merged += "\n"
-	}
-	merged += content
-	updated, err := h.svc.Save(id, notes.SaveInput{Content: &merged})
-	if err != nil {
-		return serviceErr("追加便签", err)
+		return noteWriteError("追加便签", id, err)
 	}
 	return structured(updated)
 }
 
 func (h *toolHandler) deleteNote(_ context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	id, err := req.RequireString("id")
+	id, revision, err := noteWriteTarget(req, false)
 	if err != nil {
-		return mcp.NewToolResultError("缺少必填参数 id"), nil
+		return mcp.NewToolResultError(err.Error()), nil
 	}
-	if err := h.svc.Delete(id); errors.Is(err, storage.ErrNotFound) {
-		return notFoundErr(id), nil
-	} else if err != nil {
-		return serviceErr("删除便签", err)
+	if err := h.svc.DeleteExisting(id, revision); err != nil {
+		return noteWriteError("删除便签", id, err)
 	}
 	return structured(map[string]string{
 		"status":  "ok",

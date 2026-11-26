@@ -6,6 +6,7 @@ import (
 	"errors"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 	"unicode/utf8"
 
@@ -18,8 +19,9 @@ var ErrInvalidDirection = errors.New("direction must be ltr, rtl or empty")
 
 // Service 协调文件引擎与索引引擎。handler 与未来的 MCP 层都只依赖它。
 type Service struct {
-	store *storage.Engine
-	idx   *index.DB
+	store   *storage.Engine
+	idx     *index.DB
+	writeMu sync.Mutex
 }
 
 func NewService(store *storage.Engine, idx *index.DB) *Service {
@@ -52,15 +54,25 @@ func (s *Service) Get(id string) (*Note, error) {
 // 支持部分更新：Content 为 nil 保留原文，Tags 为 nil 保留原标签。
 // Folder 仅新建时生效（决定落盘目录）；已存在便签忽略——移动走 Move。
 func (s *Service) Save(id string, in SaveInput) (*Note, error) {
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
+	return s.save(id, in, "")
+}
+
+func (s *Service) save(id string, in SaveInput, expectedRevision string) (*Note, error) {
 	if in.Direction != nil && *in.Direction != "" && *in.Direction != "ltr" && *in.Direction != "rtl" {
 		return nil, ErrInvalidDirection
 	}
 	now := time.Now()
 
 	// 已存在则保留创建时间、正文与位置（notes/inbox），不存在则新建到 notes/
-	fm, oldBody, inbox, folder, err := s.store.Load(id)
+	item, err := s.loadForSave(id, expectedRevision)
+	fm, oldBody, inbox, folder := item.FM, item.Body, item.Inbox, item.Folder
 	isNew := errors.Is(err, storage.ErrNotFound)
 	if isNew {
+		if expectedRevision != "" {
+			return nil, err
+		}
 		fm = &storage.Frontmatter{ID: id, CreatedAt: now.Format(time.RFC3339)}
 		inbox = false
 		oldBody = ""
@@ -155,29 +167,19 @@ func (s *Service) Save(id string, in SaveInput) (*Note, error) {
 // QuickCapture 速记：按 vault 设置的落点模式写入收集箱——
 // 'note'（默认）逐条新建；'daily' 聚合到今日便签（见 quickCaptureDaily）。
 func (s *Service) QuickCapture(content string) (*Note, error) {
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
 	if s.GetSettings().QuickMode() == storage.QuickModeDaily {
 		return s.quickCaptureDaily(content)
 	}
 	return s.saveQuickToInbox(SaveInput{Content: &content, Source: "quick"})
 }
 
-// saveQuickToInbox 新建速记到 inbox：Save 默认落 notes/，随后挪到 inbox/
-// （engine.Save 会自动清理旧路径）。
+// saveQuickToInbox 通过既有的指定落点能力直接写入收集箱。
 func (s *Service) saveQuickToInbox(in SaveInput) (*Note, error) {
-	id := NewID()
-	note, err := s.Save(id, in)
-	if err != nil {
-		return nil, err
-	}
-	fm, body, _, _, err := s.store.Load(id)
-	if err != nil {
-		return nil, err
-	}
-	if err := s.store.Save(fm, body, true); err != nil {
-		return nil, err
-	}
-	note.Inbox = true
-	return note, nil
+	inbox := true
+	in.Inbox = &inbox
+	return s.save(NewID(), in, "")
 }
 
 // quickCaptureDaily 聚合模式：把内容追加到标题「速记 YYYY-MM-DD」的 inbox 便签
@@ -206,7 +208,7 @@ func (s *Service) quickCaptureDaily(content string) (*Note, error) {
 	}
 
 	// 追加：读出 → 拼接 → 同一 upsert（标题显式回写，防被重新推导）
-	note, err := s.Get(id)
+	note, revision, err := s.GetVersioned(id)
 	if err != nil {
 		return nil, err
 	}
@@ -214,37 +216,42 @@ func (s *Service) quickCaptureDaily(content string) (*Note, error) {
 	if strings.TrimRight(note.Content, "\n") != "" {
 		merged = strings.TrimRight(note.Content, "\n") + "\n\n" + entry
 	}
-	return s.Save(id, SaveInput{Content: &merged, Title: title})
+	return s.save(id, SaveInput{Content: &merged, Title: title}, revision)
 }
 
 // Delete 删除笔记：移入回收区（可找回）并清出索引。
 // 与文件夹 trash 删除统一——所有用户删除入口都经过回收区；
 // 物理删除只发生在 清空回收区/自动清理 时。
 func (s *Service) Delete(id string) error {
-	if err := s.store.TrashNote(id); err != nil {
-		return err
-	}
-	return s.idx.Delete(id)
+	return s.DeleteExisting(id, "")
 }
 
 // Move 把笔记移动到 notes/ 下的指定文件夹（"" 为根目录），索引无需变更（id 不变）。
 func (s *Service) Move(id, folder string) error {
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
 	return s.store.Move(id, folder)
 }
 
 // CreateFolder 创建（嵌套）文件夹。
 func (s *Service) CreateFolder(path string) error {
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
 	return s.store.CreateFolder(path)
 }
 
 // RenameFolder 重命名文件夹（同级改名）。便签随目录走，id 不变、索引无需动。
 func (s *Service) RenameFolder(path, newName string) error {
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
 	return s.store.RenameFolder(path, newName)
 }
 
 // DeleteFolder 删除文件夹：move 模式便签移到根目录（索引不变）；
 // trash 模式整个移入 .trash，其中便签从索引移除（文件离开 notes/ 不再可检索）。
 func (s *Service) DeleteFolder(path, mode string) error {
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
 	removed, err := s.store.DeleteFolder(path, mode)
 	if err != nil {
 		return err
@@ -307,8 +314,21 @@ func (s *Service) Search(query string, limit int) ([]index.Hit, error) {
 	return s.idx.Search(query, limit)
 }
 
+// SearchMatching returns ranked matches in the supplied set of note IDs.
+func (s *Service) SearchMatching(query string, limit int, ids map[string]Meta) ([]index.Hit, error) {
+	if len(ids) == 0 {
+		return []index.Hit{}, nil
+	}
+	return s.idx.SearchMatching(query, limit, func(id string) bool {
+		_, ok := ids[id]
+		return ok
+	})
+}
+
 // Reindex 从文件引擎全量重建索引（服务启动时调用）。
 func (s *Service) Reindex() error {
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
 	items, err := s.store.List()
 	if err != nil {
 		return err

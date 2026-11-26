@@ -98,6 +98,15 @@ Electron 主进程拉起服务后从 stdout 解析 `PINSLIP_PORT=<port>`（该�
 | POST | `/api/sync/resolve` | 分叉人工接管（`{strategy:"local"\|"remote"}`，前置校验失败 400） | `{strategy}` | `SyncStatus` |
 | * | `/mcp` | MCP 端点（Streamable HTTP，供 AI agent 接入；可用 `mcpEnabled` 关闭） | MCP 协议 | 见 `skills/pinslip/SKILL.md` |
 
+### MCP 便签操作
+
+- `search_notes` 与 `list_notes` 共用文件夹、标签、收件箱和时间筛选。显式 `folder: ""` 仅匹配普通便签根目录。只查收件箱时传 `inbox: true` 并省略 `folder`。全文搜索在筛选后才应用结果上限。
+- `read_note` 返回完整便签和不透明 `revision`。将它原样传给 `expectedRevision`。新工具 `update_note_metadata`、`move_note` 要求版本，原有 `update_note`、`patch_note`、`append_note`、`delete_note` 可选传入。
+- 旧版本写入返回工具错误 `NOTE_REVISION_CONFLICT`，请重新读取。旧 `update_note` 同时提交正文和目标文件夹时，若正文已保存而后续移动或读取结果失败，返回 `NOTE_PARTIAL_WRITE`。独立移动失败时，能读取到便签就随错误返回实际 `folder` 和 `inbox`。
+- `quick_capture` 复用桌面速记，按当前 vault 的速记模式保存到收件箱。
+- `create_folder(path)` 递归创建空目录，`rename_folder(path, name)` 同级改名。成功响应包含实际路径 `path`。
+- `delete_folder(path, mode)` 要求显式选择 `move` 或 `trash`，成功响应包含 `path` 和 `mode`。三种文件夹工具只接受 `notes/` 下的非空相对路径，拒绝经过目录链接。两种删除方式见「文件夹约定」。
+
 ### 便签预览
 
 - `POST /api/notes/previews` 仅用于管理器按可见范围读取；列表 `NoteMeta` 仍不含完整正文。

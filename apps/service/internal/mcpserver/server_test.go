@@ -15,7 +15,7 @@ import (
 var storageSettingsOff = storage.Settings{TrashRetentionDays: 30, McpEnabled: func() *bool { b := false; return &b }()}
 
 // HTTP 层冒烟：经真实 Streamable HTTP 端点跑 initialize → tools/list，
-// 验证 SDK 接线（服务名/版本、11 个工具全部注册）——工具语义由 tools_test 覆盖。
+// 验证 SDK 接线（服务名、版本和所有工具注册），业务语义由 tools_test 覆盖。
 func TestMCPEndpointSmoke(t *testing.T) {
 	h, svc := newTestHandler(t)
 	handler := NewHandler(svc, h.sync, "9.9.9-test")
@@ -51,7 +51,7 @@ func TestMCPEndpointSmoke(t *testing.T) {
 		t.Fatalf("initialized 通知不应失败, got %d: %s", rec.Code, rec.Body.String())
 	}
 
-	// tools/list：11 个工具一个不少
+	// tools/list：检查通用客户端能看到完整工具集。
 	rec = post(`{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}`, sessionID)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("tools/list 应 200, got %d: %s", rec.Code, rec.Body.String())
@@ -80,6 +80,8 @@ func TestMCPEndpointSmoke(t *testing.T) {
 	want := []string{
 		"search_notes", "list_notes", "read_note", "create_note", "update_note",
 		"patch_note", "append_note", "delete_note", "list_tags", "list_folders",
+		"update_note_metadata", "move_note", "quick_capture",
+		"create_folder", "rename_folder", "delete_folder",
 		"sync_now", "sync_status",
 	}
 	got := map[string]bool{}

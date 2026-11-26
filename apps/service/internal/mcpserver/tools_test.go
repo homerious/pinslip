@@ -28,7 +28,11 @@ func (l tLogger) Error(msg string, kv ...any) { l.t.Log(msg, kv) }
 
 func newTestHandler(t *testing.T) (*toolHandler, *notes.Service) {
 	t.Helper()
-	root := t.TempDir()
+	return newTestHandlerIn(t, t.TempDir())
+}
+
+func newTestHandlerIn(t *testing.T, root string) (*toolHandler, *notes.Service) {
+	t.Helper()
 	for _, sub := range []string{"notes", "inbox"} {
 		if err := os.MkdirAll(filepath.Join(root, sub), 0o755); err != nil {
 			t.Fatal(err)
@@ -201,6 +205,75 @@ func TestSearchNotesWithFilters(t *testing.T) {
 	res := call(t, h.searchNotes, map[string]any{})
 	if !strings.Contains(errText(t, res), "query") {
 		t.Errorf("缺 query 应报错: %v", res.Content)
+	}
+}
+
+func TestSearchFiltersBeforeLimitingResults(t *testing.T) {
+	h, svc := newTestHandler(t)
+	query := "needletoken"
+	for i := 0; i < 200; i++ {
+		if _, err := svc.Save(notes.NewID(), notes.SaveInput{Title: query, Content: &query}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	body := "This longer body mentions needletoken once, and the title does not match."
+	folder := "target"
+	note, err := svc.Save("target", notes.SaveInput{
+		Title: "Unrelated", Content: &body, Folder: &folder, Tags: []string{"project"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	hits, err := svc.Search(query, 201)
+	if err != nil || len(hits) != 201 || hits[200].ID != note.ID {
+		t.Fatalf("expected target ranked after the first 200, got %d results: %v", len(hits), err)
+	}
+
+	result := structuredMap(t, call(t, h.searchNotes, map[string]any{
+		"query": query, "folder": folder, "tag": "project", "inbox": false,
+		"since": note.CreatedAt.Format(time.RFC3339), "timeField": "created", "limit": 1,
+	}))
+	items := result["items"].([]any)
+	if len(items) != 1 || items[0].(map[string]any)["id"] != note.ID {
+		t.Fatalf("expected the matching note in the filtered result, got %v", result)
+	}
+}
+
+func TestSearchAndListSeparateInboxFromRoot(t *testing.T) {
+	h, svc := newTestHandler(t)
+	body := "rootfiltertoken"
+	if _, err := svc.Save("root-note", notes.SaveInput{Content: &body}); err != nil {
+		t.Fatal(err)
+	}
+	inbox, err := svc.QuickCapture(body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, tool := range map[string]func(context.Context, mcp.CallToolRequest) (*mcp.CallToolResult, error){
+		"search": h.searchNotes, "list": h.listNotes,
+	} {
+		t.Run(name, func(t *testing.T) {
+			for _, tc := range []struct {
+				name, wantID string
+				args         map[string]any
+			}{
+				{"root", "root-note", map[string]any{"folder": ""}},
+				{"inbox", inbox.ID, map[string]any{"inbox": true}},
+				{"exclude inbox", "root-note", map[string]any{"inbox": false}},
+				{"empty intersection", "", map[string]any{"folder": "", "inbox": true}},
+			} {
+				t.Run(tc.name, func(t *testing.T) {
+					tc.args["query"] = body
+					items := structuredMap(t, call(t, tool, tc.args))["items"].([]any)
+					if tc.wantID == "" && len(items) == 0 {
+						return
+					}
+					if len(items) != 1 || items[0].(map[string]any)["id"] != tc.wantID {
+						t.Fatalf("expected %q, got %v", tc.wantID, items)
+					}
+				})
+			}
+		})
 	}
 }
 

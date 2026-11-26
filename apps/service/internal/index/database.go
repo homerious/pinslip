@@ -93,8 +93,17 @@ func (d *DB) Delete(id string) error {
 
 // Search 全文搜索（CJK 子串匹配）。FTS 查询为空或出错时退化为 LIKE。
 func (d *DB) Search(query string, limit int) ([]Hit, error) {
+	return d.SearchMatching(query, limit, nil)
+}
+
+// SearchMatching applies an optional ID filter before counting a result toward limit.
+func (d *DB) SearchMatching(query string, limit int, matches func(string) bool) ([]Hit, error) {
 	if limit <= 0 {
 		limit = 50
+	}
+	queryLimit := limit
+	if matches != nil {
+		queryLimit = -1 // 有过滤时遍历排序候选，直到收齐 limit 项。
 	}
 	terms := strings.Fields(query)
 	if match := buildMatchQuery(query); match != "" {
@@ -103,9 +112,9 @@ func (d *DB) Search(query string, limit int) ([]Hit, error) {
 		rows, err := d.db.Query(
 			`SELECT id, raw_title, raw_content FROM notes_fts
 			 WHERE notes_fts MATCH ?
-			 ORDER BY bm25(notes_fts, 0, 10.0, 1.0, 5.0, 0, 0) LIMIT ?`, match, limit)
+			 ORDER BY bm25(notes_fts, 0, 10.0, 1.0, 5.0, 0, 0) LIMIT ?`, match, queryLimit)
 		if err == nil {
-			hits, err := scanRaw(rows, terms)
+			hits, err := scanRaw(rows, terms, limit, matches)
 			if err == nil {
 				return hits, nil
 			}
@@ -116,11 +125,11 @@ func (d *DB) Search(query string, limit int) ([]Hit, error) {
 	rows, err := d.db.Query(
 		`SELECT id, raw_title, raw_content FROM notes_fts
 		 WHERE raw_title LIKE ? OR raw_content LIKE ?
-		 ORDER BY (raw_title LIKE ?) DESC LIMIT ?`, like, like, like, limit)
+		 ORDER BY (raw_title LIKE ?) DESC LIMIT ?`, like, like, like, queryLimit)
 	if err != nil {
 		return nil, err
 	}
-	return scanRaw(rows, terms)
+	return scanRaw(rows, terms, limit, matches)
 }
 
 // buildMatchQuery 把用户输入分词后转义为安全的 FTS5 MATCH 表达式（空格即 AND）。
@@ -186,7 +195,7 @@ func isCJK(r rune) bool {
 }
 
 // scanRaw 读取查询结果并用原文生成摘要。
-func scanRaw(rows *sql.Rows, terms []string) ([]Hit, error) {
+func scanRaw(rows *sql.Rows, terms []string, limit int, matches func(string) bool) ([]Hit, error) {
 	defer rows.Close()
 	hits := []Hit{}
 	for rows.Next() {
@@ -195,9 +204,15 @@ func scanRaw(rows *sql.Rows, terms []string) ([]Hit, error) {
 		if err := rows.Scan(&h.ID, &h.Title, &raw); err != nil {
 			return nil, err
 		}
+		if matches != nil && !matches(h.ID) {
+			continue
+		}
 		h.Snippet = makeSnippet(raw, terms)
 		h.Conflicted = hasConflictMarkers(raw)
 		hits = append(hits, h)
+		if len(hits) == limit {
+			break
+		}
 	}
 	return hits, rows.Err()
 }

@@ -622,3 +622,54 @@ func TestDeleteFolderEmptyAndForeign(t *testing.T) {
 		t.Error("根目录应拒绝删除")
 	}
 }
+
+func TestFolderMutationsRejectLinkedPaths(t *testing.T) {
+	e := newTestEngine(t)
+	outside := t.TempDir()
+	child := filepath.Join(outside, "child")
+	if err := os.Mkdir(child, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(e.notesDir, "link")); err != nil {
+		t.Skipf("directory symlinks unavailable: %v", err)
+	}
+	if err := e.CreateFolder("link/new"); err == nil {
+		t.Error("create must reject a directory link")
+	}
+	if err := e.RenameFolder("link/child", "renamed"); err == nil {
+		t.Error("rename must reject a directory link")
+	}
+	for _, mode := range []string{"move", "trash"} {
+		if _, err := e.DeleteFolder("link/child", mode); err == nil {
+			t.Errorf("%s must reject a directory link", mode)
+		}
+	}
+	if _, err := os.Stat(child); err != nil {
+		t.Fatalf("outside directory changed: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(outside, "new")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("unexpected outside create result: %v", err)
+	}
+}
+
+func TestDeleteFolderMovePreservesRootFileOnNameCollision(t *testing.T) {
+	e := newTestEngine(t)
+	if err := e.CreateFolder("nested"); err != nil {
+		t.Fatal(err)
+	}
+	root := filepath.Join(e.notesDir, "shared.md")
+	nested := filepath.Join(e.notesDir, "nested", "shared.md")
+	for file, body := range map[string]string{root: "existing root", nested: "nested note"} {
+		if err := os.WriteFile(file, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := e.DeleteFolder("nested", "move"); err == nil {
+		t.Fatal("move should reject an occupied root filename")
+	}
+	for file, body := range map[string]string{root: "existing root", nested: "nested note"} {
+		if data, err := os.ReadFile(file); err != nil || string(data) != body {
+			t.Fatalf("collision modified %s: %q, %v", file, data, err)
+		}
+	}
+}
