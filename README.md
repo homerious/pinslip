@@ -1,69 +1,59 @@
 # PinSlip
->[https://pinslip.app/](https://pinslip.app/)
 
-**English** | [简体中文](README_CN.md)
+[Website](https://pinslip.app/) · [简体中文](README_CN.md)
 
-> **Capture now. Organize later.**
-
-PinSlip is a tiny sticky note pinned to your desktop. Jot something down whenever
-it crosses your mind, pin it to a screen edge, and it quietly keeps you company.
-Every note is a plain Markdown file living in a folder you choose — **fully
-interoperable with Obsidian**. Your words always belong to you.
-
-Current version: **v1.0.1** ([Changelog](docs/CHANGELOG.md))
+PinSlip is a desktop sticky-note app for Windows, macOS, and Linux. Pin a note
+where you need it, capture a thought with a keyboard shortcut, and find it later
+by keyword, folder, or tag. Every note is a Markdown file in a local folder you
+choose. Open the same files in Obsidian or VS Code.
 
 [![Release](https://github.com/homerious/pinslip/actions/workflows/release.yml/badge.svg)](https://github.com/homerious/pinslip/actions/workflows/release.yml)
 [![GitHub release](https://img.shields.io/github/v/release/homerious/pinslip)](https://github.com/homerious/pinslip/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/homerious/pinslip/blob/main/LICENSE)
 
-## Meet PinSlip
+## Features
 
-**An everyday sticky note for your desktop**
-No heavy app to launch, no "where should I save this" to think about. Pin a note
-on screen, write, and it saves itself. Six colors to pick from; when you're done,
-fold it into a slim title bar and unfold it whenever you need it again.
+### Desktop sticky notes
 
-**Want nicer formatting? Try Markdown**
-Plain scribbles are perfectly fine. But when you feel like tidying up — a to-do
-list, a few headed sections — type in Markdown and watch the layout come alive.
-Task boxes tick with a click, and screenshots drop straight in with Ctrl+V;
-you never have to think about where images are stored.
+Pick one of six colors, pin notes above other windows, and fold them down to a
+title bar when you need more space. Edits save automatically. Notes snap to
+screen edges, and nearby pinned notes snap into alignment. Group related notes
+to move them as a stack. When you fold one, the notes below move up to fill the
+gap. PinSlip restores your layout and groups when you reopen it.
 
-**Toss them anywhere, still tidy**
-A crowd of notes never means a mess. Fold the ones you don't need for now;
-pinned notes dock neatly against screen corners; nearby notes gently snap into
-alignment like magnets; and they can form a little "squad" — move the whole
-column together, resize it together, and when you fold one, the notes below
-slide up to fill the gap.
+### Markdown editing and local files
 
-**Your words belong to you**
-All notes live in your own local folder — no cloud in the way. Even if you stop
-using PinSlip one day, every note stays right where it is: an ordinary Markdown
-file, readable by Obsidian, VS Code, or any Markdown-friendly editor, ready for
-you to keep writing.
+Write headings, tables, and checkable task lists, or paste a screenshot straight
+into a note. PinSlip saves each note as a Markdown file in a folder you choose
+and stores images alongside your notes in that folder. Open and edit the same
+files in Obsidian or VS Code, or back them up by copying the folder.
 
-**Jotted in a flash, found in a flash**
-Wrote something down days ago? Just search. Tags and folders help the organized
-among you; full-text search has your back when you only remember the content.
-Deleted something by accident? The recycle zone keeps it safe until you fish
-it back out.
+### Search and organize
 
-**More than one computer? Your notes can follow you**
-Point PinSlip at your own git repository (GitHub, GitLab, or CNB) in settings,
-and your notes sync there on a schedule. New machine? Pull and keep writing.
-If both sides edited the same note, you can compare the two versions right
-inside the sticky note and keep the one you like.
+Browse notes by folder or tag, or search titles, tags, and note contents.
+The manager can show formatted Markdown previews, and search results highlight
+the matching text. You can recover accidentally deleted notes from the recycle
+area.
 
-**Your AI assistant can take notes too**
-PinSlip ships with a built-in MCP server, so your AI assistant can search, read,
-and write notes for you. It listens on localhost only and is off by default —
-whether to turn it on is entirely up to you.
+### Quick Capture and web clipping
 
-**See something good on the web? Clip it in one click**
-The Chrome and Firefox extensions are ready: selected text, images, or whole
-articles (thanks to Readability) become sticky notes with a click, and region
-screenshots work too. For now they are side-loaded from the source directory;
-store listings are on the way.
+Open Quick Capture with a global shortcut to send a thought or screenshot
+straight to the inbox. Save each entry as its own note or collect entries in
+a daily note. Pair the Chrome or Firefox extension in PinSlip settings to
+save selected text, links, article contents, or a screenshot of a selected area.
+
+### Local AI via MCP
+
+Connect a local MCP client to search, read, create, or edit notes, append text,
+update titles and tags, move notes, manage folders, and send quick captures to
+the inbox. The built-in service accepts local connections, and you can turn off
+MCP access in PinSlip settings. [MCP setup and tools](skills/pinslip/SKILL.md)
+
+### Optional Git sync
+
+Connect your own Git repository to sync notes across computers. PinSlip merges
+compatible edits automatically. When changes conflict, compare the versions and
+resolve them in the note window.
 
 ## Download
 
@@ -77,6 +67,7 @@ Grab the right build from [Releases](https://github.com/homerious/pinslip/releas
 | Linux | `PinSlip-x.x.x.AppImage` / `pinslip_x.x.x_amd64.deb` |
 
 Once installed, new versions are offered automatically through in-app updates.
+Builds based on Electron 45 require macOS 13 Ventura or later.
 macOS builds are not signed yet — if macOS says the app is "damaged", right-click
 → Open, or run `xattr -cr /Applications/PinSlip.app` after installing.
 
@@ -131,13 +122,12 @@ pinslip/
 
 - **Windowing goes through IPC**: renderers call window management via
   `window.api.*` (a preload whitelist)
-- **Note data goes over HTTP**: renderers fetch the Go service directly
-  (`127.0.0.1:<random port>`); the port is parsed from the service's stdout by
-  the main process and handed down via the `runtime:info` IPC channel
+- **Notes use local HTTP.** The Go service prefers `127.0.0.1:17639` and falls back
+  to an available port. The main process passes the port and desktop session credential to renderers through `runtime:info`.
 - **Markdown files are the single source of truth**: SQLite FTS5 is only an
   index, rebuilt in full at startup with fsnotify watching as a safety net
-- **Sync is an optional extra**: git sync (go-git + three-way merge) and the
-  MCP server both live inside the Go service, off by default, enabled in settings
+- **Git sync and MCP run in the local Go service.** Git sync is optional. Local
+  MCP access is enabled by default and can be turned off in the vault’s settings.
 - The Go service binds to loopback only; data defaults to
   `%USERPROFILE%\Documents\PinSlip\` (override with `PINSLIP_DATA_DIR`)
 
