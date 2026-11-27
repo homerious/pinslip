@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-11-27
+
 ### 兼容性
 
 - **桌面端升级至 Electron 45.4.1**。macOS 版需要 macOS 13 Ventura 或更新版本，继续提供 Intel 和 Apple Silicon 安装包。macOS 12 上的现有客户端会跳过这次自动更新。
@@ -11,7 +13,7 @@
 
 ### 安全
 
-- **收紧本地 API 访问**。移除通配 CORS，在处理请求前校验主机、来源和客户端凭证。桌面端继续通过本地 HTTP 读写便签，现有本机 MCP 客户端沿用原接入地址。浏览器剪藏扩展升级后需在 PinSlip 设置中配对一次，凭证只允许速记、剪藏和上传附件，并可随时撤销。 [#28](https://github.com/homerious/pinslip/issues/28)
+- **收紧本地 API 访问**。移除通配 CORS，在处理请求前校验主机、来源和客户端凭证。桌面端继续通过本地 HTTP 读写便签，现有本机 MCP 客户端沿用原接入地址。浏览器剪藏需配合 0.1.1 扩展，在 PinSlip 设置中配对一次。凭证只允许速记、剪藏和上传附件，并可随时撤销。 [#28](https://github.com/homerious/pinslip/issues/28)
 
 ### 新增
 
