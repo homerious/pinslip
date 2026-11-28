@@ -16,14 +16,17 @@ import { flushWindowState } from './windows/window-state';
 import { shouldShowManager } from './startup';
 import { IPC } from '../shared/ipc-channels';
 
-// Electron 默认在 Wayland 会话走原生后端。优先用 XWayland 保留窗口定位和快捷键。
+// Electron 45 在运行应用 JS 前已选择 Ozone 后端；自动选择也会写入 commandLine。
+// 只有原始 argv 能识别用户覆盖。Linux 运行时内置 Node 24 的 execve，保持 PID、
+// AppImage 挂载和原启动参数，在拿单实例锁及启动服务前用 X11 重新进入一次。
 if (
   process.platform === 'linux' &&
   (process.env.XDG_SESSION_TYPE === 'wayland' || process.env.WAYLAND_DISPLAY) &&
   process.env.DISPLAY &&
-  !app.commandLine.hasSwitch('ozone-platform')
+  app.commandLine.getSwitchValue('ozone-platform') === 'wayland' &&
+  !process.argv.slice(1).some(arg => arg === '--ozone-platform' || arg.startsWith('--ozone-platform='))
 ) {
-  app.commandLine.appendSwitch('ozone-platform', 'x11');
+  process.execve!(process.execPath, [process.execPath, '--ozone-platform=x11', ...process.argv.slice(1)], process.env);
 }
 
 // 只做装配：app 生命周期 + 各模块注册，业务逻辑分散到各模块

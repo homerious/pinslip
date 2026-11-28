@@ -4,6 +4,13 @@
 
 ## [Unreleased]
 
+### 修复
+
+- 修复 Linux Wayland 会话中 v1.2.0 使用原生后端导致窗口定位失效的问题。有 XWayland 时默认使用 X11，让管理器和便签能恢复位置、新便签能按设置跟随管理器。显式选择的后端继续生效。[#30](https://github.com/homerious/pinslip/issues/30) · [#31](https://github.com/homerious/pinslip/issues/31)
+
+- 从 Windows 资源管理器「复制为路径」后粘贴到便签，带下划线的文件名和文件夹名现在能连同外层双引号和反斜杠原样保留。[#26](https://github.com/homerious/pinslip/issues/26#issuecomment-7236342389)
+- 单引号包裹的 Windows 路径和带引号的 HTTP(S) 网址支持原样粘贴，网址外层引号保留在链接之外。选中连续多行地址后复制，剪贴板会逐行保留原文。
+
 ## [1.2.0] - 2026-11-27
 
 ### 兼容性

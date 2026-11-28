@@ -49,6 +49,13 @@ function paste(view: EditorView, text: string, { html = '', plain = false, image
   view.dom.dispatchEvent(new KeyboardEvent('keyup', { key: 'Shift', keyCode: 16, bubbles: true }));
 }
 
+function copyAllSelected(view: EditorView): string {
+  view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, 1, view.state.doc.content.size - 1)));
+  const data = new DataTransfer();
+  view.dom.dispatchEvent(new ClipboardEvent('copy', { clipboardData: data, bubbles: true, cancelable: true }));
+  return data.getData('text/plain');
+}
+
 async function runPasteTests() {
   const results: { name: string; error?: string }[] = [];
   async function test(name: string, run: () => Promise<void>) {
@@ -76,7 +83,7 @@ async function runPasteTests() {
       check(dom.querySelector(selector), `${selector} missing: ${dom.innerHTML}`);
     });
   }
-  const addresses = [
+  const addresses: [string, string, string?][] = [
     ['issue 26 Windows path', String.raw`D:\Temp\_Hermes_\PageIndex`],
     ['Windows path with spaces', String.raw`C:\Program Files\_工具_\a[b](c).txt`],
     ['UNC path', String.raw`\\server\_share_\Team Files\a[b].md`],
@@ -84,35 +91,70 @@ async function runPasteTests() {
     ['URL punctuation and entity', 'https://example.com/_Hermes_/a_(b)?q=*x*&copy;=two#_part_'],
     ['URL brackets and backslash', String.raw`https://example.com/a\_b?q=[value]&x=1`],
     ['HTTP URL', 'http://localhost:17639/_test_?a=1&b=2'],
+    ['Explorer plain filename', String.raw`"D:\Temp\Folder\Script.py"`],
+    ['Explorer underscored filename', String.raw`"D:\Temp\Folder\_Script_.py"`],
+    ['Explorer underscored folder and filename', String.raw`"D:\Temp\_Folder_\_Script_.py"`],
+    ['Explorer nested underscored folders', String.raw`"D:\Temp\_Folder_A_\_FOLDER_B_\Script\_Script_.py"`],
+    ['Explorer UNC with spaces', String.raw`"\\server\Team Files\_Folder_\_Script_.py"`],
+    ['drive root', 'C:\\'],
+    ['UNC share root', '\\\\server\\share\\'],
+    ['extended drive path', String.raw`\\?\D:\资料\_2026_\a&b[1].md`],
+    ['extended UNC path', String.raw`\\?\UNC\server\Team Files\_2026_`],
+    ['single-quoted Windows path', String.raw`'D:\Team Files\_2026_\_index_.md'`],
+    ['Unicode and percent escapes', 'HTTPS://例子.测试/资料/%2F?q=%20&x=%26#章节'],
+    ['IPv6 and port', 'http://[::1]:17639/api?q=(a)&x=1#_part_'],
+    ['signed URL', 'https://example.com/a%2Fb?v=a+b%2Bc%3D&x=1&x=2&empty=#top'],
+    ['unbalanced URL punctuation', 'https://example.com/a)b?q=[x]&v=1;'],
+    ['double-quoted URL', '"https://example.com/_x_?a=1&copy;=b"', 'https://example.com/_x_?a=1&copy;=b'],
+    ['single-quoted URL', "'https://example.com/a(b)?q=[x]'", 'https://example.com/a(b)?q=[x]'],
   ];
-  for (const [name, text] of addresses) {
+  for (const [name, text, quotedTarget] of addresses) {
     await test(`${name} paste/save/reopen/plain-copy`, async () => {
       const { view, dom, markdown } = await mount();
       paste(view, text);
       check(dom.textContent === text, `paste: ${dom.textContent}`);
       check(!dom.querySelector('em,strong,code'), dom.innerHTML);
-      if (/^https?:/.test(text)) {
-        check(dom.querySelector('a')?.getAttribute('href') === text, dom.innerHTML);
-      }
-      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, 1, view.state.doc.content.size - 1)));
-      const copied = new DataTransfer();
-      view.dom.dispatchEvent(new ClipboardEvent('copy', { clipboardData: copied, bubbles: true, cancelable: true }));
-      check(copied.getData('text/plain') === text, `Ctrl+C: ${copied.getData('text/plain')}`);
+      const href = quotedTarget ?? (/^https?:/i.test(text) ? text : undefined);
+      check(dom.querySelector('a')?.getAttribute('href') === href, dom.innerHTML);
+      check(copyAllSelected(view) === text, 'Ctrl+C changed the address');
       await wait(300);
       const saved = markdown();
       check(toPlainText(saved) === text, `plain copy: ${toPlainText(saved)}`);
       const reopened = await mount(saved);
       check(reopened.dom.textContent === text, `reopened: ${reopened.dom.innerHTML}`);
-      if (/^https?:/.test(text)) {
-        check(reopened.dom.querySelector('a')?.getAttribute('href') === text, reopened.dom.innerHTML);
-      }
+      check(reopened.dom.querySelector('a')?.getAttribute('href') === href, reopened.dom.innerHTML);
+      check(copyAllSelected(reopened.view) === text, 'Ctrl+C after reopen changed the address');
     });
   }
   await test('multiple literal addresses preserve lines', async () => {
-    const { view, dom } = await mount();
+    const { view, dom, markdown } = await mount();
     const lines = [addresses[0][1], addresses[2][1], addresses[4][1]];
     paste(view, lines.join('\r\n'));
     check(Array.from(dom.querySelectorAll('p')).map(p => p.textContent).join('\n') === lines.join('\n'), dom.innerHTML);
+    check(copyAllSelected(view) === lines.join('\n'), 'multiline Ctrl+C changed addresses');
+    await wait(300);
+    const reopened = await mount(markdown());
+    check(copyAllSelected(reopened.view) === lines.join('\n'), 'multiline Ctrl+C after reopen changed addresses');
+  });
+  await test('Explorer multi-select preserves each quoted path', async () => {
+    const { view, dom } = await mount();
+    const paths = [String.raw`"C:\Team Files\_notes_.md"`, String.raw`"\\server\share\_archive_"`];
+    paste(view, paths.join('\r\n'));
+    check(Array.from(dom.querySelectorAll('p'), p => p.textContent).join('\n') === paths.join('\n'), dom.innerHTML);
+  });
+  await test('quoted path within Markdown keeps surrounding formatting', async () => {
+    const { view, dom } = await mount();
+    paste(view, String.raw`"D:\Temp" **folder** "backup"`);
+    check(dom.querySelector('strong')?.textContent === 'folder', dom.innerHTML);
+  });
+  await test('Markdown following a drive path keeps emphasis', async () => {
+    const { view, dom } = await mount();
+    paste(view, String.raw`D:\Temp\script.py **backup**`);
+    check(dom.querySelector('strong')?.textContent === 'backup', dom.innerHTML);
+  });
+  await test('address-like link label keeps its distinct target when copied', async () => {
+    const { view } = await mount('[https://example.com](https://other.example/path)');
+    check(copyAllSelected(view).includes('](https://other.example/path)'), 'lost the link target');
   });
   await test('literal path selection replacement and undo', async () => {
     const { view, dom } = await mount('前文旧文后文');

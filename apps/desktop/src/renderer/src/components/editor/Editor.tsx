@@ -120,12 +120,18 @@ function singleTableCellText(doc: PMNodeLike): string | null {
 
 /** 独立地址不是 Markdown 源码：反斜杠、下划线和 URL 查询参数必须按字面插入。
  * 仅匹配整行；混合 Markdown、显式链接和代码继续交给原 parser。 */
-function literalAddressKind(line: string): 'path' | 'url' | null {
-  const value = line.trim();
-  if (/^[a-z]:[\\/]/i.test(value) || /^\\\\[^\\/\s]+[\\/]\S/.test(value)) return 'path';
+function literalAddress(line: string): { href: string | null } | null {
+  const trimmed = line.trim();
+  const quoted = /^(?:"([^"]+)"|'([^']+)')$/.exec(trimmed);
+  const value = quoted?.[1] ?? quoted?.[2] ?? trimmed;
+  if (/^[a-z]:[\\/]/i.test(value) || /^\\\\[^\\/\s]+[\\/]\S/.test(value)) {
+    // 长路径前缀允许问号；其余位置的通配符等不能属于实际 Windows 文件名。
+    const body = value.replace(/^\\\\\?\\/, '');
+    return /["<>|*?\x00-\x1f]/.test(body) ? null : { href: null };
+  }
   if (!/^https?:\/\/[^\s<>]+$/i.test(value)) return null;
   try {
-    return new URL(value).hostname ? 'url' : null;
+    return new URL(value).hostname ? { href: value } : null;
   } catch {
     return null;
   }
@@ -496,8 +502,8 @@ const MilkdownEditor = forwardRef<EditorHandle, EditorProps>(function MilkdownEd
           // 仅纯文本普通粘贴会走这里；HTML 富文本与代码块由 PM 原有流程处理。
           clipboardTextParser: (text, context, plain, view) => {
             const lines = text.split(/(?:\r\n?|\n)+/);
-            const nonEmptyLines = lines.filter((line) => line.trim());
-            const literalAddresses = nonEmptyLines.length > 0 && nonEmptyLines.every(literalAddressKind);
+            const addresses = lines.map(literalAddress);
+            const literalAddresses = addresses.some(Boolean) && lines.every((line, i) => !line.trim() || addresses[i]);
             if (!plain && !literalAddresses) {
               try {
                 return Slice.maxOpen(ctx.get(parserCtx)(text).content);
@@ -508,17 +514,22 @@ const MilkdownEditor = forwardRef<EditorHandle, EditorProps>(function MilkdownEd
             // 对齐 PM 默认文本粘贴：分行成段，保留当前位置的行内样式。
             const dom = document.createElement('div');
             const serializer = DOMSerializer.fromSchema(view.state.schema);
-            for (const line of lines) {
+            for (const [i, line] of lines.entries()) {
               const paragraph = dom.appendChild(document.createElement('p'));
               if (line) {
-                const node = serializer.serializeNode(view.state.schema.text(line, context.marks()));
-                if (!plain && literalAddresses && literalAddressKind(line) === 'url') {
+                const asText = (value: string) => serializer.serializeNode(view.state.schema.text(value, context.marks()));
+                const href = !plain && literalAddresses && addresses[i]?.href;
+                if (href) {
+                  const start = line.indexOf(href);
                   const link = document.createElement('a');
-                  link.setAttribute('href', line.trim());
-                  link.appendChild(node);
+                  link.setAttribute('href', href);
+                  link.appendChild(asText(href));
+                  if (start > 0) paragraph.appendChild(asText(line.slice(0, start)));
                   paragraph.appendChild(link);
+                  const suffix = line.slice(start + href.length);
+                  if (suffix) paragraph.appendChild(asText(suffix));
                 } else {
-                  paragraph.appendChild(node);
+                  paragraph.appendChild(asText(line));
                 }
               }
             }
@@ -540,9 +551,15 @@ const MilkdownEditor = forwardRef<EditorHandle, EditorProps>(function MilkdownEd
               const cellText = singleTableCellText(doc as unknown as PMNodeLike);
               if (cellText !== null) return cellText;
               // 单独复制地址是为了直接使用；Markdown 转义不能带进资源管理器或浏览器。
-              const block = doc.childCount === 1 ? doc.firstChild : null;
-              if (block?.type.name === 'paragraph' && literalAddressKind(block.textContent)) {
-                return block.textContent;
+              const blocks = doc.content.content;
+              const addressOnly = blocks.every(block => {
+                if (block.type.name !== 'paragraph') return false;
+                const address = literalAddress(block.textContent);
+                return address && block.content.content.every(node => node.isText && node.marks.every(mark =>
+                  mark.type.name !== 'link' || mark.attrs.href === address.href));
+              });
+              if (blocks.length && addressOnly) {
+                return blocks.map(block => block.textContent).join('\n');
               }
               return toCompactMarkdown(serializer(doc));
             } catch {
